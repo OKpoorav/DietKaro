@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Diet Options Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#17cf54",
+              "background-light": "#f6f8f6",
+              "background-dark": "#112116",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark">
+<div class="relative flex min-h-screen w-full">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark p-4">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Dr. Emily Carter" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuClMAlm2rDfkBJlvgRRhspUKlMyAjhHEzn7GjuLDvjfESo4qyQOVVs3Imf-vVBRypCY-mHWt_Xme_XzCbZT2pLKxr2OOGLK641TEbN_gQOQc1lg8x8aJ_Mvsc1bk6zMVZN0hgehO7iFTM_TG7WLUDmmWitI69LH8qTVZVNAJECfbC1G5BmJfbXxqO4O3QiVUO91QeYkDhq8I-hUX5ns9u7sZNib71UlZPjU61Bau5ZdLidtuEzmLZ-zeBfqiBucJZnEnqW7I006nNMz");'></div>
+<div class="flex flex-col">
+<h1 class="text-[#0e1b12] dark:text-white text-base font-medium leading-normal">Dr. Emily Carter</h1>
+<p class="text-[#4e9767] text-sm font-normal leading-normal">Dietician</p>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 text-[#0e1b12] dark:text-white" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 text-[#0e1b12] dark:text-white" href="#">
+<span class="material-symbols-outlined">group</span>
+<p class="text-sm font-medium leading-normal">Clients</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 text-[#0e1b12] dark:text-white" href="#">
+<span class="material-symbols-outlined">restaurant_menu</span>
+<p class="text-sm font-medium leading-normal">Meal Plans</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 text-[#0e1b12] dark:text-white" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+<p class="text-sm font-medium leading-normal">Diet Library</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 text-[#0e1b12] dark:text-white" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</a>
+</div>
+</div>
+<div class="mt-auto">
+<button class="flex w-full min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">New Client</span>
+</button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-8">
+<div class="w-full max-w-7xl mx-auto">
+<!-- PageHeading -->
+<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+<div class="flex flex-col gap-1">
+<p class="text-[#0e1b12] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Diet Options Library</p>
+<p class="text-[#4e9767] text-base font-normal leading-normal">Browse, search, and utilize pre-defined diet plans for your clients.</p>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">Add New Diet</span>
+</button>
+</div>
+<!-- Search and Filters -->
+<div class="flex flex-col sm:flex-row gap-4 mb-4">
+<!-- SearchBar -->
+<div class="flex-grow">
+<label class="flex flex-col min-w-40 h-12 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+<div class="text-[#4e9767] flex border-none bg-white dark:bg-slate-800 items-center justify-center pl-4 rounded-l-lg border-r-0">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0e1b12] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-none bg-white dark:bg-slate-800 h-full placeholder:text-[#4e9767] px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Search diets by name or keyword..." value=""/>
+</div>
+</label>
+</div>
+<!-- ToolBar -->
+<div class="flex justify-between items-center gap-2">
+<div class="flex gap-2 items-center bg-white dark:bg-slate-800 rounded-lg p-1">
+<button class="p-2 text-[#0e1b12] dark:text-white rounded-md bg-primary/20">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 text-[#0e1b12] dark:text-white rounded-md hover:bg-primary/20">
+<span class="material-symbols-outlined">view_list</span>
+</button>
+<button class="p-2 text-[#0e1b12] dark:text-white rounded-md hover:bg-primary/20">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Chips -->
+<div class="flex gap-3 mb-6 overflow-x-auto pb-2">
+<div class="flex h-8 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-primary/20 px-4">
+<p class="text-[#0e1b12] dark:text-white text-sm font-medium leading-normal">All</p>
+</div>
+<div class="flex h-8 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-white dark:bg-slate-800 px-4 hover:bg-primary/20">
+<p class="text-[#0e1b12] dark:text-white text-sm font-medium leading-normal">Goal-based</p>
+</div>
+<div class="flex h-8 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-white dark:bg-slate-800 px-4 hover:bg-primary/20">
+<p class="text-[#0e1b12] dark:text-white text-sm font-medium leading-normal">Condition-specific</p>
+</div>
+<div class="flex h-8 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-white dark:bg-slate-800 px-4 hover:bg-primary/20">
+<p class="text-[#0e1b12] dark:text-white text-sm font-medium leading-normal">Lifestyle</p>
+</div>
+<div class="flex h-8 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-white dark:bg-slate-800 px-4 hover:bg-primary/20">
+<p class="text-[#0e1b12] dark:text-white text-sm font-medium leading-normal">Popular</p>
+</div>
+</div>
+<!-- Diet Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Card 1: Mediterranean -->
+<div class="flex flex-col bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300">
+<img class="h-40 w-full object-cover" data-alt="A vibrant salad with fresh vegetables, olives, and feta cheese, representing the Mediterranean diet." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvwMLtaqynlIDsBSd0YKS54HvGJkwt_MaeCc0CE1A2fU_Miywe2ls_fJcYBv6rWQ53tPvgGJNBM8ojS42XUlTpS-Uplv-QfweHsQgXHoLEIymqviOagwfgxTEARacdYdZlZCGyyY93yGX0D3-4_rxQh7jmzIU3CEDV8wrsjPO-bbTN9rV-Dd2B4iUOuo6dIygQvU9zP7K8iGA1wataaJ85B4BjV6MQ1URh6txrugGkvqXVrFcQOvBVNeYLERwQ9WtDC1i3ZybQZXa_"/>
+<div class="p-5 flex flex-col flex-grow">
+<h3 class="text-xl font-bold text-[#0e1b12] dark:text-white mb-2">Mediterranean Diet</h3>
+<p class="text-sm text-slate-600 dark:text-slate-300 mb-4 flex-grow">A heart-healthy eating plan inspired by the traditional foods of Greece, Italy, and other countries that border the Mediterranean Sea.</p>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="text-xs font-semibold text-green-800 bg-green-100 rounded-full px-3 py-1">Heart-Healthy</span>
+<span class="text-xs font-semibold text-blue-800 bg-blue-100 rounded-full px-3 py-1">Plant-Based</span>
+<span class="text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full px-3 py-1">Rich in Omega-3s</span>
+</div>
+<div class="mt-auto flex flex-col sm:flex-row gap-2">
+<button class="flex-1 text-center text-sm font-bold py-2 px-4 rounded-lg bg-primary/20 hover:bg-primary/30 text-[#0e1b12] dark:text-white">View Details</button>
+<button class="flex-1 text-center text-sm font-bold py-2 px-4 rounded-lg bg-primary text-white hover:bg-primary/90">Apply Template</button>
+</div>
+</div>
+</div>
+<!-- Card 2: Keto -->
+<div class="flex flex-col bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300">
+<img class="h-40 w-full object-cover" data-alt="Grilled salmon with asparagus and lemon, a typical meal for a Ketogenic diet." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpSqmE6B0PS8KI4mdUhA9GJUNKwU7MvVAtfCJxive-aSjbztVTFCjXo9zuE0_Qw3slltVFBBlo3vCuo6xi24FnOccyw1u4L4eto2IS2tEHD-kdNwlGWnvJT9c0pu4N0a3kXZs95gXsNyAZO64ebJLIRrNtr5jsqpjCQbnaK2lc0hvhGJbjVwgrdN-A-LNJBX-nk_jvlaxyMUwbR40R9xHQWaQ69YUAkmNzO9RvLGxk9IuThKIBnXyFjezFi1kHM8XApqg6hHoDRja4"/>
+<div class="p-5 flex flex-col flex-grow">
+<h3 class="text-xl font-bold text-[#0e1b12] dark:text-white mb-2">Ketogenic Diet</h3>
+<p class="text-sm text-slate-600 dark:text-slate-300 mb-4 flex-grow">A very low-carb, high-fat diet that involves drastically reducing carbohydrate intake and replacing it with fat to put your body into ketosis.</p>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="text-xs font-semibold text-red-800 bg-red-100 rounded-full px-3 py-1">Low-Carb</span>
+<span class="text-xs font-semibold text-orange-800 bg-orange-100 rounded-full px-3 py-1">High-Fat</span>
+<span class="text-xs font-semibold text-purple-800 bg-purple-100 rounded-full px-3 py-1">Weight Loss</span>
+</div>
+<div class="mt-auto flex flex-col sm:flex-row gap-2">
+<button class="flex-1 text-center text-sm font-bold py-2 px-4 rounded-lg bg-primary/20 hover:bg-primary/30 text-[#0e1b12] dark:text-white">View Details</button>
+<button class="flex-1 text-center text-sm font-bold py-2 px-4 rounded-lg bg-primary text-white hover:bg-primary/90">Apply Template</button>
+</div>
+</div>
+</div>
+<!-- Card 3: Vegan -->
+<div class="flex flex-col bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300">
+<img class="h-40 w-full object-cover" data-alt="A colorful bowl of various vegetables, grains, and legumes, representing a Vegan diet." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6dzbqTSRAVzukFPsAAV5P0fXKMH3u8FO8ZY_uou_lzMHOVR0FFIc3M11TaJ33h7434IUDGdMwlhAH3T8aHLrKdTdPmXplnIy46qUSSQCGokLhSUUFtaUNV6rxDsjhB1emXUvsuWtllS0zOl45k9_gKnZmTK2OanGo965QEBVYXGPUyqxiy6P69BQiPXxaVyFNlX3etHvGISmuPzpoKbNKeJrziBmOaXa9sBndCvz6IBwAXjES7fbcYaBJ7NqGKR_O_Pv7AF4lLGec"/>
+<div class="p-5 flex flex-col flex-grow">
+<h3 class="text-xl font-bold text-[#0e1b12] dark:text-white mb-2">Vegan Diet</h3>
+<p class="text-sm text-slate-600 dark:text-slate-300 mb-4 flex-grow">Excludes all animal products, including meat, dairy, and eggs. It is based on plants (such as vegetables, grains, nuts and fruits).</p>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="text-xs font-semibold text-green-800 bg-green-100 rounded-full px-3 py-1">Plant-Based</span>
+<span class="text-xs font-semibold text-indigo-800 bg-indigo-100 rounded-full px-3 py-1">Dairy-Free</span>
+<span class="text-xs font-semibold text-pink-800 bg-pink-100 rounded-full px-3 py-1">Ethical</span>
+</div>
+<div class="mt-auto flex flex-col sm:flex-row gap-2">
+<button class="flex-1 text-center text-sm font-bold py-2 px-4 rounded-lg bg-primary/20 hover:bg-primary/30 text-[#0e1b12] dark:text-white">View Details</button>
+<button class="flex-1 text-center text-sm font-bold py-2 px-4 rounded-lg bg-primary text-white hover:bg-primary/90">Apply Template</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

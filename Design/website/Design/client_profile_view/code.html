@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Client Profile Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#17cf54",
+              "background-light": "#f6f8f6",
+              "background-dark": "#112116",
+              "surface-light": "#ffffff",
+              "surface-dark": "#1a2c20",
+              "text-primary-light": "#0e1b12",
+              "text-primary-dark": "#e8f3ec",
+              "text-secondary-light": "#4e9767",
+              "text-secondary-dark": "#a3d3b3",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {
+              "DEFAULT": "0.25rem",
+              "lg": "0.5rem",
+              "xl": "0.75rem",
+              "full": "9999px"
+            },
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-primary-light dark:text-text-primary-dark">
+<div class="relative flex min-h-screen w-full flex-col">
+<div class="flex h-full grow flex-row">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col justify-between border-r border-gray-200/50 dark:border-white/10 bg-surface-light dark:bg-surface-dark p-4">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Dr. Emily Carter" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBeuNG6PVKxJgMaU8p57o3Zf3xoBswZ9iiX-l7Y-1MJ4PoFjqP0647K7fs-mEW3NdVeDw48VyGfgL8d4knMqShcWyrkf1GBkHmeSj7ARnkJTmGtj3P61fJsgjL3QVEIz1_SO06yTWzKqPVRtYEjSY68ADIPe8JzQFJJXMJtvxIPzvJSaM1fRqkWYj9VH4A_GU5dT02o6FiQwuz3GC77mXhqyGSX6xtz0fcXaRMdLcnpkCfL9NvC_4XnyXb7s8IUApqSIqq_UUzDmgNO");'></div>
+<div class="flex flex-col">
+<h1 class="text-text-primary-light dark:text-text-primary-dark text-base font-medium leading-normal">Dr. Emily Carter</h1>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-normal leading-normal">Dietician</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-primary-light dark:text-text-primary-dark hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg bg-primary/20 px-3 py-2 text-text-primary-light dark:text-text-primary-dark" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group</span>
+<p class="text-sm font-medium leading-normal">Clients</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-primary-light dark:text-text-primary-dark hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined">chat_bubble</span>
+<p class="text-sm font-medium leading-normal">Messages</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-primary-light dark:text-text-primary-dark hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined">menu_book</span>
+<p class="text-sm font-medium leading-normal">Meal Plans</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-primary-light dark:text-text-primary-dark hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-text-primary-light dark:text-text-primary-dark hover:bg-primary/10" href="#">
+<span class="material-symbols-outlined">help</span>
+<p class="text-sm font-medium leading-normal">Help Center</p>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto">
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+<!-- ToolBar & ProfileHeader -->
+<header class="flex flex-col gap-6">
+<div class="flex flex-wrap items-center justify-between gap-4">
+<button class="flex items-center gap-2 p-2 text-text-secondary-light dark:text-text-secondary-dark hover:text-text-primary-light dark:hover:text-text-primary-dark">
+<span class="material-symbols-outlined">arrow_back</span>
+<span class="text-sm font-medium">Back to Clients</span>
+</button>
+<button class="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 h-10 text-sm font-bold leading-normal text-white hover:opacity-90">
+<span class="material-symbols-outlined" style="font-size: 20px; font-variation-settings: 'FILL' 1;">send</span>
+<span>Send Message</span>
+</button>
+</div>
+<div class="flex w-full flex-col gap-4 @container md:flex-row md:items-center md:justify-between">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-24 w-24 md:h-32 md:w-32" data-alt="Profile picture of Jessica Williams" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCjxoEAsPbVDDUJ8ik9VOO2la8Ji7KmbvWzMTY9siKHHBAhFQ3_ETlPgiD74BvHpYTbafsVCIHi-H1jaSkc5y1iGkoQU-1ssp1qUBSO3JYD8Ryqvo1QHBuXING_xj8THqMEB3S3o-ZTjK4O2cfNk_renQ1EQtmCxejE4CeH2I8INEojOtdzSQUIECfdvuDVVcjY18ELEDBfGGCGe1ArAZZ7K_HqWdjjK_FM9p_OqTCif5GJvsoorI8LQXNxy2wEWqq0xwgw7OfHD3k5");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-text-primary-light dark:text-text-primary-dark text-2xl md:text-[28px] font-bold leading-tight tracking-[-0.015em]">Jessica Williams</p>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-base font-normal leading-normal">Age: 32, Gender: Female</p>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-base font-normal leading-normal">Last login: 2 hours ago</p>
+</div>
+</div>
+</div>
+</header>
+<!-- Key Metrics: Charts & ProgressBar -->
+<section class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+<div class="flex flex-col gap-2 rounded-xl bg-surface-light dark:bg-surface-dark p-4 shadow-sm">
+<p class="text-text-primary-light dark:text-text-primary-dark text-base font-medium leading-normal">Weight Trend</p>
+<div class="flex items-baseline gap-2">
+<p class="text-text-primary-light dark:text-text-primary-dark tracking-light text-3xl font-bold leading-tight truncate">155.2 lbs</p>
+<div class="flex gap-1">
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-sm font-normal">Last 30 Days</p>
+<p class="text-red-600 dark:text-red-400 text-sm font-medium">-1.8 lbs</p>
+</div>
+</div>
+<div class="flex h-32 flex-1 flex-col justify-end">
+<svg fill="none" preserveaspectratio="none" viewbox="0 0 472 100" width="100%" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 72.6667C18.1538 72.6667 18.1538 14 36.3077 14C54.4615 14 54.4615 27.3333 72.6154 27.3333C90.7692 27.3333 90.7692 62 108.923 62C127.077 62 127.077 22 145.231 22C163.385 22 163.385 67.3333 181.538 67.3333C199.692 67.3333 199.692 40.6667 217.846 40.6667C236 40.6667 236 30 254.154 30C272.308 30 272.308 80.6667 290.462 80.6667C308.615 80.6667 308.615 99.3333 326.769 99.3333C344.923 99.3333 344.923 0.666667 363.077 0.666667C381.231 0.666667 381.231 54 399.385 54C417.538 54 417.538 86 435.692 86C453.846 86 453.846 16.6667 472 16.6667" stroke="#17cf54" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+</div>
+</div>
+<div class="flex flex-col gap-3 rounded-xl bg-surface-light dark:bg-surface-dark p-4 shadow-sm">
+<div class="flex items-center justify-between gap-6">
+<p class="text-text-primary-light dark:text-text-primary-dark text-base font-medium leading-normal">Adherence Score</p>
+<p class="text-primary text-2xl font-bold">85%</p>
+</div>
+<div class="h-2 rounded-full bg-primary/20"><div class="h-2 rounded-full bg-primary" style="width: 85%;"></div></div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-sm">Jessica has logged 18 of 21 meals this week.</p>
+<div class="mt-auto flex flex-col gap-2">
+<h3 class="font-medium text-base text-text-primary-light dark:text-text-primary-dark">Weekly Goal</h3>
+<p class="text-text-secondary-light dark:text-text-secondary-dark text-sm">Increase daily water intake to 8 glasses.</p>
+</div>
+</div>
+</section>
+<!-- Tab Navigation and Content -->
+<section class="mt-8">
+<div class="border-b border-gray-200/80 dark:border-white/10">
+<nav aria-label="Tabs" class="-mb-px flex space-x-6">
+<a class="whitespace-nowrap border-b-2 border-primary px-1 pb-3 text-sm font-semibold text-primary" href="#">Overview</a>
+<a class="whitespace-nowrap border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:border-gray-300 dark:hover:border-gray-500 hover:text-text-primary-light dark:hover:text-text-primary-dark" href="#">Diet Plan</a>
+<a class="whitespace-nowrap border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:border-gray-300 dark:hover:border-gray-500 hover:text-text-primary-light dark:hover:text-text-primary-dark" href="#">Meal Logs</a>
+<a class="whitespace-nowrap border-b-2 border-transparent px-1 pb-3 text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:border-gray-300 dark:hover:border-gray-500 hover:text-text-primary-light dark:hover:text-text-primary-dark" href="#">Progress</a>
+</nav>
+</div>
+<!-- Tab Content Panel -->
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+<div class="flex flex-col gap-4 rounded-xl bg-surface-light dark:bg-surface-dark p-4 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+<span class="material-symbols-outlined">restaurant</span>
+</div>
+<h3 class="text-base font-semibold text-text-primary-light dark:text-text-primary-dark">Next Meal</h3>
+</div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark">Lunch (12:30 PM)</p>
+<p class="text-lg font-medium text-text-primary-light dark:text-text-primary-dark">Grilled Chicken Salad</p>
+<p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">with mixed greens, cherry tomatoes, and a light vinaigrette.</p>
+</div>
+<div class="flex flex-col gap-4 rounded-xl bg-surface-light dark:bg-surface-dark p-4 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+<span class="material-symbols-outlined">flag</span>
+</div>
+<h3 class="text-base font-semibold text-text-primary-light dark:text-text-primary-dark">Current Diet Plan</h3>
+</div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark">Active since Oct 24, 2023</p>
+<p class="text-lg font-medium text-text-primary-light dark:text-text-primary-dark">Week 3 - High Protein</p>
+<p class="text-sm text-text-secondary-light dark:text-text-secondary-dark">Focused on muscle retention during caloric deficit.</p>
+</div>
+<div class="flex flex-col gap-4 rounded-xl bg-surface-light dark:bg-surface-dark p-4 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+<span class="material-symbols-outlined">rate_review</span>
+</div>
+<h3 class="text-base font-semibold text-text-primary-light dark:text-text-primary-dark">Latest Feedback</h3>
+</div>
+<p class="text-text-secondary-light dark:text-text-secondary-dark">From Yesterday's Dinner Log</p>
+<blockquote class="border-l-4 border-primary/30 pl-4">
+<p class="text-sm italic text-text-primary-light dark:text-text-primary-dark">"Felt a bit hungry after this meal. Maybe I can add more vegetables next time?"</p>
+</blockquote>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</div>
+</body></html>

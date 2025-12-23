@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Diet Plan Builder</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#17cf54",
+              "background-light": "#f6f8f6",
+              "background-dark": "#112116",
+              "success": "#7ED321",
+              "warning": "#F5A623",
+              "error": "#D0021B",
+              "text-light": "#0e1b12",
+              "text-dark": "#e1e3e2",
+              "surface-light": "#f8fcf9",
+              "surface-dark": "#1a2c20",
+              "border-light": "#d0e7d7",
+              "border-dark": "#2a3f30",
+              "muted-light": "#4e9767",
+              "muted-dark": "#8a9f90",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark">
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="w-64 flex-shrink-0 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark hidden lg:flex flex-col">
+<div class="flex h-full min-h-[700px] flex-col justify-between p-4">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3 p-2">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Dr. Evelyn Reed" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBsAuKZx2sD-s02Grb1ZKJgvOIP1JaGBO2hXtstwkcx7_8SwtA1j_g_9i96dLJFqR8Z1956tMD2dwkAhzaJ2gD_NHEyuP4U2IWpu29ivjf_R2es5cgaPPtmT9yKT_v7ZKEl6MyTbHWg-XOmH2uvgRES5X49T0NbLc9ToRtqs4SXrtrjtgVt-f4x-TFQJdfwpKUwanL2Jg4iUdnitC6jc1-jcx6RM3wexpUmBIbjYM0x8vka1nyW0K4Uh8SGw6UOavnMRakN_COX9w9Q");'></div>
+<div class="flex flex-col">
+<h1 class="text-text-light dark:text-text-dark text-base font-medium leading-normal">Dr. Evelyn Reed</h1>
+<p class="text-muted-light dark:text-muted-dark text-sm font-normal leading-normal">Dietician</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark">dashboard</span>
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark">group</span>
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Clients</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark !font-bold">description</span>
+<p class="text-text-light dark:text-text-dark text-sm font-bold leading-normal">Diet Plans</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark">book</span>
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Templates</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark">pie_chart</span>
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Analytics</p>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-4">
+<button class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-text-light text-sm font-bold leading-normal tracking-[0.015em] hover:opacity-90 transition-opacity">
+<span class="truncate">New Plan</span>
+</button>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark">settings</span>
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Settings</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-primary/20 transition-colors" href="#">
+<span class="material-symbols-outlined text-text-light dark:text-text-dark">help</span>
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal">Help</p>
+</a>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-4 sm:p-6 lg:p-8">
+<div class="max-w-7xl mx-auto">
+<!-- PageHeading -->
+<div class="flex flex-wrap justify-between gap-4 mb-6">
+<div class="flex min-w-72 flex-col gap-2">
+<p class="text-text-light dark:text-text-dark text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">Create New Diet Plan</p>
+<p class="text-muted-light dark:text-muted-dark text-base font-normal leading-normal">Follow the steps to build a personalized weekly diet plan for your client.</p>
+</div>
+</div>
+<!-- ProgressBar -->
+<div class="flex flex-col gap-2 mb-8">
+<div class="flex gap-6 justify-between"><p class="text-text-light dark:text-text-dark text-base font-medium leading-normal">Step 1 of 3: Plan Setup</p></div>
+<div class="rounded-full bg-border-light dark:bg-border-dark h-2"><div class="h-2 rounded-full bg-primary" style="width: 33%;"></div></div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2">
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark">
+<!-- SectionHeader -->
+<h2 class="text-text-light dark:text-text-dark text-xl font-bold leading-tight tracking-[-0.015em] pb-4 border-b border-border-light dark:border-border-dark">Plan Details</h2>
+<!-- Form: Step 1 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6">
+<div class="md:col-span-2">
+<label class="flex flex-col">
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal pb-2">Select Client</p>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted-light dark:text-muted-dark">search</span>
+<select class="form-select w-full rounded-lg text-text-light dark:text-text-dark bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark focus:ring-primary focus:border-primary h-12 pl-10 placeholder:text-muted-light dark:placeholder:text-muted-dark text-base font-normal leading-normal">
+<option selected="">Search for a client by name...</option>
+<option>James Rodriguez</option>
+<option>Maria Garcia</option>
+</select>
+</div>
+</label>
+</div>
+<div class="md:col-span-2">
+<label class="flex flex-col">
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal pb-2">Plan Name</p>
+<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark focus:ring-primary focus:border-primary h-12 placeholder:text-muted-light dark:placeholder:text-muted-dark text-base font-normal leading-normal" placeholder="e.g., High-Protein Weight Loss" type="text"/>
+</label>
+</div>
+<div>
+<label class="flex flex-col">
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal pb-2">Start Date</p>
+<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark focus:ring-primary focus:border-primary h-12 placeholder:text-muted-light dark:placeholder:text-muted-dark text-base font-normal leading-normal" type="date"/>
+</label>
+</div>
+<div>
+<label class="flex flex-col">
+<p class="text-text-light dark:text-text-dark text-sm font-medium leading-normal pb-2">End Date</p>
+<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark focus:ring-primary focus:border-primary h-12 placeholder:text-muted-light dark:placeholder:text-muted-dark text-base font-normal leading-normal" type="date"/>
+</label>
+</div>
+</div>
+<div class="flex justify-end mt-8">
+<button class="flex items-center justify-center gap-2 h-11 px-6 bg-primary text-text-light font-bold rounded-lg hover:opacity-90 transition-opacity">
+<span>Next Step</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Summary Sidebar -->
+<div class="lg:col-span-1 row-start-1 lg:row-start-auto">
+<div class="bg-surface-light dark:bg-surface-dark p-6 rounded-xl border border-border-light dark:border-border-dark sticky top-8">
+<h3 class="text-text-light dark:text-text-dark text-xl font-bold leading-tight tracking-[-0.015em] pb-4 border-b border-border-light dark:border-border-dark">Plan Summary</h3>
+<div class="flex flex-col gap-5 pt-6">
+<div class="text-center py-8 text-muted-light dark:text-muted-dark">
+<p>Summary will appear once meals are added in the next step.</p>
+</div>
+<!-- Example of populated summary, hidden for now -->
+<div class="hidden flex-col gap-5">
+<div>
+<div class="flex justify-between items-baseline mb-1">
+<p class="text-text-light dark:text-text-dark font-medium">Avg. Daily Calories</p>
+<p class="text-muted-light dark:text-muted-dark text-sm"><span class="text-success font-bold">1850</span> / 2000 kcal</p>
+</div>
+<div class="h-2 rounded-full bg-border-light dark:bg-border-dark"><div class="h-2 rounded-full bg-success" style="width: 92.5%;"></div></div>
+</div>
+<div>
+<div class="flex justify-between items-baseline mb-1">
+<p class="text-text-light dark:text-text-dark font-medium">Protein</p>
+<p class="text-muted-light dark:text-muted-dark text-sm"><span class="text-warning font-bold">140g</span> / 150g</p>
+</div>
+<div class="h-2 rounded-full bg-border-light dark:bg-border-dark"><div class="h-2 rounded-full bg-warning" style="width: 93%;"></div></div>
+</div>
+<div>
+<div class="flex justify-between items-baseline mb-1">
+<p class="text-text-light dark:text-text-dark font-medium">Carbohydrates</p>
+<p class="text-muted-light dark:text-muted-dark text-sm"><span class="text-success font-bold">205g</span> / 220g</p>
+</div>
+<div class="h-2 rounded-full bg-border-light dark:bg-border-dark"><div class="h-2 rounded-full bg-success" style="width: 93%;"></div></div>
+</div>
+<div>
+<div class="flex justify-between items-baseline mb-1">
+<p class="text-text-light dark:text-text-dark font-medium">Fat</p>
+<p class="text-muted-light dark:text-muted-dark text-sm"><span class="text-error font-bold">75g</span> / 60g</p>
+</div>
+<div class="h-2 rounded-full bg-border-light dark:bg-border-dark"><div class="h-2 rounded-full bg-error" style="width: 100%;"></div></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3 mt-8 pt-6 border-t border-border-light dark:border-border-dark">
+<button class="w-full h-11 px-6 bg-primary text-text-light font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed" disabled="">
+                                    Publish Plan
+                                </button>
+<button class="w-full h-11 px-6 bg-primary/20 text-text-light dark:text-text-dark font-bold rounded-lg hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled="">
+                                    Save as Template
+                                </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Meal Photo Review Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#17cf54",
+              "background-light": "#f6f8f6",
+              "background-dark": "#112116",
+            },
+            fontFamily: {
+              "display": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex min-h-screen w-full">
+<!-- Side Navigation Bar -->
+<aside class="flex h-screen w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1C2C21] p-4 flex-shrink-0">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Dr. Emily Carter" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD0BKf2DiCvuew6HJWeI-8vqPhXF3AaVuYv5mpo7BXXwTP69BXWa7Iq1PzzKKmxwWWBzde8jIAHwm42yv_xTIup7AoZzKb3v8sRx8giqBz61t5NlMpC4aKggcxGfZ9FkrjXXI6RUf1TCBH6ysK0FAjdegojotBcEBUfUFw0qZYwDEiCaD9bqpQX_FkbWZH4cXMs6DfxQDC61DsbRwj65GInAqV8gb8tO_RoW58_BSfIPdVxDDXzIJGFVuWC32CIHAB5DXoAoIsCXNkD");'></div>
+<div class="flex flex-col">
+<h1 class="text-[#0e1b12] dark:text-gray-100 text-base font-medium leading-normal">Dr. Emily Carter</h1>
+<p class="text-[#4e9767] dark:text-primary/80 text-sm font-normal leading-normal">Dietician</p>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 text-[#0e1b12] dark:text-gray-300 hover:bg-primary/10 rounded-lg" href="#">
+<span class="material-symbols-outlined text-2xl">dashboard</span>
+<p class="text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#0e1b12] dark:text-gray-300 hover:bg-primary/10 rounded-lg" href="#">
+<span class="material-symbols-outlined text-2xl">group</span>
+<p class="text-sm font-medium leading-normal">Clients</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 dark:bg-primary/30 text-[#0e1b12] dark:text-white" href="#">
+<span class="material-symbols-outlined text-2xl">photo_camera</span>
+<p class="text-sm font-medium leading-normal">Meal Review</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#0e1b12] dark:text-gray-300 hover:bg-primary/10 rounded-lg" href="#">
+<span class="material-symbols-outlined text-2xl">mail</span>
+<p class="text-sm font-medium leading-normal">Messages</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#0e1b12] dark:text-gray-300 hover:bg-primary/10 rounded-lg" href="#">
+<span class="material-symbols-outlined text-2xl">bar_chart</span>
+<p class="text-sm font-medium leading-normal">Reports</p>
+</a>
+</div>
+</div>
+<div class="mt-auto flex flex-col gap-4">
+<button class="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">New Client</span>
+</button>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 text-[#0e1b12] dark:text-gray-300 hover:bg-primary/10 rounded-lg" href="#">
+<span class="material-symbols-outlined text-2xl">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-[#0e1b12] dark:text-gray-300 hover:bg-primary/10 rounded-lg" href="#">
+<span class="material-symbols-outlined text-2xl">help</span>
+<p class="text-sm font-medium leading-normal">Help</p>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 grid grid-cols-1 xl:grid-cols-2 h-screen overflow-hidden">
+<!-- Left Column: Meal Queue -->
+<div class="flex flex-col bg-white dark:bg-[#1C2C21] border-r border-gray-200 dark:border-gray-800 h-screen overflow-y-auto">
+<!-- Header -->
+<div class="p-6 border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-white dark:bg-[#1C2C21] z-10">
+<div class="flex flex-wrap justify-between gap-3">
+<p class="text-[#0e1b12] dark:text-white text-3xl font-black leading-tight tracking-[-0.033em]">Meal Photo Review</p>
+</div>
+</div>
+<!-- Filters -->
+<div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+<div class="flex h-10 w-full items-center justify-center rounded-lg bg-primary/10 dark:bg-primary/20 p-1">
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-md px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm has-[:checked]:text-[#0e1b12] dark:has-[:checked]:text-white text-[#4e9767] dark:text-primary/80 text-sm font-medium leading-normal">
+<span class="truncate">All</span>
+<input class="invisible w-0" name="meal-filter" type="radio" value="All"/>
+</label>
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-md px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm has-[:checked]:text-[#0e1b12] dark:has-[:checked]:text-white text-[#4e9767] dark:text-primary/80 text-sm font-medium leading-normal">
+<span class="truncate">Unreviewed</span>
+<input checked="" class="invisible w-0" name="meal-filter" type="radio" value="Unreviewed"/>
+</label>
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-md px-2 has-[:checked]:bg-white dark:has-[:checked]:bg-background-dark has-[:checked]:shadow-sm has-[:checked]:text-[#0e1b12] dark:has-[:checked]:text-white text-[#4e9767] dark:text-primary/80 text-sm font-medium leading-normal">
+<span class="truncate">Recent</span>
+<input class="invisible w-0" name="meal-filter" type="radio" value="Recent"/>
+</label>
+</div>
+</div>
+<!-- Meal List -->
+<div class="flex flex-col divide-y divide-gray-200 dark:divide-gray-800">
+<div class="flex items-center gap-4 bg-primary/10 dark:bg-primary/20 px-6 min-h-[72px] py-3 justify-between cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14 flex-shrink-0" data-alt="Profile picture of Jane Doe" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBrsn_NnWgsnxHTkkPVqQwNvgx4mhmrLTQVNYrGkfSEyZc8IgX2glCc8-CXaa9YEjsXmG4gCczwrguyFkBRHVhn37MzKAZte8bfbFnbiFlrn22aJq0nYuRAWY1EeUcGy9EMWVM0_hm6-fyrR8ysqE3OXKYJKos8YEmhWvDjjKj25ZH4Xm7W8IMRtM-4Z4_uErN9zrQCDeumubUCNdo0SoO47UXwWgmMTG3fDArMG56fzxahjAUIiJU6Yw6J-nKIkUNaMFvN8uLYDWLR");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-[#0e1b12] dark:text-white text-base font-medium leading-normal line-clamp-1">Jane Doe</p>
+<p class="text-[#4e9767] dark:text-primary/80 text-sm font-normal leading-normal line-clamp-2">Breakfast - Oct 26, 9:00 AM</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="flex size-7 items-center justify-center"><div class="size-3 rounded-full bg-yellow-500 animate-pulse"></div></div>
+</div>
+</div>
+<div class="flex items-center gap-4 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800/50 px-6 min-h-[72px] py-3 justify-between cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14 flex-shrink-0" data-alt="Profile picture of John Smith" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAo9fKgH9Z_NmfI5xplTs2weKlqSQ25oaLL7HDW8xXeOfymMmMXc6lO5gVO4io_uZ8kwVrjDEx_gOnMF6Ji2q63cBmvrr-A7OUSFfjhjq16sBe0Tetvm_UxEpDplk0CTYUrGsezZ6XYaIQAgawu04KFm_fAD4zDp5G1FnMYb_36eZHP6lXG4CUaAduuybi48yIt93EBTHfnkG3bbH8UcBvR16ooQkaUAeBsuOnFG--9Okf-3yJ1ftXuKld-ktsxRR7n2hPcAA-8wkbk");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-[#0e1b12] dark:text-white text-base font-medium leading-normal line-clamp-1">John Smith</p>
+<p class="text-[#4e9767] dark:text-primary/80 text-sm font-normal leading-normal line-clamp-2">Lunch - Oct 26, 1:15 PM</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="flex size-7 items-center justify-center"><div class="size-3 rounded-full bg-yellow-500"></div></div>
+</div>
+</div>
+<div class="flex items-center gap-4 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800/50 px-6 min-h-[72px] py-3 justify-between cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14 flex-shrink-0" data-alt="Profile picture of Sarah Johnson" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDjCNZE9oFQRF1A5125fb45KfRREjHyMuyC5FFKfAqPgbpltA5_vXCX32Mm9FjzX5qUkxKwuCKO9pK_9cTWZrV2RR6MZB9ZgHrtL29qJ9YXb3siW0IQhOcK410Pth0ijAClKQdohAjXun45kTqPGsc4nAa5bCbbVHUcFJMnpv1eLNRj73Z34ndtDYzvDvq2RiUrtlW-nBu1fZTcvK5zQBKiYbdXWznN9dGlYuZmo5pOKbtdBLB23VNlofKS5DHNd8TqmrLDI0GdLfkW");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-[#0e1b12] dark:text-white text-base font-medium leading-normal line-clamp-1">Sarah Johnson</p>
+<p class="text-[#4e9767] dark:text-primary/80 text-sm font-normal leading-normal line-clamp-2">Dinner - Oct 25, 7:30 PM</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="flex size-7 items-center justify-center"><div class="size-3 rounded-full bg-yellow-500"></div></div>
+</div>
+</div>
+<div class="flex items-center gap-4 bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800/50 px-6 min-h-[72px] py-3 justify-between cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14 flex-shrink-0" data-alt="Profile picture of Michael Brown" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBAXMbk4TW4T1z5b7fBr7eJwTt-_zs2LFptokHpQRHduZ4EXBgpdcUXTik_vCB4YxUoLz-Iao8q-SgJVbR2L0e3hw5L8hiZtvtybFq8GBd_SNpH5aN_frx6Hjy4SezEF1EspxPiGAcM1aQHx1vZQhYch3nz9s7Ja3AtTEdftWNjSqrmBAdi7-7P2Pue6hza5jgAjn3OHpJLv7_XxsNhp91YnwoHf3ShjZ-OJTUFX_eYEu2scMuGQNtovXIAylYqgCR164n-v7cOZTgH");'></div>
+<div class="flex flex-col justify-center">
+<p class="text-[#0e1b12] dark:text-white text-base font-medium leading-normal line-clamp-1">Michael Brown</p>
+<p class="text-[#4e9767] dark:text-primary/80 text-sm font-normal leading-normal line-clamp-2">Breakfast - Oct 25, 8:45 AM</p>
+</div>
+</div>
+<div class="shrink-0">
+<div class="flex size-7 items-center justify-center"><div class="size-3 rounded-full bg-green-600"></div></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Review Panel -->
+<div class="flex flex-col p-8 h-screen overflow-y-auto bg-background-light dark:bg-background-dark">
+<div class="flex flex-col gap-6">
+<!-- Image -->
+<div class="w-full aspect-4/3 bg-gray-200 dark:bg-gray-800 rounded-xl bg-cover bg-center" data-alt="A healthy breakfast of avocado toast with a poached egg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDpO5N3sfiBC2qP8m-MkHR8o7dhm1o8jZkh455PdnvcPAf4Gp-FRxiqnjKYdc-YzThjYg916ECqcSqAqMOt8rRcCpdyBzyeYBf-tM7J9PhKTHH41v09141gLmgjXcRHdEgDkMoVLGeVbSD56VvUcynflVqK9TY-oOjXYrNcnQCQw_TxHCbH0wXBEfDn7o-XfOHzyvhwA0eWvgcIsA0VLeFKRH5Pjc3d-lFcqSSgc1P-tCfqO9EwzyQE6OJsFj1HQjzuMkFV4lNQz4mw");'></div>
+<!-- Client Info -->
+<div>
+<p class="text-sm text-gray-500 dark:text-gray-400">Reviewing Jane Doe's Breakfast</p>
+<h2 class="text-2xl font-bold text-gray-800 dark:text-white mt-1">Avocado Toast with Egg</h2>
+</div>
+<!-- Action Radio Group -->
+<div class="space-y-2">
+<p class="text-sm font-medium text-gray-700 dark:text-gray-300">Mark as:</p>
+<div class="grid grid-cols-3 gap-3">
+<label class="flex cursor-pointer items-center justify-center rounded-lg p-3 text-center border has-[:checked]:bg-primary/20 dark:has-[:checked]:bg-primary/30 has-[:checked]:border-primary dark:border-gray-700 dark:text-white">
+<input class="sr-only" name="meal_status" type="radio" value="eaten"/>
+<span class="text-sm font-medium">Eaten</span>
+</label>
+<label class="flex cursor-pointer items-center justify-center rounded-lg p-3 text-center border has-[:checked]:bg-primary/20 dark:has-[:checked]:bg-primary/30 has-[:checked]:border-primary dark:border-gray-700 dark:text-white">
+<input class="sr-only" name="meal_status" type="radio" value="skipped"/>
+<span class="text-sm font-medium">Skipped</span>
+</label>
+<label class="flex cursor-pointer items-center justify-center rounded-lg p-3 text-center border has-[:checked]:bg-primary/20 dark:has-[:checked]:bg-primary/30 has-[:checked]:border-primary dark:border-gray-700 dark:text-white">
+<input class="sr-only" name="meal_status" type="radio" value="substituted"/>
+<span class="text-sm font-medium">Substituted</span>
+</label>
+</div>
+</div>
+<!-- Feedback Text Area -->
+<div class="space-y-2">
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="feedback">Feedback</label>
+<textarea class="w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#1C2C21] text-gray-800 dark:text-white focus:ring-primary focus:border-primary placeholder-gray-400 dark:placeholder-gray-500" id="feedback" placeholder="Provide feedback or suggestions..." rows="5"></textarea>
+</div>
+<!-- Action Button -->
+<button class="flex w-full min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-12 px-4 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-green-600">
+<span>Mark as Reviewed &amp; Next</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

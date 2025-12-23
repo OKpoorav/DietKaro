@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NutriDash - Intelligent Nutrition Management</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#17cf54",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#112116",
+                        "text-main": "#0e1b12",
+                        "text-secondary": "#4e9767",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-main dark:text-white font-display overflow-x-hidden antialiased">
+<!-- Navigation -->
+<nav class="sticky top-0 z-50 w-full border-b border-[#e7f3eb] dark:border-white/10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-10 py-3">
+<div class="flex items-center justify-between whitespace-nowrap">
+<div class="flex items-center gap-3 text-text-main dark:text-white">
+<div class="flex items-center justify-center size-8 rounded-lg bg-primary/20 text-primary">
+<span class="material-symbols-outlined text-[24px]">nutrition</span>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">NutriDash</h2>
+</div>
+<div class="hidden md:flex flex-1 justify-end gap-8 items-center">
+<div class="flex items-center gap-9">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Features</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Pricing</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">About</a>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-sm font-bold transition-colors">
+<span>Login</span>
+</button>
+<button class="flex items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-primary hover:bg-primary/90 text-text-main text-sm font-bold transition-colors shadow-sm shadow-primary/20">
+<span>Get Started</span>
+</button>
+</div>
+</div>
+<!-- Mobile Menu Icon -->
+<div class="md:hidden flex items-center">
+<button class="p-2 text-text-main dark:text-white">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<div class="relative w-full">
+<!-- Background decorative elements -->
+<div class="absolute top-0 right-0 -z-10 w-1/2 h-full bg-gradient-to-l from-primary/5 to-transparent"></div>
+<div class="layout-container flex flex-col justify-center">
+<div class="px-4 md:px-10 lg:px-40 flex flex-1 justify-center py-10 lg:py-20">
+<div class="layout-content-container flex flex-col max-w-[1280px] flex-1">
+<div class="@container">
+<div class="flex flex-col gap-10 lg:gap-16 lg:flex-row items-center">
+<!-- Hero Content -->
+<div class="flex flex-col gap-6 flex-1 text-center lg:text-left">
+<div class="flex flex-col gap-4">
+<div class="inline-flex items-center gap-2 self-center lg:self-start px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold text-primary uppercase tracking-wide">
+<span class="size-2 rounded-full bg-primary animate-pulse"></span>
+                                        New: AI Meal Planning
+                                    </div>
+<h1 class="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight tracking-[-0.033em] text-text-main dark:text-white">
+                                        Empower Your Practice with <span class="text-primary">Intelligent</span> Nutrition.
+                                    </h1>
+<h2 class="text-text-main/70 dark:text-white/70 text-lg font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                                        Streamline client tracking, automate meal plans, and visualize patient progress in one secure dashboard tailored for modern dieticians.
+                                    </h2>
+</div>
+<div class="flex flex-wrap gap-3 justify-center lg:justify-start">
+<button class="flex min-w-[140px] items-center justify-center rounded-lg h-12 px-6 bg-primary hover:bg-primary/90 text-text-main text-base font-bold transition-all shadow-lg shadow-primary/25">
+                                        Start Free Trial
+                                    </button>
+<button class="flex min-w-[140px] items-center justify-center rounded-lg h-12 px-6 bg-white dark:bg-white/10 border border-[#e7f3eb] dark:border-white/10 hover:bg-[#f0fdf4] dark:hover:bg-white/20 text-text-main dark:text-white text-base font-bold transition-all">
+                                        Book a Demo
+                                    </button>
+</div>
+<div class="flex items-center justify-center lg:justify-start gap-4 pt-2">
+<div class="flex -space-x-2">
+<div class="size-8 rounded-full bg-gray-200 border-2 border-white dark:border-[#112116] bg-cover" data-alt="Portrait of a female user" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDghaDbjhAACb4EFl89i7zRxRK_Xudncr1reOFU4g6FLr0np0HclB3D2nyT8R3-fqeXI6JShZkNtx7shPUfXvEL7TyZSZKJp17qhLWwLgBholLEsyg9uySAcUUuRoIlhUv6dvH3-N0xCcEa2cVzgt1tsFi1vPGkVBPwpnW1C-txADm_OglB9TWMfXtQkPKwu0Y7c32o0KVlcVeFDr4MZMMaTJ6n1f3GgiOZt9V2aISqH47Pm5zI5TWlgTf9QemEn0PTgHGFKzgpvomQ');"></div>
+<div class="size-8 rounded-full bg-gray-200 border-2 border-white dark:border-[#112116] bg-cover" data-alt="Portrait of a male user" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAmtu7nsCZYduF9h10m3RlVcX4taNbLEQdsfffBXXEbw9uYy6N7NkMhxnJwHOzwY-1ow9lCSLjv3zFff5hYFNXlfgiPO2ZxF7fWVg66dlOeemCdBMlggIqApYY_w5X37fXtlIpKJaSychF6KtvqI3asmNRSXtoMm-lNUVH-KkhPBl4z2sUvGD7n2FH5MXZlAspJimCCmdxV2UspZNRp4JxaeFjFk_pK0in1oGGORrd8Ar2gWVAYbDf7Cbr2wfZneKOdpJvzy8onL-Rt');"></div>
+<div class="size-8 rounded-full bg-gray-200 border-2 border-white dark:border-[#112116] bg-cover" data-alt="Portrait of a male user" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDqv4YdpwwhTTTQ61jVQRfzlKVMxLLsqeYOYbCONfc7BQu3SdtkA53EhJmI2f9cSOtUp3ohEEAJ2szccWN56lTcwY6Xf5eA1zYu6bcDEqLHxvaALVH_1gC1pO08Cl7UIrf-pWlSGgOcetsLDB58IvgpzPTgynl2RBK7IJNLO2C5wFUBWLdYqyiOmFhHFEu0qMWmansPpBvxdSlFfjwQZ-wK4PD2BPKATY4yTNRcbJO1ZTB1PvjwcNJGe8NoDD7Q9CT1wL16lveGeDu7');"></div>
+<div class="flex items-center justify-center size-8 rounded-full bg-primary text-text-main text-[10px] font-bold border-2 border-white dark:border-[#112116]">+2k</div>
+</div>
+<p class="text-sm font-medium text-text-main/60 dark:text-white/60">Professionals trust us</p>
+</div>
+</div>
+<!-- Hero Image -->
+<div class="w-full lg:w-1/2 flex justify-center lg:justify-end relative">
+<div class="absolute -inset-4 bg-primary/20 blur-3xl rounded-full opacity-30"></div>
+<div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#1a2e20]">
+<!-- Abstract UI representation -->
+<div class="w-full h-full bg-cover bg-center bg-no-repeat" data-alt="Dashboard interface displaying charts and health metrics on a laptop screen" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBih9ymp3pJ4iQWQgZ4sgBoYEVcsmjOrXJxGVB_skTJbzoNdCtlgvnbIjTbGppGfLTnr_YxQyJtwWVZkVyIFNmICeQyYXJxDE1UCNVBzMG34C8n-4wm92zW3_lC45VOKShAKWb1BUvYbtaA2ZubFvfiM_zFpCSMXmDGF_jxO4y-jsNTCn5sxuuJbZmkx0wevS5Tzr85-CBmilXthV-F629fzCWsdeSki_wbabjgmIMMjxNFEFPgIzdK7Gr7Nd940TjIiw2sUbGrPZNn');"></div>
+<!-- Floating Element 1 -->
+<div class="absolute bottom-6 left-6 p-4 bg-white dark:bg-[#1e3324] rounded-lg shadow-lg border border-primary/10 flex items-center gap-3 animate-bounce" style="animation-duration: 3s;">
+<div class="size-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<div>
+<p class="text-xs text-text-main/50 dark:text-white/50 font-medium">Daily Goal</p>
+<p class="text-sm font-bold text-text-main dark:text-white">Meal Plan Added</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Section Header: Features -->
+<div class="w-full bg-white dark:bg-[#16291d] py-16">
+<div class="layout-container flex flex-col items-center">
+<div class="px-4 md:px-10 max-w-[960px] text-center mb-12">
+<span class="text-primary font-bold tracking-wider text-sm uppercase mb-2 block">Core Features</span>
+<h2 class="text-3xl md:text-4xl font-bold leading-tight tracking-[-0.015em] text-text-main dark:text-white">
+                    Everything you need to run a modern clinic
+                </h2>
+<p class="mt-4 text-text-main/60 dark:text-white/60 max-w-2xl mx-auto">
+                    Focus on your patients while we handle the administration, planning, and tracking.
+                </p>
+</div>
+<!-- Features Grid -->
+<div class="px-4 md:px-10 max-w-[1280px] w-full">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Feature 1 -->
+<div class="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] dark:border-white/10 bg-background-light dark:bg-background-dark p-6 transition-all hover:shadow-lg hover:border-primary/50">
+<div class="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-text-main transition-colors">
+<span class="material-symbols-outlined text-[28px]">restaurant_menu</span>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-xl font-bold text-text-main dark:text-white">Smart Meal Planning</h3>
+<p class="text-text-secondary dark:text-white/60 text-sm leading-relaxed">
+                                AI-assisted drag-and-drop diet creation. Create balanced plans in seconds, not hours.
+                            </p>
+</div>
+</div>
+<!-- Feature 2 -->
+<div class="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] dark:border-white/10 bg-background-light dark:bg-background-dark p-6 transition-all hover:shadow-lg hover:border-primary/50">
+<div class="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-text-main transition-colors">
+<span class="material-symbols-outlined text-[28px]">chat_bubble_outline</span>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-xl font-bold text-text-main dark:text-white">Patient Portal</h3>
+<p class="text-text-secondary dark:text-white/60 text-sm leading-relaxed">
+                                Secure direct messaging, document sharing, and progress tracking for your clients.
+                            </p>
+</div>
+</div>
+<!-- Feature 3 -->
+<div class="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] dark:border-white/10 bg-background-light dark:bg-background-dark p-6 transition-all hover:shadow-lg hover:border-primary/50">
+<div class="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-text-main transition-colors">
+<span class="material-symbols-outlined text-[28px]">monitoring</span>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-xl font-bold text-text-main dark:text-white">Data Analytics</h3>
+<p class="text-text-secondary dark:text-white/60 text-sm leading-relaxed">
+                                Visualize health trends, weight changes, and adherence rates instantly with beautiful charts.
+                            </p>
+</div>
+</div>
+<!-- Feature 4 -->
+<div class="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] dark:border-white/10 bg-background-light dark:bg-background-dark p-6 transition-all hover:shadow-lg hover:border-primary/50">
+<div class="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-text-main transition-colors">
+<span class="material-symbols-outlined text-[28px]">event_available</span>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-xl font-bold text-text-main dark:text-white">Scheduling &amp; Booking</h3>
+<p class="text-text-secondary dark:text-white/60 text-sm leading-relaxed">
+                                Integrated calendar that syncs with Google and Outlook. Reduce no-shows with automated reminders.
+                            </p>
+</div>
+</div>
+<!-- Feature 5 -->
+<div class="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] dark:border-white/10 bg-background-light dark:bg-background-dark p-6 transition-all hover:shadow-lg hover:border-primary/50">
+<div class="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-text-main transition-colors">
+<span class="material-symbols-outlined text-[28px]">verified_user</span>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-xl font-bold text-text-main dark:text-white">HIPAA Compliant</h3>
+<p class="text-text-secondary dark:text-white/60 text-sm leading-relaxed">
+                                Enterprise-grade security keeps your patient data safe and compliant with global regulations.
+                            </p>
+</div>
+</div>
+<!-- Feature 6 -->
+<div class="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] dark:border-white/10 bg-background-light dark:bg-background-dark p-6 transition-all hover:shadow-lg hover:border-primary/50">
+<div class="size-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-text-main transition-colors">
+<span class="material-symbols-outlined text-[28px]">smartphone</span>
+</div>
+<div class="flex flex-col gap-2">
+<h3 class="text-xl font-bold text-text-main dark:text-white">Mobile Companion App</h3>
+<p class="text-text-secondary dark:text-white/60 text-sm leading-relaxed">
+                                Give patients a dedicated app to log meals, view plans, and stay connected on the go.
+                            </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Stats Section -->
+<div class="w-full bg-primary/5 border-y border-primary/10 py-12">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-10">
+<div class="flex flex-wrap justify-around items-center gap-8 text-center">
+<div class="flex flex-col gap-1">
+<span class="text-4xl font-black text-text-main dark:text-white tracking-tight">10k+</span>
+<span class="text-sm font-medium text-text-secondary uppercase tracking-wider">Professionals</span>
+</div>
+<div class="w-px h-12 bg-primary/20 hidden md:block"></div>
+<div class="flex flex-col gap-1">
+<span class="text-4xl font-black text-text-main dark:text-white tracking-tight">2M+</span>
+<span class="text-sm font-medium text-text-secondary uppercase tracking-wider">Meal Plans Created</span>
+</div>
+<div class="w-px h-12 bg-primary/20 hidden md:block"></div>
+<div class="flex flex-col gap-1">
+<span class="text-4xl font-black text-text-main dark:text-white tracking-tight">98%</span>
+<span class="text-sm font-medium text-text-secondary uppercase tracking-wider">Customer Satisfaction</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Testimonials Section -->
+<div class="w-full py-20 bg-background-light dark:bg-background-dark">
+<div class="layout-container flex flex-col items-center">
+<div class="px-4 md:px-10 max-w-[960px] text-center mb-16">
+<h2 class="text-3xl font-bold leading-tight tracking-[-0.015em] text-text-main dark:text-white">
+                    Trusted by Top Nutritionists
+                </h2>
+</div>
+<div class="px-4 md:px-10 max-w-[1280px] w-full">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="flex flex-col justify-between p-8 bg-white dark:bg-[#16291d] rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-white/5">
+<div class="mb-6 text-primary">
+<span class="material-symbols-outlined text-4xl">format_quote</span>
+</div>
+<p class="text-lg text-text-main dark:text-white/90 font-medium leading-relaxed mb-8">
+                            "NutriDash cut my administrative time in half. The meal planning tool is intuitive and my clients love the mobile app. It's a game changer."
+                        </p>
+<div class="flex items-center gap-4">
+<div class="size-12 rounded-full bg-cover bg-center" data-alt="Portrait of Dr. Sarah Chen" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCHeRzfG33d56VwzPgXHjPSZfDmpbBeNW8QIToEJlAU_x5BggfpDJIOmgM2sTy5hx_52BJbxFlWgxjfmZs9X1d7tDJ_2fawJIzEjK1VcNu--eQcgJ6Elxh8KD-m8Z7gIR52dt4IxrpLygyCha3Lxaod_gVmvtm_E3xhKK77Ni4QDKeCEqLZuEC0946UT_rcYoxprS75x6Z7rmqXjvo7ekP2RmtY9acajYQ6R8PmWewLdKD_EJDrg7SJk644S1LpeQTB0R-f31On4X_i');"></div>
+<div>
+<h4 class="font-bold text-text-main dark:text-white">Dr. Sarah Chen</h4>
+<p class="text-sm text-text-secondary">Clinical Dietician</p>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="flex flex-col justify-between p-8 bg-white dark:bg-[#16291d] rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-white/5 relative">
+<!-- Decorative bg -->
+<div class="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+<svg fill="none" height="100" viewbox="0 0 100 100" width="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" fill="#17cf54" r="50"></circle></svg>
+</div>
+<div class="mb-6 text-primary">
+<span class="material-symbols-outlined text-4xl">format_quote</span>
+</div>
+<p class="text-lg text-text-main dark:text-white/90 font-medium leading-relaxed mb-8">
+                            "Finally, a dashboard that looks good and works even better. The analytics feature helps me show tangible progress to my patients, which boosts retention."
+                        </p>
+<div class="flex items-center gap-4">
+<div class="size-12 rounded-full bg-cover bg-center" data-alt="Portrait of Marcus Johnson" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAEERF2__oRF6h6ghkZZbHEEV3mVFinYWtHLAz2lUaeddS1dGFxDCVMozBMWYyPDwgY3EYOnduJfKJKK4tw-cP92W-P3BbZV4FOxiDQJS-1Vu9ddQoeT9fhqunK8l3XVKxretCID8RzJF_c-qurlOzvBOqDswlA0YntPNlz-7Ga9mS3DjfCFn1xgtqFkRkC7KsnA-rdT-2Sf8MHwZyFe8z0rGfffj2i339TtL45XZG47MH_oBsLfjx_P_04Rno32xztjIp_22UBuPFm');"></div>
+<div>
+<h4 class="font-bold text-text-main dark:text-white">Marcus Johnson</h4>
+<p class="text-sm text-text-secondary">Sports Nutritionist</p>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="flex flex-col justify-between p-8 bg-white dark:bg-[#16291d] rounded-2xl shadow-sm border border-[#e7f3eb] dark:border-white/5">
+<div class="mb-6 text-primary">
+<span class="material-symbols-outlined text-4xl">format_quote</span>
+</div>
+<p class="text-lg text-text-main dark:text-white/90 font-medium leading-relaxed mb-8">
+                            "The automated compliance features give me peace of mind. I can manage more clients without feeling overwhelmed. Highly recommended."
+                        </p>
+<div class="flex items-center gap-4">
+<div class="size-12 rounded-full bg-cover bg-center" data-alt="Portrait of Elena Rodriguez" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBdV4njegtYcL_wJtNPYa-zXNit1bvvCKI7d-6jVcKxH3R86HnI-mH6HHTtQotMGLjL0VJDKi4jpWgmId_OmApxs47lp5m3Pm-njXMBWSqJKj377T3SYQISSFt5Ptpt5XtBN-IrCtB6c_senI6q-oYjCCTMAIGPG_aO38UOii5_-WRSH3heK2_qAegJ8dVwFI8y_nXJm66uYbCRQUVSs8DxQB1ebPpaKkUutH3ONjk4HXI_71P9VweFBAndI9-WeJalmbwM_2EiW1aN');"></div>
+<div>
+<h4 class="font-bold text-text-main dark:text-white">Elena Rodriguez</h4>
+<p class="text-sm text-text-secondary">Private Practice Owner</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- CTA Section -->
+<div class="py-20 px-4">
+<div class="max-w-[1280px] mx-auto bg-[#0e1b12] rounded-3xl overflow-hidden relative">
+<!-- Background Pattern -->
+<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#17cf54 1px, transparent 1px); background-size: 30px 30px;"></div>
+<div class="relative z-10 flex flex-col md:flex-row items-center justify-between p-10 md:p-16 gap-10">
+<div class="flex flex-col gap-6 max-w-2xl">
+<h2 class="text-3xl md:text-5xl font-bold text-white leading-tight">Ready to modernize your practice?</h2>
+<p class="text-white/80 text-lg">Join thousands of health professionals using NutriDash to deliver better care.</p>
+<div class="flex flex-col sm:flex-row gap-4 pt-4">
+<button class="flex items-center justify-center rounded-lg h-12 px-8 bg-primary hover:bg-primary/90 text-[#0e1b12] text-base font-bold transition-all shadow-lg shadow-primary/30">
+                            Get Started Now
+                        </button>
+<button class="flex items-center justify-center rounded-lg h-12 px-8 bg-white/10 hover:bg-white/20 text-white text-base font-bold transition-all border border-white/20">
+                            Contact Sales
+                        </button>
+</div>
+</div>
+<div class="hidden lg:block relative">
+<div class="size-64 bg-primary/20 rounded-full blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+<span class="material-symbols-outlined text-[200px] text-primary/30 rotate-12">spa</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-white dark:bg-[#0e1b12] border-t border-[#e7f3eb] dark:border-white/10 pt-16 pb-8">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-10">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
+<!-- Brand Col -->
+<div class="col-span-2 md:col-span-1 flex flex-col gap-6">
+<div class="flex items-center gap-2 text-text-main dark:text-white">
+<div class="size-6 rounded bg-primary/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">nutrition</span>
+</div>
+<span class="font-bold text-lg">NutriDash</span>
+</div>
+<p class="text-sm text-text-main/60 dark:text-white/60">
+                        The all-in-one platform for nutrition professionals to manage clients, plans, and payments.
+                    </p>
+<div class="flex gap-4">
+<a class="text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
+<a class="text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#"><span class="material-symbols-outlined">mail</span></a>
+</div>
+</div>
+<!-- Links Col 1 -->
+<div class="flex flex-col gap-4">
+<h4 class="font-bold text-text-main dark:text-white">Product</h4>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Features</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Pricing</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Case Studies</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Reviews</a>
+</div>
+<!-- Links Col 2 -->
+<div class="flex flex-col gap-4">
+<h4 class="font-bold text-text-main dark:text-white">Company</h4>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">About</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Careers</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Contact</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Partners</a>
+</div>
+<!-- Links Col 3 -->
+<div class="flex flex-col gap-4">
+<h4 class="font-bold text-text-main dark:text-white">Legal</h4>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Privacy Policy</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Terms of Service</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">Cookie Policy</a>
+<a class="text-sm text-text-main/60 hover:text-primary dark:text-white/60 transition-colors" href="#">HIPAA</a>
+</div>
+</div>
+<div class="border-t border-[#e7f3eb] dark:border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-sm text-text-main/40 dark:text-white/40">© 2024 NutriDash Inc. All rights reserved.</p>
+<div class="flex gap-6">
+<!-- Simple language selector -->
+<button class="flex items-center gap-2 text-sm text-text-main/60 dark:text-white/60 hover:text-primary">
+<span class="material-symbols-outlined text-[18px]">language</span>
+                        English (US)
+                    </button>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

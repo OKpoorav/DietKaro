@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dietician Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#4A90E2",
+              "secondary": "#50E3C2",
+              "danger": "#F5A623",
+              "background-light": "#F4F7FA",
+              "background-dark": "#112116",
+              "neutral-text": "#4A4A4A",
+              "neutral-border": "#E0E0E0",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-neutral-text dark:text-gray-200">
+<div class="relative flex min-h-screen w-full flex-col">
+<div class="flex h-full flex-1">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col gap-8 border-r border-neutral-border/80 bg-white dark:bg-background-dark dark:border-neutral-border/20 p-4">
+<div class="flex items-center gap-3 px-2">
+<span class="material-symbols-outlined text-primary text-3xl">health_and_safety</span>
+<h1 class="text-xl font-bold text-neutral-text dark:text-white">NutriTrack</h1>
+</div>
+<div class="flex h-full flex-col justify-between">
+<div class="flex flex-col gap-2">
+<a class="flex items-center gap-3 rounded-lg bg-primary/20 dark:bg-primary/30 px-3 py-2 text-primary dark:text-white" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-semibold">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-neutral-text/80 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">group</span>
+<p class="text-sm font-medium">Clients</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-neutral-text/80 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">chat_bubble</span>
+<p class="text-sm font-medium">Messages</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-neutral-text/80 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium">Settings</p>
+</a>
+</div>
+<div class="flex flex-col">
+<div class="mb-4 flex gap-3 border-t border-neutral-border/80 dark:border-neutral-border/20 pt-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Dr. Emily Carter" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA96o5wzzpqKQwmSanszsJuVP8eH5xjp8ZNsLL7hXw8hJK01o9Amkz2ZoxXpeKj0XfzckJzsJ7uXIEznoSEYfNAoHjGxFRu-V_B1xP0E5yzRy44iBtBRIi3m3eSm35bzyCu5xgB44faAVd9OS9V3j6HdKomQCR6Sy1jPvt7LL0UKmH11dgtZVVvbcLMTZKNa2P6kAStJ-ektWtNo8FeLY6MnKqNK0H_bXLuUmCzGjbQ8h3r5y66nagMsh3Lt0nJQdNmVWbrSjjIsuZL");'></div>
+<div class="flex flex-col">
+<h1 class="text-neutral-text dark:text-white text-base font-medium leading-normal">Dr. Emily Carter</h1>
+<p class="text-neutral-text/70 dark:text-gray-400 text-sm font-normal leading-normal">Dietician</p>
+</div>
+</div>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 text-neutral-text/80 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10" href="#">
+<span class="material-symbols-outlined">logout</span>
+<p class="text-sm font-medium">Log Out</p>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto p-8">
+<div class="mx-auto flex w-full max-w-7xl flex-col gap-8">
+<!-- PageHeading & Chips -->
+<div class="flex flex-wrap items-start justify-between gap-4">
+<div class="flex flex-col gap-2">
+<p class="text-3xl font-bold leading-tight tracking-tight text-neutral-text dark:text-white">Progress Overview</p>
+<p class="text-base font-normal leading-normal text-neutral-text/70 dark:text-gray-400">Here is your clients' progress for this month.</p>
+</div>
+<div class="flex items-center gap-2">
+<div class="flex gap-2">
+<button class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white dark:bg-white/10 px-4 text-neutral-text dark:text-gray-200 shadow-sm border border-neutral-border dark:border-neutral-border/20">
+<p class="text-sm font-medium leading-normal">This Month</p>
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+</div>
+<button class="flex h-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-primary px-4 text-white text-sm font-bold shadow-sm">
+<span class="truncate">Export Report</span>
+</button>
+</div>
+</div>
+<!-- Stats -->
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+<div class="flex flex-1 flex-col gap-2 rounded-xl bg-white dark:bg-background-dark p-6 shadow-sm border border-neutral-border dark:border-neutral-border/20">
+<p class="text-base font-medium leading-normal text-neutral-text dark:text-gray-300">Total Clients This Month</p>
+<p class="tracking-light text-3xl font-bold leading-tight text-neutral-text dark:text-white">42</p>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-lg">arrow_upward</span>
+<p class="text-sm font-medium leading-normal">+5%</p>
+</div>
+</div>
+<div class="flex flex-1 flex-col gap-2 rounded-xl bg-white dark:bg-background-dark p-6 shadow-sm border border-neutral-border dark:border-neutral-border/20">
+<p class="text-base font-medium leading-normal text-neutral-text dark:text-gray-300">Overall Adherence</p>
+<p class="tracking-light text-3xl font-bold leading-tight text-neutral-text dark:text-white">85%</p>
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-lg">arrow_upward</span>
+<p class="text-sm font-medium leading-normal">+2.1%</p>
+</div>
+</div>
+<div class="flex flex-1 flex-col gap-2 rounded-xl bg-white dark:bg-background-dark p-6 shadow-sm border border-neutral-border dark:border-neutral-border/20">
+<p class="text-base font-medium leading-normal text-neutral-text dark:text-gray-300">Avg. Weight Loss</p>
+<p class="tracking-light text-3xl font-bold leading-tight text-neutral-text dark:text-white">2.5 lbs</p>
+<div class="flex items-center gap-1 text-danger">
+<span class="material-symbols-outlined text-lg">arrow_downward</span>
+<p class="text-sm font-medium leading-normal">-0.5 lbs</p>
+</div>
+</div>
+</div>
+<!-- Charts -->
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+<div class="flex flex-1 flex-col gap-2 rounded-xl border border-neutral-border dark:border-neutral-border/20 bg-white dark:bg-background-dark p-6 shadow-sm">
+<p class="text-base font-medium leading-normal text-neutral-text dark:text-gray-300">Meals Logged Per Week</p>
+<p class="tracking-light text-3xl font-bold leading-tight truncate text-neutral-text dark:text-white">1,234</p>
+<div class="flex items-center gap-1">
+<p class="text-sm font-normal leading-normal text-neutral-text/70 dark:text-gray-400">Last 8 Weeks</p>
+<p class="text-sm font-medium leading-normal text-secondary">+12%</p>
+</div>
+<div class="flex min-h-[180px] flex-1 flex-col gap-8 py-4">
+<svg fill="none" height="100%" preserveaspectratio="none" viewbox="-3 0 478 150" width="100%" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25V149H326.769H0V109Z" fill="url(#chart-gradient-1)"></path>
+<path d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25" stroke="#4A90E2" stroke-linecap="round" stroke-width="3"></path>
+<defs>
+<lineargradient gradientunits="userSpaceOnUse" id="chart-gradient-1" x1="236" x2="236" y1="1" y2="149">
+<stop stop-color="#4A90E2" stop-opacity="0.2"></stop>
+<stop offset="1" stop-color="#4A90E2" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+</svg>
+</div>
+</div>
+<div class="flex flex-1 flex-col gap-2 rounded-xl border border-neutral-border dark:border-neutral-border/20 bg-white dark:bg-background-dark p-6 shadow-sm">
+<p class="text-base font-medium leading-normal text-neutral-text dark:text-gray-300">Adherence Over Time</p>
+<p class="tracking-light text-3xl font-bold leading-tight truncate text-neutral-text dark:text-white">85%</p>
+<div class="flex items-center gap-1">
+<p class="text-sm font-normal leading-normal text-neutral-text/70 dark:text-gray-400">Last 90 Days</p>
+<p class="text-sm font-medium leading-normal text-secondary">+2.1%</p>
+</div>
+<div class="flex min-h-[180px] flex-1 flex-col gap-8 py-4">
+<svg fill="none" height="100%" preserveaspectratio="none" viewbox="-3 0 478 150" width="100%" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 81C18.1538 81 18.1538 121 36.3077 121C54.4615 121 54.4615 101 72.6154 101C90.7692 101 90.7692 61 108.923 61C127.077 61 127.077 33 145.231 33C163.385 33 163.385 41 181.538 41C199.692 41 199.692 21 217.846 21C236 21 236 45 254.154 45C272.308 45 272.308 1 290.462 1C308.615 1 308.615 25 326.769 25C344.923 25 344.923 81 363.077 81C381.231 81 381.231 109 399.385 109C417.538 109 417.538 129 435.692 129C453.846 129 453.846 149 472 149V149H0V81Z" fill="url(#chart-gradient-2)"></path>
+<path d="M0 81C18.1538 81 18.1538 121 36.3077 121C54.4615 121 54.4615 101 72.6154 101C90.7692 101 90.7692 61 108.923 61C127.077 61 127.077 33 145.231 33C163.385 33 163.385 41 181.538 41C199.692 41 199.692 21 217.846 21C236 21 236 45 254.154 45C272.308 45 272.308 1 290.462 1C308.615 1 308.615 25 326.769 25C344.923 25 344.923 81 363.077 81C381.231 81 381.231 109 399.385 109C417.538 109 417.538 129 435.692 129C453.846 129 453.846 149 472 149" stroke="#4A90E2" stroke-linecap="round" stroke-width="3"></path>
+<defs>
+<lineargradient gradientunits="userSpaceOnUse" id="chart-gradient-2" x1="236" x2="236" y1="1" y2="149">
+<stop stop-color="#4A90E2" stop-opacity="0.2"></stop>
+<stop offset="1" stop-color="#4A90E2" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+</svg>
+</div>
+</div>
+</div>
+<!-- Client Tables -->
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+<div class="flex flex-col gap-4 rounded-xl border border-neutral-border dark:border-neutral-border/20 bg-white dark:bg-background-dark p-6 shadow-sm">
+<h3 class="text-lg font-semibold text-neutral-text dark:text-white">Top Clients by Progress</h3>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="border-b border-neutral-border dark:border-neutral-border/20">
+<th class="p-3 text-sm font-semibold text-neutral-text/70 dark:text-gray-400">Client Name</th>
+<th class="p-3 text-sm font-semibold text-neutral-text/70 dark:text-gray-400">Progress</th>
+<th class="p-3 text-sm font-semibold text-neutral-text/70 dark:text-gray-400">Adherence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-neutral-border dark:border-neutral-border/20">
+<td class="p-3 whitespace-nowrap"><div class="flex items-center gap-3"><img class="size-8 rounded-full object-cover" data-alt="Client avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoQBH58-UOFb0Rve-570SZJHw1vywLmyD9bBbGA8r8yRZL1mefbhhG_ZWz1vtoh7Xz7oMO20OhnWAStn4MlFVxGdmCXduy9BICGw-C4qTsSTyXb5mLI8kY-PiTQsu1Mh3YeeBNUp6j40CcGHSOOcz9dwZ8mJAy5G-yg118GiDa1te_CWf6kQ85NnGQxDdTArPD2FHccLUcjZQ2RWS01COkPyfPwwNXV4HCwGml86o4O5gA2YBEoZ-zehhddqazpsdkBKTo3CDzdEed"/><span class="font-medium text-neutral-text dark:text-gray-200">Olivia Martinez</span></div></td>
+<td class="p-3 text-sm text-secondary font-medium">-8 lbs</td>
+<td class="p-3 text-sm text-neutral-text dark:text-gray-300">95%</td>
+</tr>
+<tr class="border-b border-neutral-border dark:border-neutral-border/20">
+<td class="p-3 whitespace-nowrap"><div class="flex items-center gap-3"><img class="size-8 rounded-full object-cover" data-alt="Client avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsevW0g05AmLMZmT39Kvmun2gqseQGYbSJpkMgrVn7jn3Fuy0Lw_UQodlK7uiRbtbolVuocHp8Igm51E8asjsFb8FLC8f1I5CeAlQ9ryhSmDWnQ1tW3IVjfE6ahrehdQm7crHK9N-fF8VgqRUs7_xC0YkiNo44EX7ycOPr00INSkWlOpErD_FEAb0pePAhWsjonBmoZeGxCjofR1z3KMrtT7JeLw7qOseZ1sUH2t4moJRAaALDkq0jSFv1eB3YiP_3pIvsc2xceNUg"/><span class="font-medium text-neutral-text dark:text-gray-200">Liam Wilson</span></div></td>
+<td class="p-3 text-sm text-secondary font-medium">-7.5 lbs</td>
+<td class="p-3 text-sm text-neutral-text dark:text-gray-300">92%</td>
+</tr>
+<tr>
+<td class="p-3 whitespace-nowrap"><div class="flex items-center gap-3"><img class="size-8 rounded-full object-cover" data-alt="Client avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuJr8JpLuLZFYFIC5zGyoB09MhvwSiktgyQxCyqTxnwJCBna4H-XozQm2NkT_XmatpfO7GgPG_-sUXtbSKxpBze4Tx8eTwx70X4ZShfv_e4R-eJY82twmGjnMJqBLr3hdiXKDHIMpRK0WqcJG2ir7B-IEzMk45yvfzyWEtmcqrikGYhn0CBhDKxZvB4zeS2rVkejxDgpJkM_xrrAv_-IIDbUsQbKNyF58plDfVrmkFI4vUGJEeDK2_71ndZakWOsb3aeay9h0eaMJo"/><span class="font-medium text-neutral-text dark:text-gray-200">Sophia Garcia</span></div></td>
+<td class="p-3 text-sm text-secondary font-medium">-6 lbs</td>
+<td class="p-3 text-sm text-neutral-text dark:text-gray-300">88%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="flex flex-col gap-4 rounded-xl border border-neutral-border dark:border-neutral-border/20 bg-white dark:bg-background-dark p-6 shadow-sm">
+<h3 class="text-lg font-semibold text-neutral-text dark:text-white">At-Risk Clients</h3>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="border-b border-neutral-border dark:border-neutral-border/20">
+<th class="p-3 text-sm font-semibold text-neutral-text/70 dark:text-gray-400">Client Name</th>
+<th class="p-3 text-sm font-semibold text-neutral-text/70 dark:text-gray-400">Last Logged</th>
+<th class="p-3 text-sm font-semibold text-neutral-text/70 dark:text-gray-400">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-neutral-border dark:border-neutral-border/20">
+<td class="p-3 whitespace-nowrap"><div class="flex items-center gap-3"><img class="size-8 rounded-full object-cover" data-alt="Client avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvfeBZRNDokJuyigYOf7swYYkUhcZeq8Xa__GY1nx6LPsRIBkKOlm-X3S7CCX9TkVhl50-V4XS5_A8paBFtAwCvhjQJr0y6s7CMQBVw5YLwOHBysOvxVZi_68LD9nk2jz4bov0dRPbT_bKffz_dM8MEl2HfxLPSjVkOA-wZ3pKD25NciXlckzsqa7HR9hQqn5gLPd3z6ZH2zqSpffTGClkOHqPk8_tF7y-SFjW19J2ixpk6UZDKuEeJQun3yB7i0emQuAeiFNuOpT_"/><span class="font-medium text-neutral-text dark:text-gray-200">Noah Rodriguez</span></div></td>
+<td class="p-3"><span class="rounded-full bg-danger/20 px-2 py-1 text-xs font-medium text-danger dark:bg-danger/30 dark:text-yellow-300">5 days ago</span></td>
+<td class="p-3"><button class="h-8 rounded-lg border border-primary px-3 text-xs font-bold text-primary hover:bg-primary/10">Contact</button></td>
+</tr>
+<tr class="border-b border-neutral-border dark:border-neutral-border/20">
+<td class="p-3 whitespace-nowrap"><div class="flex items-center gap-3"><img class="size-8 rounded-full object-cover" data-alt="Client avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcaW5B33q5kD_u9KGU3AmSxrvuahqJcGW6n9otbtVf88GpP8aicI8-eJU_L2uxIrmjxYYF-HsJ4rOIU16cHSq4VShtus50x3FchpFU5qgnHissAlF4UUa9am4VBvRQ6cP0jZ2BYkwSHFaUVeCFtgvNkYIXu8rH1rEX7LBN0CaQ1PXePQ2-GZhg9BwMAUawPHKdHVS85pvHELEF0KNPHW31XAiD_1Huk-FyVfc5B9TxLfkfuFXyqcn5MrQkxJ-yQGOFHXk-CjvrMkkF"/><span class="font-medium text-neutral-text dark:text-gray-200">Isabella Lee</span></div></td>
+<td class="p-3"><span class="rounded-full bg-danger/20 px-2 py-1 text-xs font-medium text-danger dark:bg-danger/30 dark:text-yellow-300">8 days ago</span></td>
+<td class="p-3"><button class="h-8 rounded-lg border border-primary px-3 text-xs font-bold text-primary hover:bg-primary/10">Contact</button></td>
+</tr>
+<tr>
+<td class="p-3 whitespace-nowrap"><div class="flex items-center gap-3"><img class="size-8 rounded-full object-cover" data-alt="Client avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBly7oECncXOyMEjr6iphhmrneD1AviVdZkSUpLQA2lkn74vpCkxrCpQFQ67rmXAuCivi006wjpKgz27JIm2Y0aSnM_XeQrKvT3jBNwdgHdquAMoQ0arCckvwvW3Z76evPk8qKbI4Ae8Zkbk1_8_UVlzdp1MBl1W1Y4K-YkKeImSU7MoKgODtdkfD-TGmGxFEeTzRDxARqW3xLoSie2G5tHzo2xlwQxDHD7FHrJ3PntCtppTtQlj8-_XrYOFHlAcBLgT_1XovuBL7sJ"/><span class="font-medium text-neutral-text dark:text-gray-200">James Walker</span></div></td>
+<td class="p-3"><span class="rounded-full bg-danger/20 px-2 py-1 text-xs font-medium text-danger dark:bg-danger/30 dark:text-yellow-300">12 days ago</span></td>
+<td class="p-3"><button class="h-8 rounded-lg border border-primary px-3 text-xs font-bold text-primary hover:bg-primary/10">Contact</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

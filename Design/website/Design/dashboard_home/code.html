@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>HealthTrack Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#4A90E2",
+              "accent": "#50E3C2",
+              "background-light": "#F8F9FA",
+              "background-dark": "#1a1a1a",
+              "text-light": "#333333",
+              "text-dark": "#E0E0E0",
+              "border-light": "#E0E0E0",
+              "border-dark": "#333333",
+              "card-light": "#ffffff",
+              "card-dark": "#2c2c2c",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
+<div class="flex h-screen">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col border-r border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark">
+<div class="flex h-full flex-col justify-between p-4">
+<div class="flex flex-col gap-8">
+<div class="flex items-center gap-3 px-3 py-2">
+<div class="text-primary size-8">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_6_535)">
+<path clip-rule="evenodd" d="M47.2426 24L24 47.2426L0.757355 24L24 0.757355L47.2426 24ZM12.2426 21H35.7574L24 9.24264L12.2426 21Z" fill="currentColor" fill-rule="evenodd"></path>
+</g>
+<defs>
+<clippath id="clip0_6_535"><rect fill="white" height="48" width="48"></rect></clippath>
+</defs>
+</svg>
+</div>
+<h1 class="text-text-light dark:text-text-dark text-xl font-bold">HealthTrack</h1>
+</div>
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 rounded-lg bg-primary/20 px-3 py-2 text-primary" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+<span class="material-symbols-outlined">group</span>
+<p class="text-sm font-medium">Clients</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+<span class="material-symbols-outlined">description</span>
+<p class="text-sm font-medium">Diet Plans</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+<span class="material-symbols-outlined">restaurant_menu</span>
+<p class="text-sm font-medium">Meals Library</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+<span class="material-symbols-outlined">pie_chart</span>
+<p class="text-sm font-medium">Progress &amp; Analytics</p>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium">Settings</p>
+</a>
+</nav>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<div class="flex flex-1 flex-col overflow-y-auto">
+<!-- TopNavBar -->
+<header class="flex items-center justify-between border-b border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark px-6 py-3 sticky top-0 z-10">
+<div class="flex-1">
+<label class="relative flex min-w-40 max-w-sm items-center">
+<span class="material-symbols-outlined absolute left-3 text-gray-500">search</span>
+<input class="form-input h-10 w-full rounded-lg border-border-light bg-background-light dark:border-border-dark dark:bg-background-dark pl-10 pr-4 text-sm focus:border-primary focus:ring-primary" placeholder="Search clients, plans..." type="search"/>
+</label>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-background-light hover:bg-gray-200 dark:bg-background-dark dark:hover:bg-gray-700">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 flex h-2 w-2">
+<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+</span>
+</button>
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar of Dr. Carter" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC3H8R1akagJMY-o-httrLYn4iU7d8h-acf1hmjRiN0q2e_dRtFFcfulw6fiOInvX0R6PLkV_FA5mtde6uC-2BgZQN8204hXZNNlOnDatSLD0gPcfbI4vOWE09zKPNkJewZGnD2AhTiOaTaucRjsL0-Ka3czDucJDSHUTwD76mxR47RNXHwrmSKJeUfPJL_XwFUz1oNm_xpL7pAIvAgYjMlUqd6R7KHAt76ZRhzumCOeR9XEPDSsUT_QAyQw3tWBeWclOV7cr-0tpAl");'></div>
+<div class="flex flex-col text-sm">
+<span class="font-semibold">Dr. Olivia Carter</span>
+<span class="text-gray-500 dark:text-gray-400">Dietician</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Panel Content -->
+<main class="flex-1 p-6 lg:p-8">
+<div class="flex flex-col gap-6">
+<!-- Page Heading and Actions -->
+<div class="flex flex-wrap items-center justify-between gap-4">
+<p class="text-3xl font-bold tracking-tight">Welcome back, Dr. Carter!</p>
+<div class="flex flex-wrap gap-3">
+<button class="flex h-10 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary px-4 text-sm font-bold text-white transition-colors hover:bg-primary/90">
+<span class="material-symbols-outlined" style="font-size: 20px;">add</span>
+<span class="truncate">Add New Client</span>
+</button>
+<button class="flex h-10 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg border border-border-light dark:border-border-dark bg-card-light px-4 text-sm font-bold text-text-light hover:bg-gray-100 dark:bg-card-dark dark:text-text-dark dark:hover:bg-gray-700">
+<span class="material-symbols-outlined" style="font-size: 20px;">add</span>
+<span class="truncate">Create New Diet Plan</span>
+</button>
+</div>
+</div>
+<!-- Stats -->
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+<div class="flex flex-col gap-2 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<p class="text-base font-medium text-gray-600 dark:text-gray-300">Total Active Clients</p>
+<p class="text-3xl font-bold">42</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<p class="text-base font-medium text-gray-600 dark:text-gray-300">Meals Awaiting Review</p>
+<p class="text-3xl font-bold">15</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<p class="text-base font-medium text-gray-600 dark:text-gray-300">Average Client Adherence</p>
+<p class="text-3xl font-bold text-accent">82%</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<p class="text-base font-medium text-gray-600 dark:text-gray-300">Upcoming Appointments</p>
+<p class="text-3xl font-bold">3</p>
+</div>
+</div>
+<!-- Chart/Graph Widget -->
+<div class="rounded-xl border border-border-light dark:border-border-dark bg-card-light dark:bg-card-dark p-6">
+<h3 class="mb-4 text-lg font-semibold">Weekly Adherence Overview</h3>
+<div class="flex h-64 items-end justify-between gap-4">
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Mon</p>
+<div class="w-8 rounded bg-primary/20" style="height: 70%;">
+<div class="h-full w-full rounded bg-primary transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Tue</p>
+<div class="w-8 rounded bg-primary/20" style="height: 85%;">
+<div class="h-full w-full rounded bg-primary transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Wed</p>
+<div class="w-8 rounded bg-primary/20" style="height: 60%;">
+<div class="h-full w-full rounded bg-primary transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Thu</p>
+<div class="w-8 rounded bg-accent/20" style="height: 95%;">
+<div class="h-full w-full rounded bg-accent transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Fri</p>
+<div class="w-8 rounded bg-primary/20" style="height: 75%;">
+<div class="h-full w-full rounded bg-primary transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Sat</p>
+<div class="w-8 rounded bg-primary/20" style="height: 80%;">
+<div class="h-full w-full rounded bg-primary transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+<div class="flex h-full flex-col-reverse items-center gap-2">
+<p class="text-xs text-gray-500">Sun</p>
+<div class="w-8 rounded bg-primary/20" style="height: 55%;">
+<div class="h-full w-full rounded bg-primary transition-all duration-300 hover:opacity-80" style="height: 100%;"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

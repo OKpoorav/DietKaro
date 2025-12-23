@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Clients Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2E8B57",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#112116",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24;
+            font-size: 24px;
+        }
+
+        .material-symbols-outlined.fill {
+            font-variation-settings:
+                'FILL' 1,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-gray-200">
+<div class="relative flex min-h-screen w-full">
+<!-- SideNavBar -->
+<aside class="flex flex-col w-64 bg-background-light dark:bg-background-dark border-r border-gray-200 dark:border-gray-700 p-4">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Dr. Evelyn Reed" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCVKYm04hSTTeeF3YO6cfvZlMYr1q04JowA4yldgWIrDtLeAt4sMI9U0aXqoDOePN7ZIe8rRe-Fa6Bm-tGrQlkdpOYzox3JUw-bfj2v1G0D8vTudIUoXSmjj06sKkvj2juoov0_vWpK-OgEOu6mL-IeGEPHlV21lH1vSyetcobaoyXbty1cWjlxSOOiCAYFqHsKXoAGeTq7gyALhozqZU8KvRR5UYL41Jy-VYOMtukDUi_f9B5BwtBv-IJsJ9lMmIEgYDahCDGBfdXi");'></div>
+<div class="flex flex-col">
+<h1 class="text-[#333333] dark:text-gray-100 text-base font-medium leading-normal">Dr. Evelyn Reed</h1>
+<p class="text-primary text-sm font-normal leading-normal">Dietician</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#333333] dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium leading-normal">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 dark:bg-primary/30 text-primary font-bold" href="#">
+<span class="material-symbols-outlined fill">group</span>
+<p class="text-sm font-medium leading-normal">Clients</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#333333] dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30" href="#">
+<span class="material-symbols-outlined">mail</span>
+<p class="text-sm font-medium leading-normal">Messages</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#333333] dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+<p class="text-sm font-medium leading-normal">Appointments</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#333333] dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<p class="text-sm font-medium leading-normal">Reports</p>
+</a>
+</nav>
+</div>
+<div class="mt-auto flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#333333] dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-[#333333] dark:text-gray-300 hover:bg-primary/20 dark:hover:bg-primary/30" href="#">
+<span class="material-symbols-outlined">help</span>
+<p class="text-sm font-medium leading-normal">Help</p>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-8 overflow-y-auto">
+<div class="max-w-7xl mx-auto">
+<!-- PageHeading -->
+<header class="flex flex-wrap justify-between items-center gap-4 mb-6">
+<h1 class="text-[#333333] dark:text-gray-100 text-4xl font-black leading-tight tracking-[-0.033em]">Clients</h1>
+<button class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white rounded-lg text-sm font-medium shadow-sm hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined">add</span>
+                        Add New Client
+                    </button>
+</header>
+<!-- Search and Filters -->
+<div class="flex flex-col md:flex-row gap-4 mb-6">
+<!-- SearchBar -->
+<div class="flex-grow">
+<label class="flex flex-col h-12 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-gray-100 dark:bg-gray-800">
+<div class="text-primary flex items-center justify-center pl-4">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden text-[#333333] dark:text-gray-200 focus:outline-0 focus:ring-0 border-none bg-transparent h-full placeholder:text-gray-500 dark:placeholder:text-gray-400 pl-2 text-base font-normal leading-normal" placeholder="Search by name, phone, or email..." value=""/>
+</div>
+</label>
+</div>
+<!-- Chips -->
+<div class="flex gap-2 p-2 items-center flex-wrap">
+<button class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-primary text-white px-4">
+<p class="text-sm font-medium leading-normal">All</p>
+</button>
+<button class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-gray-200 dark:bg-gray-700 px-4 text-[#333333] dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600">
+<p class="text-sm font-medium leading-normal">Active</p>
+</button>
+<button class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-gray-200 dark:bg-gray-700 px-4 text-[#333333] dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600">
+<p class="text-sm font-medium leading-normal">At risk</p>
+</button>
+<button class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-gray-200 dark:bg-gray-700 px-4 text-[#333333] dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600">
+<p class="text-sm font-medium leading-normal">Completed</p>
+</button>
+</div>
+</div>
+<!-- Table -->
+<div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 bg-background-light dark:bg-background-dark">
+<div class="overflow-x-auto">
+<table class="w-full">
+<thead>
+<tr class="bg-gray-50 dark:bg-gray-800">
+<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Client</th>
+<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone</th>
+<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Weight (current/goal)</th>
+<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dietician</th>
+<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Activity</th>
+<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Liam Johnson" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuClpPYXi8g_JHAhR2x5GUM2eOMNTlq9zyAkLAxumUuxoG2g-daiIuVU0KkukCkEJkCCPViwSSTZYT-q3TRXuV_uYbnIhzZgKnDMhnC38JIrqViDc2xPN7meycyowvPFec9W2fdlPbqfwLcjXGsZNx_gcovpjuMSyrlqCR-SBpKZvtAHFEB0KwG1mrfN2cBxTzJTDGuG-6R9rUPLKw3nj7iHuqUvyspTNg_6NqOsrvfW7vMErxFKG_PVt37_XLZH-5YPVok2svg_69Ja");'></div>
+<span class="font-medium">Liam Johnson</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">(555) 123-4567</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">155 lbs / 150 lbs</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">Dr. Reed</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">2 days ago</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+<div class="flex items-center gap-2">
+<button class="text-primary hover:underline">View</button>
+<button class="text-primary hover:underline">Message</button>
+<button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Olivia Smith" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCRkdQpFiXZdrd2gCSIwJISAKEwTt4rLdkzgH7gFGmAjzEyyzmAg5Fjr-QEA139Ucmo1d9SYuaSvoEIooB5MatX2cKZCQmyqmq_Wk7Rw6jX-rgn3qO6t6rMIT2LFmhX_S15hx2ppXx11AMwCOnq0R3N4zOb-VCh4dvwJC22p5YDMS27t5qa21xZ0RzKc5ZC-_T4v0cXqZ3xF5hxacE3tV18yUl059ff7BQLiI3nuKA8JSg_zVOc9bmFulmrO9MOWzBk3O0g-BM2Guza");'></div>
+<div class="flex items-center gap-2">
+<span class="font-medium">Olivia Smith</span>
+<div class="size-2.5 rounded-full bg-[#F5A623]" data-alt="At risk status indicator"></div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">(555) 987-6543</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">130 lbs / 125 lbs</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">Dr. Reed</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">1 day ago</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+<div class="flex items-center gap-2">
+<button class="text-primary hover:underline">View</button>
+<button class="text-primary hover:underline">Message</button>
+<button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Noah Brown" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCQNLWfd8V00kqcYfX5nTyRd92GGtqAqz6x-M02AwjIonTgK0Eh9M6jMrcwaUfFqilM2UI8EOxB4gOGrfzuaS8dbDQE9suhVpYEj7N_MBEr3i-ZSN-yzX8AdfR3hpOdnO70SjAu4dpsrTGt4cCQRkDH7pjcOgZ2lln7mAMgdk7ai476WszDe2Z5VL44iGGaG5c3wi7yt8HBa35Ai3iMpJUmdau-SCRfasQnQhgXVUy83P27gwIERA3E9_rBEdoDheESznzC2poQox_L");'></div>
+<span class="font-medium">Noah Brown</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">(555) 234-5678</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">180 lbs / 170 lbs</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">Dr. Singh</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">5 days ago</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+<div class="flex items-center gap-2">
+<button class="text-primary hover:underline">View</button>
+<button class="text-primary hover:underline">Message</button>
+<button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+<td class="px-6 py-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Profile picture of Emma Davis" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBnjMX4DmGvAS29EbxSzQYEZjxHy-eM9BOPRQ4gWnYGbvjvINY2ISuzCIi0n9IpgPJC0eze--mOIYEdei2MVwpu7MB2JAhUpgL0I4VDuBErBiPA8CmlIsXSAQQ86a2jQZeDf9nB8x6S34OaTifpDwpqo6OBDq4IslVPXXiJxB2YzcH382_MA_V_x067EC3hdQN7xJ9BqkhKZKJLIeEcZ939x1apYskf21NeDetpQYcLKsu04GVj6Aw5hCgx98EIzqJvVoFz4AvPzSeJ");'></div>
+<span class="font-medium">Emma Davis</span>
+</div>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">(555) 876-5432</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">145 lbs / 140 lbs</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">Dr. Reed</td>
+<td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">1 week ago</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+<div class="flex items-center gap-2">
+<button class="text-primary hover:underline">View</button>
+<button class="text-primary hover:underline">Message</button>
+<button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Pagination -->
+<div class="flex items-center justify-between mt-6 px-1">
+<p class="text-sm text-gray-600 dark:text-gray-400">
+                        Showing <span class="font-medium">1</span>-<span class="font-medium">10</span> of <span class="font-medium">86</span> clients
+                    </p>
+<div class="flex items-center gap-2">
+<button class="flex items-center justify-center size-9 rounded-lg border border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-lg">chevron_left</span>
+</button>
+<button class="flex items-center justify-center size-9 rounded-lg border border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700">
+<span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
