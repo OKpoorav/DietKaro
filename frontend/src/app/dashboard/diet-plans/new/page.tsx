@@ -21,8 +21,10 @@ import {
 } from 'lucide-react';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { useClient, useClients } from '@/lib/hooks/use-clients';
-import { useCreateDietPlan, CreateDietPlanInput } from '@/lib/hooks/use-diet-plans';
+import { useCreateDietPlan, usePublishDietPlan, useDietPlans, CreateDietPlanInput } from '@/lib/hooks/use-diet-plans';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { useApiClient } from '@/lib/api/use-api-client';
 
 // Helper to generate dates for keys
 const getDates = (startDate: Date, days: number) => {
@@ -62,19 +64,25 @@ function BuilderContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const clientId = searchParams.get('clientId');
+    const isTemplateMode = searchParams.get('template') === 'true';
 
-    // Hooks
-    const { data: client, isLoading: clientLoading } = useClient(clientId || '');
+    // Hooks - only fetch client if not in template mode and clientId provided
+    const { data: client, isLoading: clientLoading } = useClient(
+        !isTemplateMode && clientId ? clientId : ''
+    );
     const createMutation = useCreateDietPlan();
+    const publishMutation = usePublishDietPlan();
 
-    // State for client selection if not provided in URL
+    // State for client selection if not provided in URL (and not in template mode)
     const [searchTerm, setSearchTerm] = useState('');
-    const { data: clientsData } = useClients(clientId ? {} : { search: searchTerm, pageSize: 10 });
+    const { data: clientsData } = useClients(
+        !isTemplateMode && !clientId ? { search: searchTerm, pageSize: 10 } : {}
+    );
 
     // Local State
     const [startDate, setStartDate] = useState(new Date());
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-    const [planName, setPlanName] = useState('New Diet Plan');
+    const [planName, setPlanName] = useState(isTemplateMode ? 'New Template' : 'New Diet Plan');
     const [planDescription, setPlanDescription] = useState('');
 
     // Store meals by day index (0-6 typically for a week)
@@ -89,9 +97,20 @@ function BuilderContent() {
     const [showAddFoodModal, setShowAddFoodModal] = useState(false);
     const [activeMealId, setActiveMealId] = useState<string | null>(null);
 
-    // ... (removed duplicate lines)
+    const queryClient = useQueryClient();
+    const api = useApiClient();
 
-    if (!clientId) {
+    // Fetch templates for sidebar
+    const { data: templatesData } = useDietPlans({
+        isTemplate: true,
+        pageSize: 50
+    });
+    const templates = templatesData?.data || [];
+    const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
+
+
+    // For templates, skip client selection entirely
+    if (!isTemplateMode && !clientId) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
                 <div className="w-full max-w-md space-y-6 text-center">
@@ -153,11 +172,13 @@ function BuilderContent() {
         );
     }
 
-    if (clientLoading) {
+    // For regular plans, show loading if client is loading
+    if (!isTemplateMode && clientLoading) {
         return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
     }
 
-    if (!client) {
+    // For regular plans, show error if client not found
+    if (!isTemplateMode && !client) {
         return <div className="p-8 text-center text-red-500">Client not found.</div>;
     }
 
@@ -203,7 +224,7 @@ function BuilderContent() {
             protein: food.protein,
             carbs: food.carbs,
             fat: food.fat,
-            hasWarning: client.medicalProfile?.allergies?.some(a => food.name.toLowerCase().includes(a.toLowerCase())) || false
+            hasWarning: client?.medicalProfile?.allergies?.some(a => food.name.toLowerCase().includes(a.toLowerCase())) || false
         };
 
         setWeeklyMeals(prev => ({
@@ -256,13 +277,99 @@ function BuilderContent() {
     };
 
     const dayNutrition = calculateDayNutrition();
-    // Default targets logic could be improved
+    // Default targets logic - use client data if available, otherwise defaults
     const targets = {
-        calories: client.targetWeightKg ? client.targetWeightKg * 30 : 2000,
+        calories: client?.targetWeightKg ? client.targetWeightKg * 30 : 2000,
         protein: 150,
         carbs: 200,
         fat: 70
     };
+
+
+    const handleApplyTemplate = async (templateId: string) => {
+        if (!confirm('This will replace all current meal entries with the selected template. Continue?')) return;
+
+        setApplyingTemplateId(templateId);
+        try {
+            const { data } = await api.get(`/diet-plans/${templateId}`);
+            const template = data.data;
+
+            if (!template.meals || template.meals.length === 0) {
+                toast.error('Template has no meals');
+                return;
+            }
+
+            // Group by day and find min day to normalize
+            const mealsByDay: Record<number, any[]> = {};
+            let minDay = Infinity;
+
+            template.meals.forEach((tm: any) => {
+                // Ensure dayOfWeek is treated as number
+                const d = typeof tm.dayOfWeek === 'string' ? parseInt(tm.dayOfWeek) : tm.dayOfWeek;
+                if (!isNaN(d)) {
+                    if (d < minDay) minDay = d;
+                    if (!mealsByDay[d]) mealsByDay[d] = [];
+                    mealsByDay[d].push(tm);
+                }
+            });
+
+            if (minDay === Infinity) minDay = 0;
+
+            const newWeeklyMeals: Record<number, LocalMeal[]> = {};
+
+            Object.entries(mealsByDay).forEach(([dayStr, dayMeals]) => {
+                const originalDay = parseInt(dayStr);
+                const normalizedDay = originalDay - minDay;
+
+                newWeeklyMeals[normalizedDay] = dayMeals.map((tm: any) => {
+                    const localFoods: LocalFoodItem[] = tm.foodItems?.map((f: any) => {
+                        const ratio = (f.quantityG || 100) / 100;
+                        return {
+                            id: f.foodItem.id,
+                            tempId: Math.random().toString(36).substr(2, 9),
+                            name: f.foodItem.name,
+                            quantity: f.notes || `${f.quantityG}g`,
+                            quantityValue: f.quantityG || 100,
+                            calories: f.foodItem.calories * ratio,
+                            protein: f.foodItem.protein * ratio,
+                            carbs: f.foodItem.carbs * ratio,
+                            fat: f.foodItem.fat * ratio,
+                            hasWarning: client?.medicalProfile?.allergies?.some((a: string) => f.foodItem.name.toLowerCase().includes(a.toLowerCase())) || false
+                        };
+                    }) || [];
+
+                    return {
+                        id: Math.random().toString(36).substr(2, 9),
+                        name: tm.name || tm.mealType,
+                        type: tm.mealType, // Assuming type matches valid types
+                        time: tm.timeOfDay,
+                        foods: localFoods
+                    };
+                });
+            });
+
+            console.log('Normalized Weekly Meals:', newWeeklyMeals);
+            setWeeklyMeals(newWeeklyMeals);
+
+            // If the current viewed day is empty after update, switch to the first populated day?
+            // Actually, day 0 (normalized) should be populated if template wasn't empty.
+            if (!newWeeklyMeals[selectedDayIndex]) {
+                // Try to find first day with meals
+                const firstDay = Object.keys(newWeeklyMeals).map(Number).sort((a, b) => a - b)[0];
+                if (firstDay !== undefined && firstDay !== selectedDayIndex) {
+                    setSelectedDayIndex(firstDay);
+                }
+            }
+
+            toast.success('Template applied successfully');
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to apply template');
+        } finally {
+            setApplyingTemplateId(null);
+        }
+    };
+
 
     const handleSave = async (publish: boolean) => {
         // Flatten weekly meals into API format
@@ -290,17 +397,35 @@ function BuilderContent() {
         }
 
         try {
-            await createMutation.mutateAsync({
-                clientId,
+            // First create the plan (always as draft)
+            const createdPlan = await createMutation.mutateAsync({
+                clientId: clientId || undefined, // undefined for templates
                 title: planName,
                 description: planDescription,
                 startDate: startDate.toISOString(),
                 meals: apiMeals,
-                // Passing published status not directly supported by create DTO usually, might need separate publish call or status field
+                options: isTemplateMode ? { saveAsTemplate: true } : undefined,
             });
 
-            toast.success(publish ? 'Diet Plan Published!' : 'Draft Saved!');
-            router.push(`/dashboard/clients/${clientId}`);
+            // If publish is requested, use the publish mutation
+            if (publish && createdPlan?.id) {
+                await publishMutation.mutateAsync(createdPlan.id);
+            }
+
+            toast.success(
+                isTemplateMode
+                    ? (publish ? 'Template Published!' : 'Template Saved!')
+                    : (publish ? 'Diet Plan Published!' : 'Draft Saved!')
+            );
+
+            // Navigate based on mode
+            if (isTemplateMode) {
+                router.push('/dashboard/diet-plans?tab=templates');
+            } else if (clientId) {
+                router.push(`/dashboard/clients/${clientId}`);
+            } else {
+                router.push('/dashboard/diet-plans');
+            }
         } catch (error) {
             toast.error('Failed to save plan');
             console.error(error);
@@ -309,8 +434,10 @@ function BuilderContent() {
 
     const hasAllergyWarning = currentMeals.some(m => m.foods.some(f => f.hasWarning));
 
-    // Get client initials
-    const initials = client.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    // Get client initials (or T for template)
+    const initials = isTemplateMode
+        ? 'T'
+        : (client?.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?');
 
     return (
         <div className="flex flex-col h-[calc(100vh-5rem)] -m-6">
@@ -318,11 +445,11 @@ function BuilderContent() {
             <header className="flex items-center justify-between border-b border-gray-200 px-6 py-3 bg-white flex-shrink-0">
                 <div className="flex items-center gap-6">
                     <Link
-                        href={`/dashboard/clients/${clientId}`}
+                        href={isTemplateMode ? '/dashboard/diet-plans' : `/dashboard/clients/${clientId}`}
                         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Back to Client
+                        {isTemplateMode ? 'Back to Templates' : 'Back to Client'}
                     </Link>
                     <div className="flex items-center gap-2">
                         <input
@@ -330,77 +457,166 @@ function BuilderContent() {
                             onChange={e => setPlanName(e.target.value)}
                             className="text-gray-900 text-sm font-medium border-none focus:ring-0"
                         />
-                        <span className="text-gray-400">|</span>
-                        <span className="text-gray-600 text-sm">
-                            {client.fullName} ({client.dateOfBirth ?
-                                Math.floor((new Date().getTime() - new Date(client.dateOfBirth).getTime()) / 3.15576e10) :
-                                '?'
-                            } yrs)
-                        </span>
+                        {!isTemplateMode && client && (
+                            <>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-gray-600 text-sm">
+                                    {client.fullName} ({client.dateOfBirth ?
+                                        Math.floor((new Date().getTime() - new Date(client.dateOfBirth).getTime()) / 3.15576e10) :
+                                        '?'
+                                    } yrs)
+                                </span>
+                            </>
+                        )}
+                        {isTemplateMode && (
+                            <>
+                                <span className="text-gray-400">|</span>
+                                <span className="text-purple-600 text-sm font-medium">Template</span>
+                            </>
+                        )}
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => handleSave(false)}
-                        disabled={createMutation.isPending}
-                        className="flex items-center gap-2 h-10 px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
-                    >
-                        <Save className="w-4 h-4" />
-                        Save Draft
-                    </button>
-                    <button
-                        onClick={() => handleSave(true)}
-                        disabled={createMutation.isPending}
-                        className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
-                    >
-                        <Send className="w-4 h-4" />
-                        Publish
-                    </button>
+                    {isTemplateMode ? (
+                        // Template mode - just one Save Template button
+                        <button
+                            onClick={() => handleSave(false)}
+                            disabled={createMutation.isPending}
+                            className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                        >
+                            <Save className="w-4 h-4" />
+                            {createMutation.isPending ? 'Saving...' : 'Save Template'}
+                        </button>
+                    ) : (
+                        // Client mode - Save Draft and Publish buttons
+                        <>
+                            <button
+                                onClick={() => handleSave(false)}
+                                disabled={createMutation.isPending}
+                                className="flex items-center gap-2 h-10 px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                Save Draft
+                            </button>
+                            <button
+                                onClick={() => handleSave(true)}
+                                disabled={createMutation.isPending}
+                                className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                            >
+                                <Send className="w-4 h-4" />
+                                Publish
+                            </button>
+                        </>
+                    )}
                 </div>
             </header>
 
             {/* Main Content */}
             <main className="flex-grow grid grid-cols-12 gap-4 p-4 overflow-hidden bg-gray-50">
-                {/* Left Sidebar - Client Info */}
+                {/* Left Sidebar - Client Info (only for non-template mode) */}
                 <aside className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-2">
-                    {/* Client Card */}
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold">
-                                {initials}
+                    {isTemplateMode ? (
+                        // Template mode sidebar
+                        <>
+                            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
+                                        T
+                                    </div>
+                                    <div>
+                                        <h1 className="text-gray-900 font-medium">Template</h1>
+                                        <p className="text-gray-500 text-sm">
+                                            Create reusable diet plan
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <h1 className="text-gray-900 font-medium">{client.fullName}</h1>
-                                <p className="text-gray-500 text-sm">
-                                    {client.heightCm}cm, {client.currentWeightKg}kg <br />
-                                    Goal: {client.targetWeightKg}kg
-                                </p>
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <h3 className="text-gray-900 font-medium mb-3">Template Tips</h3>
+                                <ul className="text-sm text-gray-600 space-y-2">
+                                    <li>• Templates can be assigned to any client</li>
+                                    <li>• Meals will be copied when assigned</li>
+                                    <li>• Client-specific targets will be applied later</li>
+                                </ul>
                             </div>
+                        </>
+                    ) : client ? (
+                        // Client mode sidebar
+                        <>
+                            {/* Client Card */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold">
+                                        {initials}
+                                    </div>
+                                    <div>
+                                        <h1 className="text-gray-900 font-medium">{client.fullName}</h1>
+                                        <p className="text-gray-500 text-sm">
+                                            {client.heightCm}cm, {client.currentWeightKg}kg <br />
+                                            Goal: {client.targetWeightKg}kg
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Medical Summary */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                <h3 className="text-gray-900 font-medium mb-3">Medical Summary</h3>
+                                {client.medicalProfile?.allergies?.length ? (
+                                    <details className="bg-gray-50 rounded-lg px-4 py-1 group mb-2" open>
+                                        <summary className="flex cursor-pointer items-center justify-between py-2 text-sm font-medium text-gray-800">
+                                            Allergies
+                                            <ChevronRight className="w-4 h-4 text-gray-400 group-open:rotate-90 transition-transform" />
+                                        </summary>
+                                        <p className="text-gray-600 text-sm pb-2">{client.medicalProfile.allergies.join(', ')}</p>
+                                    </details>
+                                ) : <p className="text-sm text-gray-500 italic">No allergies recorded.</p>}
+
+                                {client.medicalProfile?.conditions?.length ? (
+                                    <details className="bg-gray-50 rounded-lg px-4 py-1 group">
+                                        <summary className="flex cursor-pointer items-center justify-between py-2 text-sm font-medium text-gray-800">
+                                            Conditions
+                                            <ChevronRight className="w-4 h-4 text-gray-400 group-open:rotate-90 transition-transform" />
+                                        </summary>
+                                        <p className="text-gray-600 text-sm pb-2">{client.medicalProfile.conditions.join(', ')}</p>
+                                    </details>
+                                ) : null}
+                            </div>
+                        </>
+                    ) : null}
+
+                    {/* Templates Sidebar Scroller */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mt-4 flex flex-col gap-3 max-h-[400px]">
+                        <h3 className="text-gray-900 font-medium flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-[#17cf54]" />
+                            Saved Templates
+                        </h3>
+                        <div className="overflow-y-auto pr-1 space-y-2 flex-grow">
+                            {templates.length === 0 ? (
+                                <p className="text-sm text-gray-500 italic text-center py-4">No templates found</p>
+                            ) : (
+                                templates.map((t: any) => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => handleApplyTemplate(t.id)}
+                                        disabled={applyingTemplateId === t.id}
+                                        className="w-full text-left p-3 rounded-lg border border-gray-100 hover:border-[#17cf54] hover:bg-[#17cf54]/5 transition-all group"
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <span className="font-medium text-gray-800 text-sm group-hover:text-[#17cf54] line-clamp-1">
+                                                {t.name}
+                                            </span>
+                                            {applyingTemplateId === t.id && (
+                                                <Loader2 className="w-3 h-3 animate-spin text-[#17cf54]" />
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                            <span>{t.checkInFrequency || 'Flexible'}</span>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
                         </div>
-                    </div>
-
-                    {/* Medical Summary */}
-                    <div className="bg-white p-4 rounded-lg border border-gray-200">
-                        <h3 className="text-gray-900 font-medium mb-3">Medical Summary</h3>
-                        {client.medicalProfile?.allergies?.length ? (
-                            <details className="bg-gray-50 rounded-lg px-4 py-1 group mb-2" open>
-                                <summary className="flex cursor-pointer items-center justify-between py-2 text-sm font-medium text-gray-800">
-                                    Allergies
-                                    <ChevronRight className="w-4 h-4 text-gray-400 group-open:rotate-90 transition-transform" />
-                                </summary>
-                                <p className="text-gray-600 text-sm pb-2">{client.medicalProfile.allergies.join(', ')}</p>
-                            </details>
-                        ) : <p className="text-sm text-gray-500 italic">No allergies recorded.</p>}
-
-                        {client.medicalProfile?.conditions?.length ? (
-                            <details className="bg-gray-50 rounded-lg px-4 py-1 group">
-                                <summary className="flex cursor-pointer items-center justify-between py-2 text-sm font-medium text-gray-800">
-                                    Conditions
-                                    <ChevronRight className="w-4 h-4 text-gray-400 group-open:rotate-90 transition-transform" />
-                                </summary>
-                                <p className="text-gray-600 text-sm pb-2">{client.medicalProfile.conditions.join(', ')}</p>
-                            </details>
-                        ) : null}
                     </div>
                 </aside>
 
@@ -426,8 +642,17 @@ function BuilderContent() {
                                             : 'text-gray-500 hover:bg-gray-100'
                                             }`}
                                     >
-                                        <div className="text-xs opacity-80">{d.label}</div>
-                                        <div className="font-bold">{d.day}</div>
+                                        {isTemplateMode ? (
+                                            <>
+                                                <div className="text-xs opacity-80">Day</div>
+                                                <div className="font-bold">{i + 1}</div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="text-xs opacity-80">{d.label}</div>
+                                                <div className="font-bold">{d.day}</div>
+                                            </>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -497,7 +722,7 @@ function BuilderContent() {
                                                 }`}
                                         >
                                             {food.hasWarning && (
-                                                <AlertTriangle className="w-4 h-4 text-red-500 mr-1" title="Allergy Warning" />
+                                                <AlertTriangle className="w-4 h-4 text-red-500 mr-1" />
                                             )}
                                             <span className="text-gray-800 text-sm font-medium flex-grow truncate">{food.name}</span>
                                             <input

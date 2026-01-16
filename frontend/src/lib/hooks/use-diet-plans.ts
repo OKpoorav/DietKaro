@@ -27,12 +27,16 @@ export interface MealFoodItem {
 
 export interface DietPlan {
     id: string;
-    clientId: string;
-    title: string;
+    clientId?: string; // Optional for templates
+    name?: string; // Backend returns name
+    title?: string; // Keep for backwards compatibility
     description?: string;
     startDate: string;
     endDate?: string;
-    isPublished: boolean;
+    status?: string;
+    isPublished?: boolean;
+    isTemplate?: boolean;
+    templateCategory?: string;
     publishedAt?: string;
     targetCalories?: number;
     targetProteinG?: number;
@@ -63,10 +67,11 @@ interface DietPlansParams {
     pageSize?: number;
     clientId?: string;
     isPublished?: boolean;
+    isTemplate?: boolean;
 }
 
 export interface CreateDietPlanInput {
-    clientId: string;
+    clientId?: string; // Optional for templates
     title: string; // 'name' in backend schema mapped to 'title'
     description?: string;
     startDate: string;
@@ -100,13 +105,13 @@ export interface CreateDietPlanInput {
 // Hooks
 export function useDietPlans(params: DietPlansParams = {}) {
     const api = useApiClient();
-    const { page = 1, pageSize = 20, clientId, isPublished } = params;
+    const { page = 1, pageSize = 20, clientId, isPublished, isTemplate } = params;
 
     return useQuery({
-        queryKey: ['diet-plans', page, pageSize, clientId, isPublished],
+        queryKey: ['diet-plans', page, pageSize, clientId, isPublished, isTemplate],
         queryFn: async () => {
             const { data } = await api.get<PaginatedResponse<DietPlan>>('/diet-plans', {
-                params: { page, pageSize, clientId, isPublished },
+                params: { page, pageSize, clientId, isTemplate },
             });
             return data;
         },
@@ -132,7 +137,10 @@ export function useCreateDietPlan() {
 
     return useMutation({
         mutationFn: async (planData: CreateDietPlanInput) => {
-            const { data } = await api.post('/diet-plans', planData);
+            // Map 'title' to 'name' as expected by backend
+            const { title, ...rest } = planData;
+            const payload = { ...rest, name: title };
+            const { data } = await api.post('/diet-plans', payload);
             return data.data;
         },
         onSuccess: () => {
@@ -169,6 +177,32 @@ export function usePublishDietPlan() {
         onSuccess: (_, id) => {
             queryClient.invalidateQueries({ queryKey: ['diet-plans'] });
             queryClient.invalidateQueries({ queryKey: ['diet-plans', id] });
+        },
+    });
+}
+
+interface AssignTemplateInput {
+    templateId: string;
+    clientId: string;
+    startDate: string;
+    name?: string;
+}
+
+export function useAssignTemplate() {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ templateId, clientId, startDate, name }: AssignTemplateInput) => {
+            const { data } = await api.post(`/diet-plans/${templateId}/assign`, {
+                clientId,
+                startDate,
+                name,
+            });
+            return data.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['diet-plans'] });
         },
     });
 }

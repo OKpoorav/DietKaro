@@ -1,0 +1,142 @@
+<html>
+  <head>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&amp;family=Manrope%3Awght%40400%3B500%3B700%3B800&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+
+    <title>Stitch Design</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," />
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  </head>
+  <body>
+    <div
+      class="relative flex h-auto min-h-screen w-full flex-col bg-[#f8fcf9] justify-between group/design-root overflow-x-hidden"
+      style='font-family: Manrope, "Noto Sans", sans-serif;'
+    >
+      <div>
+        <div class="flex items-center bg-[#f8fcf9] p-4 pb-2 justify-between">
+          <div class="text-[#0d1b12] flex size-12 shrink-0 items-center" data-icon="ArrowLeft" data-size="24px" data-weight="regular">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+              <path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path>
+            </svg>
+          </div>
+          <h2 class="text-[#0d1b12] text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">Weight Tracking</h2>
+        </div>
+        <div class="flex max-w-[480px] flex-wrap items-end gap-4 px-4 py-3">
+          <label class="flex flex-col min-w-40 flex-1">
+            <p class="text-[#0d1b12] text-base font-medium leading-normal pb-2">Current Weight</p>
+            <input
+              class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d1b12] focus:outline-0 focus:ring-0 border-none bg-[#e7f3eb] focus:border-none h-14 placeholder:text-[#4c9a66] p-4 text-base font-normal leading-normal"
+              value=""
+            />
+          </label>
+        </div>
+        <div class="flex flex-wrap gap-4 px-4 py-6">
+          <div class="flex min-w-72 flex-1 flex-col gap-2">
+            <p class="text-[#0d1b12] text-base font-medium leading-normal">Weight Progress</p>
+            <p class="text-[#0d1b12] tracking-light text-[32px] font-bold leading-tight truncate">72.5 kg</p>
+            <p class="text-[#4c9a66] text-base font-normal leading-normal">Last 8 Weeks</p>
+            <div class="flex min-h-[180px] flex-1 flex-col gap-8 py-4">
+              <svg width="100%" height="148" viewBox="-3 0 478 150" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                <path
+                  d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25V149H326.769H0V109Z"
+                  fill="url(#paint0_linear_1131_5935)"
+                ></path>
+                <path
+                  d="M0 109C18.1538 109 18.1538 21 36.3077 21C54.4615 21 54.4615 41 72.6154 41C90.7692 41 90.7692 93 108.923 93C127.077 93 127.077 33 145.231 33C163.385 33 163.385 101 181.538 101C199.692 101 199.692 61 217.846 61C236 61 236 45 254.154 45C272.308 45 272.308 121 290.462 121C308.615 121 308.615 149 326.769 149C344.923 149 344.923 1 363.077 1C381.231 1 381.231 81 399.385 81C417.538 81 417.538 129 435.692 129C453.846 129 453.846 25 472 25"
+                  stroke="#4c9a66"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                ></path>
+                <defs>
+                  <linearGradient id="paint0_linear_1131_5935" x1="236" y1="1" x2="236" y2="149" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#e7f3eb"></stop>
+                    <stop offset="1" stop-color="#e7f3eb" stop-opacity="0"></stop>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="flex justify-around">
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 1</p>
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 2</p>
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 3</p>
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 4</p>
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 5</p>
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 6</p>
+                <p class="text-[#4c9a66] text-[13px] font-bold leading-normal tracking-[0.015em]">Week 7</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-3 p-4">
+          <div class="flex gap-6 justify-between"><p class="text-[#0d1b12] text-base font-medium leading-normal">Goal: 65 kg</p></div>
+          <div class="rounded bg-[#cfe7d7]"><div class="h-2 rounded bg-[#13ec5b]" style="width: 75%;"></div></div>
+          <p class="text-[#4c9a66] text-sm font-normal leading-normal">7.5 kg to go</p>
+        </div>
+      </div>
+      <div>
+        <div class="flex justify-end overflow-hidden px-5 pb-5">
+          <button
+            class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-14 px-5 bg-[#13ec5b] text-[#0d1b12] text-base font-bold leading-normal tracking-[0.015em] min-w-0 gap-4 pl-4 pr-6"
+          >
+            <div class="text-[#0d1b12]" data-icon="PencilSimple" data-size="24px" data-weight="regular">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                <path
+                  d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"
+                ></path>
+              </svg>
+            </div>
+            <span class="truncate">Update Weight</span>
+          </button>
+        </div>
+        <div class="flex gap-2 border-t border-[#e7f3eb] bg-[#f8fcf9] px-4 pb-3 pt-2">
+          <a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4c9a66]" href="#">
+            <div class="text-[#4c9a66] flex h-8 items-center justify-center" data-icon="House" data-size="24px" data-weight="regular">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                <path
+                  d="M218.83,103.77l-80-75.48a1.14,1.14,0,0,1-.11-.11,16,16,0,0,0-21.53,0l-.11.11L37.17,103.77A16,16,0,0,0,32,115.55V208a16,16,0,0,0,16,16H96a16,16,0,0,0,16-16V160h32v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V115.55A16,16,0,0,0,218.83,103.77ZM208,208H160V160a16,16,0,0,0-16-16H112a16,16,0,0,0-16,16v48H48V115.55l.11-.1L128,40l79.9,75.43.11.1Z"
+                ></path>
+              </svg>
+            </div>
+            <p class="text-[#4c9a66] text-xs font-medium leading-normal tracking-[0.015em]">Home</p>
+          </a>
+          <a class="just flex flex-1 flex-col items-center justify-end gap-1 rounded-full text-[#0d1b12]" href="#">
+            <div class="text-[#0d1b12] flex h-8 items-center justify-center" data-icon="PresentationChart" data-size="24px" data-weight="fill">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                <path
+                  d="M216,40H136V24a8,8,0,0,0-16,0V40H40A16,16,0,0,0,24,56V176a16,16,0,0,0,16,16H79.36L57.75,219a8,8,0,0,0,12.5,10l29.59-37h56.32l29.59,37a8,8,0,1,0,12.5-10l-21.61-27H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM104,144a8,8,0,0,1-16,0V120a8,8,0,0,1,16,0Zm32,0a8,8,0,0,1-16,0V104a8,8,0,0,1,16,0Zm32,0a8,8,0,0,1-16,0V88a8,8,0,0,1,16,0Z"
+                ></path>
+              </svg>
+            </div>
+            <p class="text-[#0d1b12] text-xs font-medium leading-normal tracking-[0.015em]">Progress</p>
+          </a>
+          <a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4c9a66]" href="#">
+            <div class="text-[#4c9a66] flex h-8 items-center justify-center" data-icon="Bell" data-size="24px" data-weight="regular">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                <path
+                  d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"
+                ></path>
+              </svg>
+            </div>
+            <p class="text-[#4c9a66] text-xs font-medium leading-normal tracking-[0.015em]">Notifications</p>
+          </a>
+          <a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#4c9a66]" href="#">
+            <div class="text-[#4c9a66] flex h-8 items-center justify-center" data-icon="User" data-size="24px" data-weight="regular">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                <path
+                  d="M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z"
+                ></path>
+              </svg>
+            </div>
+            <p class="text-[#4c9a66] text-xs font-medium leading-normal tracking-[0.015em]">Profile</p>
+          </a>
+        </div>
+        <div class="h-5 bg-[#f8fcf9]"></div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -34,6 +34,12 @@ import foodItemRoutes from './routes/foodItem.routes';
 import mediaRoutes from './routes/media.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import teamRoutes from './routes/team.routes';
+import clientAuthRoutes from './routes/clientAuth.routes';
+import clientApiRoutes from './routes/clientApi.routes';
+import referralRoutes from './routes/referral.routes';
+import reportsRoutes from './routes/reports.routes';
+import shareRoutes from './routes/share.routes';
+import adminReferralRoutes from './routes/adminReferral.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -46,7 +52,15 @@ app.use('/api/v1/weight-logs', weightLogRoutes);
 app.use('/api/v1/food-items', foodItemRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/team', teamRoutes);
+app.use('/api/v1/share', shareRoutes); // Diet plan sharing (PDF, email, etc)
+app.use('/api/v1/referrals', adminReferralRoutes); // Admin referral management
 app.use('/media', mediaRoutes); // Public media proxy (no auth required)
+
+// Client Mobile App Routes
+app.use('/api/v1/client-auth', clientAuthRoutes);
+app.use('/api/v1/client', clientApiRoutes);
+app.use('/api/v1/client/referral', referralRoutes);
+app.use('/api/v1/client/reports', reportsRoutes);
 
 
 

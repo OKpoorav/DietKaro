@@ -19,6 +19,18 @@ export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: 
         throw AppError.conflict('A client with this email already exists', 'CLIENT_EXISTS');
     }
 
+    // Handle referral code - find referrer if code provided
+    let referredByClientId: string | undefined;
+    if (data.referralCode) {
+        const referrer = await prisma.client.findUnique({
+            where: { referralCode: data.referralCode.toUpperCase() },
+            select: { id: true }
+        });
+        if (referrer) {
+            referredByClientId = referrer.id;
+        }
+    }
+
     const client = await prisma.client.create({
         data: {
             orgId: req.user.organizationId,
@@ -37,16 +49,47 @@ export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: 
             medicalConditions: data.medicalConditions || [],
             medications: data.medications || [],
             healthNotes: data.healthNotes,
-            createdByUserId: req.user.id
+            createdByUserId: req.user.id,
+            // Referral tracking fields
+            referralSource: data.referralSource,
+            referralSourceName: data.referralSourceName,
+            referralSourcePhone: data.referralSourcePhone,
+            referredByClientId
         },
         include: {
             primaryDietitian: { select: { id: true, fullName: true } }
         }
     });
 
-    logger.info('Client created', { clientId: client.id, orgId: req.user.organizationId });
+    // Update referrer's benefit count if referred by another client
+    if (referredByClientId) {
+        await prisma.referralBenefit.upsert({
+            where: { clientId: referredByClientId },
+            create: {
+                clientId: referredByClientId,
+                referralCount: 1,
+                freeMonthsEarned: 0
+            },
+            update: {
+                referralCount: { increment: 1 },
+                freeMonthsEarned: {
+                    set: await prisma.client.count({
+                        where: { referredByClientId, isActive: true }
+                    }).then(count => Math.floor(count / 3))
+                }
+            }
+        });
+    }
+
+    logger.info('Client created', {
+        clientId: client.id,
+        orgId: req.user.organizationId,
+        referralSource: data.referralSource,
+        referredBy: referredByClientId
+    });
     res.status(201).json({ success: true, data: client });
 });
+
 
 export const getClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();

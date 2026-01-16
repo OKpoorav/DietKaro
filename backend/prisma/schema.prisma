@@ -96,6 +96,15 @@ enum InvoiceStatus {
   cancelled
 }
 
+enum ReferralSource {
+  doctor
+  dietitian
+  client_referral
+  social_media
+  website
+  other
+}
+
 // ============ MODELS ============
 
 model Organization {
@@ -131,6 +140,7 @@ model Organization {
   activityLogs     ActivityLog[]
   invoices         Invoice[]
   invitations      Invitation[]
+  clientReports    ClientReport[]
 
   @@index([subscriptionStatus])
   @@index([isActive])
@@ -199,6 +209,13 @@ model Client {
   createdByUserId       String?
   isActive              Boolean        @default(true)
 
+  // Referral tracking
+  referralSource      ReferralSource?
+  referralSourceName  String? // Doctor/Dietitian name if applicable
+  referralSourcePhone String? // Contact phone for referrer
+  referralCode        String?         @unique
+  referredByClientId  String?
+
   // Relations
   organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
   primaryDietitian User              @relation("PrimaryDietitian", fields: [primaryDietitianId], references: [id])
@@ -209,11 +226,19 @@ model Client {
   bodyMeasurements BodyMeasurement[]
   sessionNotes     SessionNote[]
   invoices         Invoice[]
+  referralBenefit  ReferralBenefit?
+  clientReports    ClientReport[]
+
+  // Self-referential relation for client referrals
+  referredByClient Client?  @relation("ClientReferrals", fields: [referredByClientId], references: [id])
+  referredClients  Client[] @relation("ClientReferrals")
 
   @@unique([orgId, email])
   @@index([orgId])
   @@index([primaryDietitianId])
   @@index([isActive])
+  @@index([referralCode])
+  @@index([referredByClientId])
 }
 
 model MedicalProfile {
@@ -241,7 +266,7 @@ model MedicalProfile {
 model DietPlan {
   id               String             @id @default(uuid())
   orgId            String
-  clientId         String
+  clientId         String? // Optional for templates
   createdByUserId  String
   name             String
   description      String?
@@ -266,7 +291,7 @@ model DietPlan {
 
   // Relations
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client       Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
   creator      User         @relation("DietPlanCreator", fields: [createdByUserId], references: [id])
   meals        Meal[]
 
@@ -562,4 +587,36 @@ model Invitation {
   @@index([orgId])
   @@index([token])
   @@index([email])
+}
+
+model ReferralBenefit {
+  id               String   @id @default(uuid())
+  clientId         String   @unique
+  referralCount    Int      @default(0)
+  freeMonthsEarned Int      @default(0)
+  freeMonthsUsed   Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientReport {
+  id         String   @id @default(uuid())
+  orgId      String
+  clientId   String
+  fileName   String
+  fileUrl    String
+  fileType   String // pdf, image
+  reportType String? // blood_test, scan, prescription, other
+  notes      String?
+  uploadedAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([orgId])
 }

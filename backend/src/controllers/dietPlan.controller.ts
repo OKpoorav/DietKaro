@@ -10,18 +10,30 @@ export const createDietPlan = asyncHandler(async (req: AuthenticatedRequest, res
     if (!req.user) throw AppError.unauthorized();
 
     const data: CreateDietPlanInput = req.body;
+    const isTemplate = data.options?.saveAsTemplate || false;
 
-    const client = await prisma.client.findFirst({
-        where: { id: data.clientId, orgId: req.user.organizationId }
-    });
+    // For templates, clientId is optional. For regular plans, it's required.
+    let clientId = data.clientId;
+    if (!isTemplate) {
+        if (!clientId) {
+            throw AppError.badRequest('clientId is required for non-template diet plans', 'CLIENT_ID_REQUIRED');
+        }
+        const client = await prisma.client.findFirst({
+            where: { id: clientId, orgId: req.user.organizationId }
+        });
+        if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+    }
 
-    if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+    // For templates, we need a placeholder client or null clientId
+    // Since schema requires clientId, we'll use a special approach:
+    // For now, templates still need a clientId but we mark them as templates
+    // A cleaner approach would be to make clientId nullable in schema
 
     const dietPlan = await prisma.dietPlan.create({
         data: {
-            orgId: req.user.organizationId,
-            clientId: data.clientId,
-            createdByUserId: req.user.id,
+            organization: { connect: { id: req.user.organizationId } },
+            client: clientId ? { connect: { id: clientId } } : undefined,
+            creator: { connect: { id: req.user.id } },
             name: data.name,
             description: data.description,
             startDate: new Date(data.startDate),
@@ -34,7 +46,7 @@ export const createDietPlan = asyncHandler(async (req: AuthenticatedRequest, res
             notesForClient: data.notesForClient,
             internalNotes: data.internalNotes,
             status: 'draft',
-            isTemplate: data.options?.saveAsTemplate || false,
+            isTemplate: isTemplate,
             templateCategory: data.options?.templateCategory,
             meals: data.meals?.length ? {
                 create: data.meals.map((meal: any, index: number) => ({
@@ -56,7 +68,7 @@ export const createDietPlan = asyncHandler(async (req: AuthenticatedRequest, res
                     } : undefined
                 }))
             } : undefined
-        } as any,
+        },
         include: {
             client: { select: { id: true, fullName: true } },
             creator: { select: { id: true, fullName: true } },
@@ -64,7 +76,7 @@ export const createDietPlan = asyncHandler(async (req: AuthenticatedRequest, res
         }
     });
 
-    logger.info('Diet plan created', { planId: dietPlan.id, clientId: data.clientId });
+    logger.info(isTemplate ? 'Diet plan template created' : 'Diet plan created', { planId: dietPlan.id, clientId });
     res.status(201).json({ success: true, data: dietPlan });
 });
 
@@ -91,13 +103,14 @@ export const getDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: R
 export const listDietPlans = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
 
-    const { clientId, status, page = '1', pageSize = '20' } = req.query;
+    const { clientId, status, isTemplate, page = '1', pageSize = '20' } = req.query;
     const skip = (Number(page) - 1) * Number(pageSize);
     const take = Number(pageSize);
 
     const where: any = { orgId: req.user.organizationId, isActive: true };
     if (clientId) where.clientId = String(clientId);
     if (status) where.status = String(status);
+    if (isTemplate !== undefined) where.isTemplate = isTemplate === 'true';
 
     const [plans, total] = await prisma.$transaction([
         prisma.dietPlan.findMany({
@@ -171,4 +184,84 @@ export const publishDietPlan = asyncHandler(async (req: AuthenticatedRequest, re
         success: true,
         data: { planId: updated.id, status: updated.status, publishedAt: updated.publishedAt, mealLogsCreated: plan.meals.length }
     });
+});
+
+// Assign a template to a client (clone template to create a new plan)
+export const assignTemplateToClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const templateId = req.params.id;
+    const { clientId, startDate, name } = req.body;
+
+    if (!clientId) throw AppError.badRequest('clientId is required', 'CLIENT_ID_REQUIRED');
+    if (!startDate) throw AppError.badRequest('startDate is required', 'START_DATE_REQUIRED');
+
+    // Verify template exists and is actually a template
+    const template = await prisma.dietPlan.findFirst({
+        where: { id: templateId, orgId: req.user.organizationId, isTemplate: true, isActive: true },
+        include: {
+            meals: {
+                include: { foodItems: true }
+            }
+        }
+    });
+
+    if (!template) throw AppError.notFound('Template not found', 'TEMPLATE_NOT_FOUND');
+
+    // Verify client exists
+    const client = await prisma.client.findFirst({
+        where: { id: clientId, orgId: req.user.organizationId }
+    });
+
+    if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+
+    // Create new diet plan based on template
+    const newPlan = await prisma.dietPlan.create({
+        data: {
+            organization: { connect: { id: req.user.organizationId } },
+            client: { connect: { id: clientId } },
+            creator: { connect: { id: req.user.id } },
+            name: name || `${template.name} - ${client.fullName}`,
+            description: template.description,
+            startDate: new Date(startDate),
+            targetCalories: template.targetCalories,
+            targetProteinG: template.targetProteinG,
+            targetCarbsG: template.targetCarbsG,
+            targetFatsG: template.targetFatsG,
+            targetFiberG: template.targetFiberG,
+            notesForClient: template.notesForClient,
+            internalNotes: template.internalNotes,
+            status: 'draft',
+            isTemplate: false, // This is a real plan, not a template
+            meals: {
+                create: template.meals.map((meal, index) => ({
+                    dayOfWeek: meal.dayOfWeek,
+                    mealDate: null, // Will be set based on startDate later
+                    sequenceNumber: meal.sequenceNumber ?? index,
+                    mealType: meal.mealType,
+                    timeOfDay: meal.timeOfDay,
+                    name: meal.name,
+                    description: meal.description,
+                    instructions: meal.instructions,
+                    servingSizeNotes: meal.servingSizeNotes,
+                    foodItems: meal.foodItems.length ? {
+                        create: meal.foodItems.map((item, sortOrder) => ({
+                            foodId: item.foodId,
+                            quantityG: item.quantityG,
+                            notes: item.notes,
+                            sortOrder: item.sortOrder ?? sortOrder
+                        }))
+                    } : undefined
+                }))
+            }
+        },
+        include: {
+            client: { select: { id: true, fullName: true } },
+            creator: { select: { id: true, fullName: true } },
+            meals: { include: { foodItems: { include: { foodItem: true } } } }
+        }
+    });
+
+    logger.info('Template assigned to client', { templateId, newPlanId: newPlan.id, clientId });
+    res.status(201).json({ success: true, data: newPlan });
 });
