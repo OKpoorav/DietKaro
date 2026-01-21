@@ -5,6 +5,7 @@ import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
 import { CreateMealLogInput, UpdateMealLogInput, ReviewMealLogInput } from '../schemas/mealLog.schema';
+import { complianceService } from '../services/compliance.service';
 
 export const createMealLog = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
@@ -96,7 +97,11 @@ export const listMealLogs = asyncHandler(async (req: AuthenticatedRequest, res: 
             reviewedByUser: log.reviewer,
             dietitianReviewedAt: log.dietitianFeedbackAt,
             loggedAt: log.loggedAt,
-            createdAt: log.createdAt
+            createdAt: log.createdAt,
+            // Compliance
+            complianceScore: log.complianceScore,
+            complianceColor: log.complianceColor,
+            complianceIssues: log.complianceIssues
         })),
         meta: { page: Number(page), pageSize: Number(pageSize), total, totalPages: Math.ceil(total / Number(pageSize)) }
     });
@@ -155,7 +160,11 @@ export const getMealLog = asyncHandler(async (req: AuthenticatedRequest, res: Re
             dietitianReviewedAt: mealLog.dietitianFeedbackAt,
             loggedAt: mealLog.loggedAt,
             createdAt: mealLog.createdAt,
-            updatedAt: mealLog.updatedAt
+            updatedAt: mealLog.updatedAt,
+            // Compliance
+            complianceScore: mealLog.complianceScore,
+            complianceColor: mealLog.complianceColor,
+            complianceIssues: mealLog.complianceIssues
         }
     });
 });
@@ -166,7 +175,8 @@ export const updateMealLog = asyncHandler(async (req: AuthenticatedRequest, res:
     const data: UpdateMealLogInput = req.body;
 
     const mealLog = await prisma.mealLog.findFirst({
-        where: { id: req.params.id, orgId: req.user.organizationId }
+        where: { id: req.params.id, orgId: req.user.organizationId },
+        include: { meal: { include: { foodItems: { include: { foodItem: true } } } } }
     });
 
     if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
@@ -181,8 +191,42 @@ export const updateMealLog = asyncHandler(async (req: AuthenticatedRequest, res:
 
     const updated = await prisma.mealLog.update({ where: { id: req.params.id }, data: updateData });
 
+    // Trigger compliance calculation if eaten
+    if ((data.status === 'eaten' && mealLog.status !== 'eaten') || data.substituteCaloriesEst) {
+        // Calculate planned calories
+        let plannedCalories = 0;
+        mealLog.meal.foodItems.forEach(fi => {
+            const multiplier = Number(fi.quantityG) / Number(fi.foodItem.servingSizeG);
+            plannedCalories += Math.round(fi.foodItem.calories * multiplier);
+        });
+
+        // Use substitute calories if provided, else planned
+        const actualCalories = data.substituteCaloriesEst || plannedCalories;
+        const onTime = true; // Simplified for now
+
+        await complianceService.calculateCompliance(
+            updated.id,
+            actualCalories,
+            plannedCalories,
+            onTime
+        );
+    }
+
+    // Re-fetch to get compliance data
+    const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
+
     logger.info('Meal log updated', { mealLogId: updated.id });
-    res.status(200).json({ success: true, data: { id: updated.id, status: updated.status, photoUrl: updated.mealPhotoUrl, clientNotes: updated.clientNotes, loggedAt: updated.loggedAt } });
+    res.status(200).json({
+        success: true, data: {
+            id: finalLog!.id,
+            status: finalLog!.status,
+            photoUrl: finalLog!.mealPhotoUrl,
+            clientNotes: finalLog!.clientNotes,
+            loggedAt: finalLog!.loggedAt,
+            complianceScore: finalLog!.complianceScore,
+            complianceColor: finalLog!.complianceColor
+        }
+    });
 });
 
 export const reviewMealLog = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

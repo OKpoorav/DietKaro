@@ -28,6 +28,15 @@ export interface Client {
         conditions: string[];
         medications: string[];
     };
+    // Validation-related fields
+    allergies?: string[];
+    intolerances?: string[];
+    dietPattern?: string | null;
+    medicalConditions?: string[];
+    foodRestrictions?: any[];
+    dislikes?: string[];
+    likedFoods?: string[];
+    preferredCuisines?: string[];
 }
 
 export interface ClientProgress {

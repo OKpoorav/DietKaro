@@ -175,6 +175,8 @@ model User {
   createdInvoices     Invoice[]     @relation("InvoiceCreator")
   activityLogs        ActivityLog[] @relation("UserActivityLog")
 
+  pushTokens String[] @default([]) // Expo push tokens
+
   @@unique([orgId, email])
   @@index([orgId])
   @@index([clerkUserId])
@@ -209,6 +211,18 @@ model Client {
   createdByUserId       String?
   isActive              Boolean        @default(true)
 
+  // Validation Tags (for diet validation engine)
+  intolerances      String[] @default([]) // Separate from allergies (e.g., lactose)
+  dietPattern       String? // "vegetarian", "vegan", "non_veg", "pescatarian"
+  eggAllowed        Boolean  @default(true)
+  eggAvoidDays      String[] @default([]) // ["tuesday", "thursday"]
+  dislikes          String[] @default([]) // Food names client dislikes
+  avoidCategories   String[] @default([]) // ["fried_foods", "processed"]
+  labDerivedTags    String[] @default([]) // ["vitamin_d_deficiency", "high_cholesterol"]
+  likedFoods        String[] @default([]) // Food IDs client likes
+  preferredCuisines String[] @default([]) // ["indian", "mughlai"]
+  foodRestrictions  Json     @default("[]") // Array of FoodRestriction objects for flexible restrictions
+
   // Referral tracking
   referralSource      ReferralSource?
   referralSourceName  String? // Doctor/Dietitian name if applicable
@@ -232,6 +246,8 @@ model Client {
   // Self-referential relation for client referrals
   referredByClient Client?  @relation("ClientReferrals", fields: [referredByClientId], references: [id])
   referredClients  Client[] @relation("ClientReferrals")
+
+  pushTokens String[] @default([]) // Expo push tokens
 
   @@unique([orgId, email])
   @@index([orgId])
@@ -354,6 +370,14 @@ model FoodItem {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Validation Tags (for diet validation engine)
+  nutritionTags       String[] @default([]) // ["high_protein", "low_carb", "high_sugar"]
+  healthFlags         String[] @default([]) // ["diabetic_caution", "heart_caution"]
+  cuisineTags         String[] @default([]) // ["indian", "chinese", "mughlai"]
+  processingLevel     String? // "raw", "minimally_processed", "processed", "ultra_processed"
+  mealSuitabilityTags String[] @default([]) // ["good_for_breakfast", "too_heavy_for_night"]
+  dietaryCategory     String? // "vegan", "vegetarian", "veg_with_egg", "non_veg"
+
   // Relations
   organization  Organization?  @relation(fields: [orgId], references: [id], onDelete: SetNull)
   creator       User?          @relation("FoodItemCreator", fields: [createdByUserId], references: [id])
@@ -404,8 +428,14 @@ model MealLog {
   substituteDescription String?
   substituteCaloriesEst Int?
   loggedAt              DateTime?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+
+  // Compliance Tracking
+  complianceScore  Int? // 0-100
+  complianceColor  String? // GREEN, YELLOW, RED
+  complianceIssues String[] @default([]) // ["portion_exceeded", "forbidden_food"]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -413,6 +443,7 @@ model MealLog {
   meal         Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)
   reviewer     User?        @relation("MealLogReviewer", fields: [reviewedByUserId], references: [id])
 
+  @@unique([clientId, mealId, scheduledDate])
   @@index([orgId])
   @@index([clientId])
   @@index([scheduledDate])

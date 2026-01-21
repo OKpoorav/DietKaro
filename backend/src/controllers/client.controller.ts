@@ -6,6 +6,40 @@ import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
 import { CreateClientInput, UpdateClientInput } from '../schemas/client.schema';
 
+/**
+ * Generate a unique 6-character referral code
+ * Uses alphanumeric characters excluding confusing ones (O, 0, I, 1, L)
+ */
+const generateReferralCode = (): string => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+};
+
+/**
+ * Generate a unique referral code with collision checking
+ */
+const generateUniqueReferralCode = async (): Promise<string> => {
+    let code: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+        code = generateReferralCode();
+        const existing = await prisma.client.findUnique({
+            where: { referralCode: code }
+        });
+        if (!existing) return code;
+        attempts++;
+    } while (attempts < maxAttempts);
+
+    // Fallback: add timestamp suffix for uniqueness
+    return generateReferralCode() + Date.now().toString(36).slice(-2).toUpperCase();
+};
+
 export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
 
@@ -54,7 +88,9 @@ export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: 
             referralSource: data.referralSource,
             referralSourceName: data.referralSourceName,
             referralSourcePhone: data.referralSourcePhone,
-            referredByClientId
+            referredByClientId,
+            // Generate referral code for the new client
+            referralCode: await generateUniqueReferralCode()
         },
         include: {
             primaryDietitian: { select: { id: true, fullName: true } }
@@ -62,21 +98,31 @@ export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: 
     });
 
     // Update referrer's benefit count if referred by another client
+    // Uses atomic increment to prevent race conditions
     if (referredByClientId) {
-        await prisma.referralBenefit.upsert({
-            where: { clientId: referredByClientId },
-            create: {
-                clientId: referredByClientId,
-                referralCount: 1,
-                freeMonthsEarned: 0
-            },
-            update: {
-                referralCount: { increment: 1 },
-                freeMonthsEarned: {
-                    set: await prisma.client.count({
-                        where: { referredByClientId, isActive: true }
-                    }).then(count => Math.floor(count / 3))
+        await prisma.$transaction(async (tx) => {
+            // Get current benefit record or create one
+            const benefit = await tx.referralBenefit.upsert({
+                where: { clientId: referredByClientId },
+                create: {
+                    clientId: referredByClientId,
+                    referralCount: 1,
+                    freeMonthsEarned: 0
+                },
+                update: {
+                    referralCount: { increment: 1 }
                 }
+            });
+
+            // Calculate new freeMonthsEarned based on updated count
+            const newReferralCount = benefit.referralCount + 1; // +1 because upsert returns pre-increment value
+            const newFreeMonths = Math.floor(newReferralCount / 3);
+
+            if (newFreeMonths > benefit.freeMonthsEarned) {
+                await tx.referralBenefit.update({
+                    where: { clientId: referredByClientId },
+                    data: { freeMonthsEarned: newFreeMonths }
+                });
             }
         });
     }

@@ -40,11 +40,16 @@ import referralRoutes from './routes/referral.routes';
 import reportsRoutes from './routes/reports.routes';
 import shareRoutes from './routes/share.routes';
 import adminReferralRoutes from './routes/adminReferral.routes';
+import validationRoutes from './routes/validation.routes';
+import onboardingRoutes from './routes/onboarding.routes';
+import notificationRoutes from './routes/notification.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
 app.use('/api/v1/clients', clientRoutes);
+app.use('/api/v1/clients/:clientId/onboarding', onboardingRoutes); // Client onboarding
+app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/diet-plans', dietPlanRoutes);
 app.use('/api/v1/meals', mealRoutes);
 app.use('/api/v1/meal-logs', mealLogRoutes);
@@ -54,6 +59,7 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/team', teamRoutes);
 app.use('/api/v1/share', shareRoutes); // Diet plan sharing (PDF, email, etc)
 app.use('/api/v1/referrals', adminReferralRoutes); // Admin referral management
+app.use('/api/v1/diet-validation', validationRoutes); // Real-time diet validation
 app.use('/media', mediaRoutes); // Public media proxy (no auth required)
 
 // Client Mobile App Routes
@@ -170,6 +176,12 @@ if (process.env.NODE_ENV !== 'production') {
     testRouter.post('/meals/:mealId/food-items', testAuthBypass, foodItemController.addFoodToMeal);
     testRouter.patch('/meals/:mealId/food-items/:itemId', testAuthBypass, foodItemController.updateMealFoodItem);
     testRouter.delete('/meals/:mealId/food-items/:itemId', testAuthBypass, foodItemController.removeFoodFromMeal);
+
+    // Diet Validation
+    const validationController = require('./controllers/validation.controller');
+    testRouter.post('/diet-validation/check', testAuthBypass, validationController.checkValidation);
+    testRouter.post('/diet-validation/batch', testAuthBypass, validationController.checkBatchValidation);
+    testRouter.post('/diet-validation/invalidate-cache', testAuthBypass, validationController.invalidateCache);
 
     app.use('/test', testRouter);
 }

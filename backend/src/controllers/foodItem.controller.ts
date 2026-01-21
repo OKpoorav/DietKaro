@@ -496,3 +496,124 @@ export const removeFoodFromMeal = asyncHandler(async (req: AuthenticatedRequest,
 
     res.status(204).send();
 });
+
+// ============ TAGGING ENDPOINTS ============
+
+import { foodTaggingService } from '../services/foodTagging.service';
+
+/**
+ * PATCH /api/v1/food-items/:id/tags
+ * Manually update tags for a food item
+ */
+export const updateFoodTags = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const { id } = req.params;
+    const { dietaryCategory, allergenFlags, nutritionTags, healthFlags, cuisineTags, processingLevel, mealSuitabilityTags } = req.body;
+
+    // Verify food exists and is accessible
+    const existingFood = await prisma.foodItem.findFirst({
+        where: {
+            id,
+            OR: [
+                { orgId: null }, // Global foods can be tagged
+                { orgId: req.user.organizationId }
+            ]
+        }
+    });
+
+    if (!existingFood) {
+        throw AppError.notFound('Food item not found', 'FOOD_NOT_FOUND');
+    }
+
+    const updated = await foodTaggingService.updateFoodTags(id, {
+        dietaryCategory,
+        allergenFlags,
+        nutritionTags,
+        healthFlags,
+        cuisineTags,
+        processingLevel,
+        mealSuitabilityTags
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {
+            id: updated.id,
+            name: updated.name,
+            dietaryCategory: updated.dietaryCategory,
+            allergenFlags: updated.allergenFlags,
+            nutritionTags: updated.nutritionTags,
+            healthFlags: updated.healthFlags,
+            cuisineTags: updated.cuisineTags,
+            processingLevel: updated.processingLevel,
+            mealSuitabilityTags: updated.mealSuitabilityTags
+        }
+    });
+});
+
+/**
+ * POST /api/v1/food-items/:id/auto-tag
+ * Automatically tag a food item based on name and nutrition
+ */
+export const autoTagFood = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const { id } = req.params;
+
+    // Verify food exists
+    const existingFood = await prisma.foodItem.findFirst({
+        where: {
+            id,
+            OR: [
+                { orgId: null },
+                { orgId: req.user.organizationId }
+            ]
+        }
+    });
+
+    if (!existingFood) {
+        throw AppError.notFound('Food item not found', 'FOOD_NOT_FOUND');
+    }
+
+    const updated = await foodTaggingService.autoTagFood(id);
+
+    res.status(200).json({
+        success: true,
+        message: 'Food item auto-tagged successfully',
+        data: {
+            id: updated.id,
+            name: updated.name,
+            dietaryCategory: updated.dietaryCategory,
+            allergenFlags: updated.allergenFlags,
+            nutritionTags: updated.nutritionTags,
+            healthFlags: updated.healthFlags
+        }
+    });
+});
+
+/**
+ * POST /api/v1/food-items/bulk-auto-tag
+ * Bulk auto-tag all food items in the organization
+ */
+export const bulkAutoTagFoods = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const { limit = 100, includeGlobal = false } = req.body;
+
+    const options: { orgId?: string; limit?: number } = { limit };
+
+    // Only include org foods by default, or all if includeGlobal
+    if (!includeGlobal) {
+        options.orgId = req.user.organizationId;
+    }
+
+    const result = await foodTaggingService.bulkAutoTag(options);
+
+    res.status(200).json({
+        success: true,
+        message: `Processed ${result.processed} food items, updated ${result.updated}`,
+        data: result
+    });
+});
+

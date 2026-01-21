@@ -20,6 +20,7 @@ import {
     Users,
 } from 'lucide-react';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
+import { ClientRestrictionsSummary } from '@/components/diet-plan/client-restrictions-summary';
 import { useClient, useClients } from '@/lib/hooks/use-clients';
 import { useCreateDietPlan, usePublishDietPlan, useDietPlans, CreateDietPlanInput } from '@/lib/hooks/use-diet-plans';
 import { toast } from 'sonner';
@@ -559,28 +560,18 @@ function BuilderContent() {
                                 </div>
                             </div>
 
-                            {/* Medical Summary */}
+                            {/* Dietary Restrictions Summary */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200">
-                                <h3 className="text-gray-900 font-medium mb-3">Medical Summary</h3>
-                                {client.medicalProfile?.allergies?.length ? (
-                                    <details className="bg-gray-50 rounded-lg px-4 py-1 group mb-2" open>
-                                        <summary className="flex cursor-pointer items-center justify-between py-2 text-sm font-medium text-gray-800">
-                                            Allergies
-                                            <ChevronRight className="w-4 h-4 text-gray-400 group-open:rotate-90 transition-transform" />
-                                        </summary>
-                                        <p className="text-gray-600 text-sm pb-2">{client.medicalProfile.allergies.join(', ')}</p>
-                                    </details>
-                                ) : <p className="text-sm text-gray-500 italic">No allergies recorded.</p>}
-
-                                {client.medicalProfile?.conditions?.length ? (
-                                    <details className="bg-gray-50 rounded-lg px-4 py-1 group">
-                                        <summary className="flex cursor-pointer items-center justify-between py-2 text-sm font-medium text-gray-800">
-                                            Conditions
-                                            <ChevronRight className="w-4 h-4 text-gray-400 group-open:rotate-90 transition-transform" />
-                                        </summary>
-                                        <p className="text-gray-600 text-sm pb-2">{client.medicalProfile.conditions.join(', ')}</p>
-                                    </details>
-                                ) : null}
+                                <h3 className="text-gray-900 font-medium mb-3">Dietary Restrictions</h3>
+                                <ClientRestrictionsSummary
+                                    allergies={client.medicalProfile?.allergies || client.allergies || []}
+                                    intolerances={client.intolerances || []}
+                                    dietPattern={client.dietPattern}
+                                    medicalConditions={client.medicalProfile?.conditions || client.medicalConditions || []}
+                                    foodRestrictions={client.foodRestrictions as any[] || []}
+                                    dislikes={client.dislikes || []}
+                                    likedFoods={client.likedFoods || []}
+                                />
                             </div>
                         </>
                     ) : null}
@@ -821,6 +812,8 @@ function BuilderContent() {
                 isOpen={showAddFoodModal}
                 onClose={() => setShowAddFoodModal(false)}
                 mealType={currentMeals.find(m => m.id === activeMealId)?.name || 'Meal'}
+                clientId={clientId}
+                currentDay={planDates[selectedDayIndex]?.day.toLowerCase()}
                 onAddFood={handleFoodAdded}
             />
         </div>
