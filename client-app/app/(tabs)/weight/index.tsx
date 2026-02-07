@@ -6,15 +6,16 @@ import {
     ScrollView,
     TextInput,
     TouchableOpacity,
-    Alert,
     ActivityIndicator,
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWeightLogs, useCreateWeightLog } from '../../../hooks/useWeight';
 import { useAuth } from '../../../hooks/useAuth';
+import { useToast } from '../../../components/Toast';
 import { Plus, TrendingDown, TrendingUp, Minus, Target, Award } from 'lucide-react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../../constants/theme';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -22,6 +23,7 @@ export default function WeightScreen() {
     const { data: weightLogs, isLoading } = useWeightLogs(10);
     const { client } = useAuth();
     const createMutation = useCreateWeightLog();
+    const { showToast } = useToast();
     const [weight, setWeight] = useState('');
     const [notes, setNotes] = useState('');
     const [showForm, setShowForm] = useState(false);
@@ -29,7 +31,7 @@ export default function WeightScreen() {
     const handleLogWeight = async () => {
         const weightNum = parseFloat(weight);
         if (isNaN(weightNum) || weightNum < 20 || weightNum > 300) {
-            Alert.alert('Invalid Weight', 'Please enter a valid weight between 20-300 kg');
+            showToast({ title: 'Invalid Weight', message: 'Please enter a valid weight between 20-300 kg', variant: 'warning' });
             return;
         }
 
@@ -42,9 +44,9 @@ export default function WeightScreen() {
             setWeight('');
             setNotes('');
             setShowForm(false);
-            Alert.alert('Success', 'Weight logged successfully!');
+            showToast({ title: 'Success', message: 'Weight logged successfully!', variant: 'success' });
         } catch (error) {
-            Alert.alert('Error', 'Failed to log weight. Please try again.');
+            showToast({ title: 'Error', message: 'Failed to log weight. Please try again.', variant: 'error' });
         }
     };
 
@@ -79,7 +81,7 @@ export default function WeightScreen() {
                         <Text style={styles.currentUnit}>kg</Text>
                         {change !== null && (
                             <View style={[styles.changeBadge, change < 0 ? styles.changeDown : change > 0 ? styles.changeUp : styles.changeNeutral]}>
-                                {change < 0 ? <TrendingDown size={14} color="#065f46" /> : change > 0 ? <TrendingUp size={14} color="#991b1b" /> : <Minus size={14} color="#6b7280" />}
+                                {change < 0 ? <TrendingDown size={14} color="#065f46" /> : change > 0 ? <TrendingUp size={14} color="#991b1b" /> : <Minus size={14} color={Colors.textMuted} />}
                                 <Text style={[styles.changeText, change < 0 ? styles.changeTextDown : change > 0 ? styles.changeTextUp : styles.changeTextNeutral]}>
                                     {change > 0 ? '+' : ''}{change.toFixed(1)} kg
                                 </Text>
@@ -92,7 +94,7 @@ export default function WeightScreen() {
                 {targetWeight && (
                     <View style={styles.goalCard}>
                         <View style={styles.goalHeader}>
-                            <Target size={20} color="#17cf54" />
+                            <Target size={20} color={Colors.primaryDark} />
                             <Text style={styles.goalTitle}>Goal Progress</Text>
                         </View>
 
@@ -177,11 +179,11 @@ export default function WeightScreen() {
                         {targetWeight && (
                             <View style={styles.chartLegend}>
                                 <View style={styles.legendItem}>
-                                    <View style={[styles.legendDot, { backgroundColor: '#17cf54' }]} />
+                                    <View style={[styles.legendDot, { backgroundColor: Colors.primaryDark }]} />
                                     <Text style={styles.legendText}>Your Weight</Text>
                                 </View>
                                 <View style={styles.legendItem}>
-                                    <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
+                                    <View style={[styles.legendDot, { backgroundColor: Colors.error }]} />
                                     <Text style={styles.legendText}>Target</Text>
                                 </View>
                             </View>
@@ -192,7 +194,7 @@ export default function WeightScreen() {
                 {/* Add Weight Button/Form */}
                 {!showForm ? (
                     <TouchableOpacity style={styles.addButton} onPress={() => setShowForm(true)}>
-                        <Plus size={20} color="#fff" />
+                        <Plus size={20} color={Colors.surface} />
                         <Text style={styles.addButtonText}>Log Today's Weight</Text>
                     </TouchableOpacity>
                 ) : (
@@ -204,7 +206,7 @@ export default function WeightScreen() {
                                 value={weight}
                                 onChangeText={setWeight}
                                 placeholder="0.0"
-                                placeholderTextColor="#9ca3af"
+                                placeholderTextColor={Colors.textMuted}
                                 keyboardType="decimal-pad"
                                 autoFocus
                             />
@@ -215,7 +217,7 @@ export default function WeightScreen() {
                             value={notes}
                             onChangeText={setNotes}
                             placeholder="Add notes (optional)"
-                            placeholderTextColor="#9ca3af"
+                            placeholderTextColor={Colors.textMuted}
                             multiline
                         />
                         <View style={styles.formButtons}>
@@ -228,7 +230,7 @@ export default function WeightScreen() {
                                 disabled={createMutation.isPending}
                             >
                                 {createMutation.isPending ? (
-                                    <ActivityIndicator color="#fff" size="small" />
+                                    <ActivityIndicator color={Colors.surface} size="small" />
                                 ) : (
                                     <Text style={styles.saveButtonText}>Save</Text>
                                 )}
@@ -240,7 +242,7 @@ export default function WeightScreen() {
                 {/* Weight History */}
                 <Text style={styles.sectionTitle}>History</Text>
                 {isLoading ? (
-                    <ActivityIndicator style={styles.loader} color="#17cf54" />
+                    <ActivityIndicator style={styles.loader} color={Colors.primaryDark} />
                 ) : weightLogs && weightLogs.length > 0 ? (
                     <View style={styles.historyList}>
                         {weightLogs.map((log, index) => {
@@ -284,34 +286,34 @@ export default function WeightScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.background,
     },
     scrollView: {
         flex: 1,
-        padding: 20,
+        padding: Spacing.xl,
     },
     title: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 4,
+        fontSize: FontSizes.xxxl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.xs,
     },
     subtitle: {
-        fontSize: 16,
-        color: '#6b7280',
-        marginBottom: 24,
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
+        marginBottom: Spacing.xxl,
     },
     currentCard: {
-        backgroundColor: '#17cf54',
-        borderRadius: 20,
-        padding: 24,
+        backgroundColor: Colors.primaryDark,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xxl,
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     currentLabel: {
-        fontSize: 14,
+        fontSize: FontSizes.md,
         color: 'rgba(255,255,255,0.8)',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     currentValueRow: {
         flexDirection: 'row',
@@ -319,58 +321,53 @@ const styles = StyleSheet.create({
     },
     currentValue: {
         fontSize: 56,
-        fontWeight: '700',
-        color: '#fff',
+        fontWeight: FontWeights.bold,
+        color: Colors.surface,
     },
     currentUnit: {
         fontSize: 24,
-        fontWeight: '500',
+        fontWeight: FontWeights.medium,
         color: 'rgba(255,255,255,0.8)',
-        marginLeft: 4,
+        marginLeft: Spacing.xs,
     },
     changeBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: Spacing.xs,
         paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginLeft: 12,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.md,
+        marginLeft: Spacing.md,
     },
     changeDown: { backgroundColor: '#d1fae5' },
     changeUp: { backgroundColor: '#fee2e2' },
-    changeNeutral: { backgroundColor: '#f3f4f6' },
-    changeText: { fontSize: 13, fontWeight: '600' },
+    changeNeutral: { backgroundColor: Colors.background },
+    changeText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semibold },
     changeTextDown: { color: '#065f46' },
     changeTextUp: { color: '#991b1b' },
-    changeTextNeutral: { color: '#6b7280' },
-    // Goal Card Styles
+    changeTextNeutral: { color: Colors.textMuted },
     goalCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.xl,
+        marginBottom: Spacing.lg,
+        ...Shadows.md,
     },
     goalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
+        gap: Spacing.sm,
+        marginBottom: Spacing.lg,
     },
     goalTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#111827',
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
     goalStats: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     goalStat: {
         flex: 1,
@@ -378,68 +375,63 @@ const styles = StyleSheet.create({
     },
     goalStatDivider: {
         width: 1,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
     },
     goalStatValue: {
         fontSize: 24,
-        fontWeight: '700',
-        color: '#111827',
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
     goalStatPositive: {
-        color: '#17cf54',
+        color: Colors.primaryDark,
     },
     goalStatLabel: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 4,
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
+        marginTop: Spacing.xs,
     },
     progressBarContainer: {
-        marginTop: 8,
+        marginTop: Spacing.sm,
     },
     progressBarBackground: {
         height: 8,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: Colors.border,
         borderRadius: 4,
         overflow: 'hidden',
     },
     progressBarFill: {
         height: '100%',
-        backgroundColor: '#17cf54',
+        backgroundColor: Colors.primaryDark,
         borderRadius: 4,
     },
     progressText: {
-        fontSize: 12,
-        color: '#6b7280',
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
         textAlign: 'center',
-        marginTop: 8,
+        marginTop: Spacing.sm,
     },
-    // Chart Styles
     chartCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.lg,
+        marginBottom: Spacing.lg,
+        ...Shadows.md,
     },
     chartTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#111827',
-        marginBottom: 12,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+        marginBottom: Spacing.md,
     },
     chart: {
-        marginVertical: 8,
-        borderRadius: 16,
+        marginVertical: Spacing.sm,
+        borderRadius: BorderRadius.lg,
     },
     chartLegend: {
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: 24,
-        marginTop: 8,
+        gap: Spacing.xxl,
+        marginTop: Spacing.sm,
     },
     legendItem: {
         flexDirection: 'row',
@@ -452,161 +444,157 @@ const styles = StyleSheet.create({
         borderRadius: 5,
     },
     legendText: {
-        fontSize: 12,
-        color: '#6b7280',
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
     },
     addButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        backgroundColor: '#111827',
-        paddingVertical: 16,
+        gap: Spacing.sm,
+        backgroundColor: Colors.text,
+        paddingVertical: Spacing.lg,
         borderRadius: 14,
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
     },
     addButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
     },
     formCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.lg,
+        padding: Spacing.xl,
+        marginBottom: Spacing.xxl,
+        ...Shadows.md,
     },
     formTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 16,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.lg,
     },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#e5e7eb',
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        marginBottom: 12,
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
     },
     weightInput: {
         flex: 1,
-        fontSize: 32,
-        fontWeight: '700',
-        color: '#111827',
-        paddingVertical: 12,
+        fontSize: FontSizes.display,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        paddingVertical: Spacing.md,
     },
     inputUnit: {
-        fontSize: 18,
-        color: '#6b7280',
+        fontSize: FontSizes.xl,
+        color: Colors.textMuted,
     },
     notesInput: {
         borderWidth: 1,
-        borderColor: '#e5e7eb',
-        borderRadius: 12,
-        padding: 12,
-        fontSize: 14,
-        color: '#111827',
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+        fontSize: FontSizes.md,
+        color: Colors.text,
         minHeight: 60,
         textAlignVertical: 'top',
-        marginBottom: 16,
+        marginBottom: Spacing.lg,
     },
     formButtons: {
         flexDirection: 'row',
-        gap: 12,
+        gap: Spacing.md,
     },
     cancelButton: {
         flex: 1,
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         alignItems: 'center',
     },
     cancelButtonText: {
-        color: '#374151',
-        fontWeight: '600',
+        color: Colors.text,
+        fontWeight: FontWeights.semibold,
     },
     saveButton: {
         flex: 1,
         paddingVertical: 14,
-        borderRadius: 12,
-        backgroundColor: '#17cf54',
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.primaryDark,
         alignItems: 'center',
     },
     saveButtonDisabled: {
         opacity: 0.6,
     },
     saveButtonText: {
-        color: '#fff',
-        fontWeight: '700',
+        color: Colors.surface,
+        fontWeight: FontWeights.bold,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 16,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.lg,
     },
     loader: {
-        marginTop: 20,
+        marginTop: Spacing.xl,
     },
     historyList: {
-        gap: 12,
-        paddingBottom: 24,
+        gap: Spacing.md,
+        paddingBottom: Spacing.xxl,
     },
     historyItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
     },
     historyDate: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#374151',
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
     },
     historyNotes: {
-        fontSize: 12,
-        color: '#9ca3af',
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
         marginTop: 2,
     },
     historyRight: {
         alignItems: 'flex-end',
     },
     historyWeight: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#111827',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
     historyDelta: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: FontSizes.xs,
+        fontWeight: FontWeights.semibold,
         marginTop: 2,
     },
-    deltaDown: { color: '#17cf54' },
-    deltaUp: { color: '#ef4444' },
-    deltaNeutral: { color: '#6b7280' },
+    deltaDown: { color: Colors.primaryDark },
+    deltaUp: { color: Colors.error },
+    deltaNeutral: { color: Colors.textMuted },
     emptyContainer: {
         alignItems: 'center',
         paddingVertical: 40,
     },
     emptyText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#374151',
-        marginBottom: 4,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+        marginBottom: Spacing.xs,
     },
     emptySubtext: {
-        fontSize: 14,
-        color: '#9ca3af',
+        fontSize: FontSizes.md,
+        color: Colors.textMuted,
     },
 });

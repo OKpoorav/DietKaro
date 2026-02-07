@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { AlertTriangle, Plus, X } from 'lucide-react-native';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 
 const COMMON_ALLERGENS = [
     'Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish'
@@ -73,7 +74,7 @@ export default function AllergiesScreen() {
                         style={styles.addButton}
                         onPress={addCustomAllergy}
                     >
-                        <Plus size={20} color="#fff" />
+                        <Plus size={20} color={Colors.surface} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -81,7 +82,7 @@ export default function AllergiesScreen() {
             {allergies.length > 0 && (
                 <View style={styles.summary}>
                     <View style={styles.warningIcon}>
-                        <AlertTriangle size={20} color="#ef4444" />
+                        <AlertTriangle size={20} color={Colors.error} />
                     </View>
                     <Text style={styles.summaryText}>
                         We will exclude foods containing: {allergies.join(', ')}
@@ -102,106 +103,106 @@ export default function AllergiesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
     },
     content: {
-        padding: 24,
+        padding: Spacing.xxl,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 8,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 32,
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
+        marginBottom: Spacing.xxxl,
         lineHeight: 22,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 12,
-        color: '#333',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        marginBottom: Spacing.md,
+        color: Colors.text,
     },
     chipContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: Spacing.sm,
     },
     chip: {
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.lg,
         paddingVertical: 10,
-        borderRadius: 20,
-        backgroundColor: '#f0f0f0',
+        borderRadius: BorderRadius.xl,
+        backgroundColor: Colors.background,
         borderWidth: 1,
-        borderColor: '#eee',
+        borderColor: Colors.borderLight,
     },
     selectedChip: {
         backgroundColor: '#fee2e2',
-        borderColor: '#ef4444',
+        borderColor: Colors.error,
     },
     chipText: {
-        color: '#666',
-        fontWeight: '500',
+        color: Colors.textMuted,
+        fontWeight: FontWeights.medium,
     },
     selectedChipText: {
-        color: '#ef4444',
-        fontWeight: '600',
+        color: Colors.error,
+        fontWeight: FontWeights.semibold,
     },
     inputContainer: {
         flexDirection: 'row',
-        gap: 12,
+        gap: Spacing.md,
     },
     input: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 12,
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
         padding: 14,
-        fontSize: 16,
-        backgroundColor: '#f9f9f9',
+        fontSize: FontSizes.lg,
+        backgroundColor: Colors.background,
     },
     addButton: {
         width: 50,
         height: 50,
-        borderRadius: 12,
-        backgroundColor: '#333',
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.text,
         justifyContent: 'center',
         alignItems: 'center',
     },
     summary: {
         flexDirection: 'row',
         backgroundColor: '#fef2f2',
-        padding: 16,
-        borderRadius: 12,
-        marginTop: 8,
-        marginBottom: 24,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
+        marginTop: Spacing.sm,
+        marginBottom: Spacing.xxl,
         alignItems: 'center',
     },
     warningIcon: {
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     summaryText: {
         flex: 1,
         color: '#b91c1c',
-        fontSize: 14,
+        fontSize: FontSizes.md,
         lineHeight: 20,
     },
     button: {
-        backgroundColor: '#17cf54',
-        padding: 18,
-        borderRadius: 12,
+        backgroundColor: Colors.primaryDark,
+        padding: Spacing.xl,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
-        marginTop: 20,
+        marginTop: Spacing.xl,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
     }
 });

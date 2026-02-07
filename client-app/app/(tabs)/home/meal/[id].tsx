@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     TextInput,
     Image,
-    Alert,
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,17 +14,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { X, Camera, Image as ImageIcon, Clock, MessageSquare, CheckCircle, User } from 'lucide-react-native';
 import { useMealLog, useLogMeal } from '../../../../hooks/useMealLog';
-
-// Figma Design Colors
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    white: '#ffffff',
-};
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../../../constants/theme';
+import { useToast } from '../../../../components/Toast';
+import { normalizeError } from '../../../../utils/errorHandler';
+import { LoadingScreen } from '../../../../components/LoadingScreen';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Substituted'] as const;
 
@@ -39,12 +31,11 @@ export default function MealDetailScreen() {
         feedback?: string;
     }>();
     const router = useRouter();
+    const { showToast } = useToast();
 
-    // Check if this is a pending meal (not yet logged)
     const isPendingMeal = id?.startsWith('pending-');
     const isLoggedMeal = paramStatus === 'eaten' || paramStatus === 'skipped';
 
-    // Only fetch if it's an existing meal log (not pending)
     const { data: mealLog, isLoading } = useMealLog(id ?? '');
     const logMutation = useLogMeal();
 
@@ -68,7 +59,7 @@ export default function MealDetailScreen() {
     const handleTakePhoto = async () => {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Camera permission is needed to take photos.');
+            showToast({ title: 'Permission Required', message: 'Camera permission is needed to take photos.', variant: 'warning' });
             return;
         }
 
@@ -87,7 +78,7 @@ export default function MealDetailScreen() {
     const handlePickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Photo library access is needed to select photos.');
+            showToast({ title: 'Permission Required', message: 'Photo library access is needed to select photos.', variant: 'warning' });
             return;
         }
 
@@ -114,27 +105,21 @@ export default function MealDetailScreen() {
                 notes: notes || undefined,
                 photoUri: photoUri || undefined,
             });
-            Alert.alert('Success', 'Meal logged successfully!', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            showToast({ title: 'Success', message: 'Meal logged successfully!', variant: 'success' });
+            router.back();
         } catch (error) {
             console.error('Log meal error:', error);
-            Alert.alert('Error', 'Failed to log meal. Please try again.');
+            const appError = normalizeError(error);
+            showToast({ title: appError.title, message: appError.message, variant: 'error' });
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // For pending meals, show the form immediately without loading
     if (!isPendingMeal && isLoading) {
-        return (
-            <SafeAreaView style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-            </SafeAreaView>
-        );
+        return <LoadingScreen />;
     }
 
-    // Show logged meal view with feedback
     const currentMealLog = mealLog;
     const dietitianFeedback = currentMealLog?.dietitianFeedback || feedback;
     const mealPhoto = currentMealLog?.mealPhotoUrl;
@@ -143,14 +128,13 @@ export default function MealDetailScreen() {
     const displayMealType = currentMealLog?.meal?.mealType || mealType || 'meal';
     const displayTime = currentMealLog?.scheduledTime || scheduledTime;
 
-    // If it's an already logged meal, show the feedback view
     if (!isPendingMeal && (currentMealLog?.status === 'eaten' || currentMealLog?.status === 'skipped' || isLoggedMeal)) {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-                        <X size={24} color={colors.text} />
+                        <X size={24} color={Colors.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Meal Details</Text>
                     <View style={styles.headerSpacer} />
@@ -163,7 +147,7 @@ export default function MealDetailScreen() {
                             <Image source={{ uri: mealPhoto }} style={styles.mealPhoto} />
                         ) : (
                             <View style={styles.statusIconContainer}>
-                                <CheckCircle size={48} color={colors.primary} />
+                                <CheckCircle size={48} color={Colors.primary} />
                             </View>
                         )}
                     </View>
@@ -174,14 +158,14 @@ export default function MealDetailScreen() {
                         <Text style={styles.mealNameLarge}>{displayMealName}</Text>
                         {displayTime && (
                             <View style={styles.timeRow}>
-                                <Clock size={16} color={colors.textSecondary} />
+                                <Clock size={16} color={Colors.textSecondary} />
                                 <Text style={styles.timeText}>{displayTime}</Text>
                             </View>
                         )}
 
                         {/* Status Badge */}
                         <View style={styles.loggedBadge}>
-                            <CheckCircle size={16} color={colors.primary} />
+                            <CheckCircle size={16} color={Colors.primary} />
                             <Text style={styles.loggedBadgeText}>
                                 Logged on {new Date(currentMealLog?.loggedAt || Date.now()).toLocaleDateString()}
                             </Text>
@@ -199,7 +183,7 @@ export default function MealDetailScreen() {
                     {/* Dietitian Feedback */}
                     <View style={styles.feedbackCard}>
                         <View style={styles.feedbackHeader}>
-                            <MessageSquare size={20} color={colors.primary} />
+                            <MessageSquare size={20} color={Colors.primary} />
                             <Text style={styles.cardTitle}>Dietitian Feedback</Text>
                         </View>
 
@@ -207,7 +191,7 @@ export default function MealDetailScreen() {
                             <View style={styles.feedbackContent}>
                                 <View style={styles.dietitianInfo}>
                                     <View style={styles.dietitianAvatar}>
-                                        <User size={16} color={colors.white} />
+                                        <User size={16} color={Colors.surface} />
                                     </View>
                                     <Text style={styles.dietitianName}>Your Dietitian</Text>
                                 </View>
@@ -231,13 +215,12 @@ export default function MealDetailScreen() {
         );
     }
 
-    // Show meal logging form for pending meals
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-                    <X size={24} color={colors.text} />
+                    <X size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Log Meal</Text>
                 <View style={styles.headerSpacer} />
@@ -255,11 +238,11 @@ export default function MealDetailScreen() {
                         <View style={styles.photoPlaceholder}>
                             <View style={styles.photoButtons}>
                                 <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
-                                    <Camera size={28} color={colors.primary} />
+                                    <Camera size={28} color={Colors.primary} />
                                     <Text style={styles.photoButtonText}>Camera</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.photoButton} onPress={handlePickImage}>
-                                    <ImageIcon size={28} color={colors.primary} />
+                                    <ImageIcon size={28} color={Colors.primary} />
                                     <Text style={styles.photoButtonText}>Gallery</Text>
                                 </TouchableOpacity>
                             </View>
@@ -296,7 +279,7 @@ export default function MealDetailScreen() {
                     <View style={styles.timeContainer}>
                         <Text style={styles.inputLabel}>Scheduled Time</Text>
                         <View style={styles.timeDisplay}>
-                            <Clock size={18} color={colors.textSecondary} />
+                            <Clock size={18} color={Colors.textSecondary} />
                             <Text style={styles.scheduledTimeText}>{scheduledTime}</Text>
                         </View>
                     </View>
@@ -310,7 +293,7 @@ export default function MealDetailScreen() {
                         value={notes}
                         onChangeText={setNotes}
                         placeholder="Add any notes about your meal"
-                        placeholderTextColor={colors.textSecondary}
+                        placeholderTextColor={Colors.textSecondary}
                         multiline
                         numberOfLines={4}
                         textAlignVertical="top"
@@ -321,14 +304,14 @@ export default function MealDetailScreen() {
             {/* Submit Button */}
             <View style={styles.footer}>
                 <TouchableOpacity
-                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                    style={[CommonStyles.primaryButton, isSubmitting && styles.submitButtonDisabled]}
                     onPress={handleSubmit}
                     disabled={isSubmitting}
                 >
                     {isSubmitting ? (
-                        <ActivityIndicator color={colors.text} />
+                        <ActivityIndicator color={Colors.text} />
                     ) : (
-                        <Text style={styles.submitButtonText}>Submit</Text>
+                        <Text style={CommonStyles.primaryButtonText}>Submit</Text>
                     )}
                 </TouchableOpacity>
             </View>
@@ -339,22 +322,16 @@ export default function MealDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: Colors.border,
     },
     closeButton: {
         width: 40,
@@ -363,9 +340,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
     headerSpacer: {
         width: 40,
@@ -374,35 +351,35 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     photoSection: {
-        paddingVertical: 16,
+        paddingVertical: Spacing.lg,
     },
     mealPhoto: {
         width: '100%',
         aspectRatio: 3 / 2,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
     },
     statusIconContainer: {
         width: '100%',
         aspectRatio: 3 / 2,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
     },
     photoPreview: {
         width: '100%',
         aspectRatio: 3 / 2,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
     },
     tapToChange: {
         textAlign: 'center',
-        color: colors.textSecondary,
-        fontSize: 14,
-        marginTop: 8,
+        color: Colors.textSecondary,
+        fontSize: FontSizes.md,
+        marginTop: Spacing.sm,
     },
     photoPlaceholder: {
         width: '100%',
         aspectRatio: 3 / 2,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -412,229 +389,217 @@ const styles = StyleSheet.create({
     },
     photoButton: {
         alignItems: 'center',
-        gap: 8,
+        gap: Spacing.sm,
     },
     photoButtonText: {
-        fontSize: 14,
-        color: colors.text,
-        fontWeight: '500',
+        fontSize: FontSizes.md,
+        color: Colors.text,
+        fontWeight: FontWeights.medium,
     },
     mealInfoCard: {
-        backgroundColor: colors.white,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.lg,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     mealTypeLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: colors.textSecondary,
-        marginBottom: 4,
+        fontSize: FontSizes.xs,
+        fontWeight: FontWeights.semibold,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.xs,
     },
     mealNameLarge: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 8,
+        fontSize: FontSizes.xxl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     timeRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        marginBottom: 12,
+        marginBottom: Spacing.md,
     },
     timeText: {
-        fontSize: 14,
-        color: colors.textSecondary,
+        fontSize: FontSizes.md,
+        color: Colors.textSecondary,
     },
     loggedBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: colors.surface,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
+        gap: Spacing.sm,
+        backgroundColor: Colors.surfaceSecondary,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.sm,
         alignSelf: 'flex-start',
     },
     loggedBadgeText: {
-        fontSize: 13,
-        color: colors.textSecondary,
+        fontSize: FontSizes.sm,
+        color: Colors.textSecondary,
     },
     notesCard: {
-        backgroundColor: colors.white,
-        marginHorizontal: 16,
-        marginBottom: 16,
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.lg,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     cardTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 12,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+        marginBottom: Spacing.md,
     },
     notesText: {
-        fontSize: 14,
-        color: colors.textSecondary,
+        fontSize: FontSizes.md,
+        color: Colors.textSecondary,
         lineHeight: 20,
     },
     feedbackCard: {
-        backgroundColor: colors.white,
-        marginHorizontal: 16,
-        marginBottom: 24,
-        padding: 16,
-        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.xxl,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     feedbackHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 12,
+        gap: Spacing.sm,
+        marginBottom: Spacing.md,
     },
     feedbackContent: {
-        backgroundColor: colors.surface,
-        padding: 12,
-        borderRadius: 8,
+        backgroundColor: Colors.surfaceSecondary,
+        padding: Spacing.md,
+        borderRadius: BorderRadius.sm,
     },
     dietitianInfo: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 8,
+        gap: Spacing.sm,
+        marginBottom: Spacing.sm,
     },
     dietitianAvatar: {
         width: 28,
         height: 28,
         borderRadius: 14,
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },
     dietitianName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
     },
     feedbackText: {
-        fontSize: 14,
-        color: colors.text,
+        fontSize: FontSizes.md,
+        color: Colors.text,
         lineHeight: 20,
     },
     feedbackTime: {
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 8,
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+        marginTop: Spacing.sm,
     },
     noFeedback: {
-        backgroundColor: colors.surface,
-        padding: 16,
-        borderRadius: 8,
+        backgroundColor: Colors.surfaceSecondary,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.sm,
         alignItems: 'center',
     },
     noFeedbackText: {
-        fontSize: 14,
-        color: colors.textSecondary,
+        fontSize: FontSizes.md,
+        color: Colors.textSecondary,
         textAlign: 'center',
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-        paddingHorizontal: 16,
-        paddingTop: 16,
-        paddingBottom: 8,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.sm,
     },
     mealTypeContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 10,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
     },
     mealTypeButton: {
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.lg,
         paddingVertical: 10,
-        borderRadius: 8,
+        borderRadius: BorderRadius.sm,
         borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.white,
+        borderColor: Colors.border,
+        backgroundColor: Colors.surface,
     },
     mealTypeButtonSelected: {
         borderWidth: 2,
-        borderColor: colors.primary,
+        borderColor: Colors.primary,
     },
     mealTypeText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: colors.text,
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
     },
     mealTypeTextSelected: {
-        fontWeight: '600',
+        fontWeight: FontWeights.semibold,
     },
     timeContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
     },
     inputLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
-        marginBottom: 8,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     timeDisplay: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: colors.surface,
-        padding: 16,
-        borderRadius: 8,
+        gap: Spacing.sm,
+        backgroundColor: Colors.surfaceSecondary,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.sm,
     },
     scheduledTimeText: {
-        fontSize: 16,
-        color: colors.textSecondary,
+        fontSize: FontSizes.lg,
+        color: Colors.textSecondary,
     },
     notesContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
     },
     notesInput: {
-        backgroundColor: colors.white,
-        borderRadius: 8,
-        padding: 16,
-        fontSize: 16,
-        color: colors.text,
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.sm,
+        padding: Spacing.lg,
+        fontSize: FontSizes.lg,
+        color: Colors.text,
         minHeight: 100,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     footer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        paddingBottom: 24,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        paddingBottom: Spacing.xxl,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
-    },
-    submitButton: {
-        backgroundColor: colors.primary,
-        height: 52,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
+        borderTopColor: Colors.border,
     },
     submitButtonDisabled: {
         opacity: 0.6,
-    },
-    submitButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: colors.text,
     },
 });

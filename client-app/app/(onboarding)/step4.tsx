@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 're
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Calendar, Apple } from 'lucide-react-native';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 
 const PRESETS = [
     {
@@ -56,7 +57,7 @@ export default function RestrictionsScreen() {
                                     styles.iconBox,
                                     selectedPreset === preset.id && styles.selectedIconBox
                                 ]}>
-                                    <Apple size={20} color={selectedPreset === preset.id ? '#17cf54' : '#666'} />
+                                    <Apple size={20} color={selectedPreset === preset.id ? Colors.primaryDark : Colors.textMuted} />
                                 </View>
                                 <View style={styles.cardText}>
                                     <Text style={[
@@ -74,7 +75,7 @@ export default function RestrictionsScreen() {
                                 <View style={styles.tagContainer}>
                                     {preset.days.map((day, i) => (
                                         <View key={i} style={styles.tag}>
-                                            <Calendar size={12} color="#17cf54" />
+                                            <Calendar size={12} color={Colors.primaryDark} />
                                             <Text style={styles.tagText}>{day}</Text>
                                         </View>
                                     ))}
@@ -91,8 +92,8 @@ export default function RestrictionsScreen() {
                     <Switch
                         value={customFasting}
                         onValueChange={setCustomFasting}
-                        trackColor={{ false: '#eee', true: '#17cf54' }}
-                        thumbColor={'#fff'}
+                        trackColor={{ false: Colors.borderLight, true: Colors.primaryDark }}
+                        thumbColor={Colors.surface}
                     />
                 </View>
                 {customFasting && (
@@ -113,45 +114,45 @@ export default function RestrictionsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
     },
     content: {
-        padding: 24,
+        padding: Spacing.xxl,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 8,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 32,
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
+        marginBottom: Spacing.xxxl,
         lineHeight: 22,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 12,
-        color: '#333',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        marginBottom: Spacing.md,
+        color: Colors.text,
     },
     presets: {
-        gap: 12,
+        gap: Spacing.md,
     },
     card: {
-        padding: 16,
-        borderRadius: 12,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: '#eee',
-        backgroundColor: '#fff',
+        borderColor: Colors.borderLight,
+        backgroundColor: Colors.surface,
     },
     selectedCard: {
-        borderColor: '#17cf54',
-        backgroundColor: '#f0fdf4',
+        borderColor: Colors.primaryDark,
+        backgroundColor: Colors.surfaceSecondary,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -160,93 +161,93 @@ const styles = StyleSheet.create({
     iconBox: {
         width: 40,
         height: 40,
-        borderRadius: 8,
-        backgroundColor: '#f5f5f5',
+        borderRadius: BorderRadius.sm,
+        backgroundColor: Colors.background,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     selectedIconBox: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
     },
     cardText: {
         flex: 1,
     },
     cardTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
         marginBottom: 2,
     },
     selectedText: {
-        color: '#17cf54',
+        color: Colors.primaryDark,
     },
     cardDesc: {
-        fontSize: 12,
-        color: '#888',
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
     },
     radio: {
         width: 20,
         height: 20,
         borderRadius: 10,
         borderWidth: 2,
-        borderColor: '#ddd',
+        borderColor: Colors.border,
     },
     selectedRadio: {
-        borderColor: '#17cf54',
-        backgroundColor: '#17cf54',
+        borderColor: Colors.primaryDark,
+        backgroundColor: Colors.primaryDark,
     },
     tagContainer: {
         flexDirection: 'row',
-        marginTop: 12,
-        gap: 8,
-        paddingTop: 12,
+        marginTop: Spacing.md,
+        gap: Spacing.sm,
+        paddingTop: Spacing.md,
         borderTopWidth: 1,
-        borderTopColor: '#e0f2e0',
+        borderTopColor: Colors.borderLight,
     },
     tag: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#fff',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
+        gap: Spacing.xs,
+        backgroundColor: Colors.surface,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: Spacing.xs,
         borderRadius: 6,
     },
     tagText: {
-        fontSize: 12,
-        color: '#17cf54',
-        fontWeight: '500',
+        fontSize: FontSizes.xs,
+        color: Colors.primaryDark,
+        fontWeight: FontWeights.medium,
     },
     toggleRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 12,
+        padding: Spacing.lg,
+        backgroundColor: Colors.background,
+        borderRadius: BorderRadius.md,
     },
     toggleLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
     },
     hint: {
-        marginTop: 8,
-        fontSize: 12,
-        color: '#888',
+        marginTop: Spacing.sm,
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
         fontStyle: 'italic',
     },
     button: {
-        backgroundColor: '#17cf54',
-        padding: 18,
-        borderRadius: 12,
+        backgroundColor: Colors.primaryDark,
+        padding: Spacing.xl,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
-        marginTop: 20,
+        marginTop: Spacing.xl,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
     }
 });

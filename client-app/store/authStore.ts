@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { Client } from '../types';
 
 const TOKEN_KEY = 'auth_token';
 const CLIENT_KEY = 'client_data';
@@ -24,7 +25,7 @@ export const authStore = {
         await SecureStore.deleteItemAsync(LAST_ACTIVITY_KEY);
     },
 
-    async getClientData(): Promise<Record<string, unknown> | null> {
+    async getClientData(): Promise<Client | null> {
         try {
             const data = await SecureStore.getItemAsync(CLIENT_KEY);
             return data ? JSON.parse(data) : null;
@@ -33,7 +34,7 @@ export const authStore = {
         }
     },
 
-    async setClientData(client: Record<string, unknown>): Promise<void> {
+    async setClientData(client: Client): Promise<void> {
         await SecureStore.setItemAsync(CLIENT_KEY, JSON.stringify(client));
     },
 

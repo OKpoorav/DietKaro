@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ThumbsDown, Plus } from 'lucide-react-native';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 
 const COMMON_DISLIKES = [
     'Mushrooms', 'Eggplant', 'Bitter Gourd', 'Okra', 'Seafood', 'Coriander', 'Papaya'
@@ -72,7 +73,7 @@ export default function PreferencesScreen() {
                         style={styles.addButton}
                         onPress={addCustomDislike}
                     >
-                        <Plus size={20} color="#fff" />
+                        <Plus size={20} color={Colors.surface} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -80,7 +81,7 @@ export default function PreferencesScreen() {
             {dislikes.length > 0 && (
                 <View style={styles.summary}>
                     <View style={styles.iconBox}>
-                        <ThumbsDown size={20} color="#666" />
+                        <ThumbsDown size={20} color={Colors.textMuted} />
                     </View>
                     <Text style={styles.summaryText}>
                         Avoiding: {dislikes.join(', ')}
@@ -101,108 +102,108 @@ export default function PreferencesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
     },
     content: {
-        padding: 24,
+        padding: Spacing.xxl,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 8,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 32,
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
+        marginBottom: Spacing.xxxl,
         lineHeight: 22,
     },
     section: {
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
     },
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 12,
-        color: '#333',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        marginBottom: Spacing.md,
+        color: Colors.text,
     },
     chipContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: Spacing.sm,
     },
     chip: {
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.lg,
         paddingVertical: 10,
-        borderRadius: 20,
-        backgroundColor: '#f0f0f0',
+        borderRadius: BorderRadius.xl,
+        backgroundColor: Colors.background,
         borderWidth: 1,
-        borderColor: '#eee',
+        borderColor: Colors.borderLight,
     },
     selectedChip: {
         backgroundColor: '#e5e7eb',
         borderColor: '#9ca3af',
     },
     chipText: {
-        color: '#666',
-        fontWeight: '500',
+        color: Colors.textMuted,
+        fontWeight: FontWeights.medium,
     },
     selectedChipText: {
         color: '#111',
-        fontWeight: '600',
+        fontWeight: FontWeights.semibold,
     },
     inputContainer: {
         flexDirection: 'row',
-        gap: 12,
+        gap: Spacing.md,
     },
     input: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 12,
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
         padding: 14,
-        fontSize: 16,
-        backgroundColor: '#f9f9f9',
+        fontSize: FontSizes.lg,
+        backgroundColor: Colors.background,
     },
     addButton: {
         width: 50,
         height: 50,
-        borderRadius: 12,
-        backgroundColor: '#333',
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.text,
         justifyContent: 'center',
         alignItems: 'center',
     },
     summary: {
         flexDirection: 'row',
         backgroundColor: '#f9fafb',
-        padding: 16,
-        borderRadius: 12,
-        marginTop: 8,
-        marginBottom: 24,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
+        marginTop: Spacing.sm,
+        marginBottom: Spacing.xxl,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#f3f4f6',
     },
     iconBox: {
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     summaryText: {
         flex: 1,
         color: '#4b5563',
-        fontSize: 14,
+        fontSize: FontSizes.md,
         lineHeight: 20,
     },
     button: {
-        backgroundColor: '#17cf54',
-        padding: 18,
-        borderRadius: 12,
+        backgroundColor: Colors.primaryDark,
+        padding: Spacing.xl,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
-        marginTop: 20,
+        marginTop: Spacing.xl,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
     }
 });

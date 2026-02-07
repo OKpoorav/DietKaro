@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 're
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Shield, Fish, Egg, Leaf } from 'lucide-react-native';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 
 const DIET_PATTERNS = [
     { id: 'vegetarian', name: 'Vegetarian', icon: Leaf, desc: 'No meat, fish, or poultry. Dairy allowed.' },
@@ -37,7 +38,7 @@ export default function DietPatternScreen() {
                         onPress={() => setSelectedPattern(pattern.id)}
                     >
                         <View style={styles.iconContainer}>
-                            <pattern.icon size={24} color={selectedPattern === pattern.id ? '#17cf54' : '#666'} />
+                            <pattern.icon size={24} color={selectedPattern === pattern.id ? Colors.primaryDark : Colors.textMuted} />
                         </View>
                         <View style={styles.textContainer}>
                             <Text style={[
@@ -60,8 +61,8 @@ export default function DietPatternScreen() {
                     <Switch
                         value={eggAllowed}
                         onValueChange={setEggAllowed}
-                        trackColor={{ false: '#eee', true: '#17cf54' }}
-                        thumbColor={'#fff'}
+                        trackColor={{ false: Colors.borderLight, true: Colors.primaryDark }}
+                        thumbColor={Colors.surface}
                     />
                 </View>
             )}
@@ -79,98 +80,98 @@ export default function DietPatternScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
     },
     content: {
-        padding: 24,
+        padding: Spacing.xxl,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 8,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 32,
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
+        marginBottom: Spacing.xxxl,
         lineHeight: 22,
     },
     patterns: {
-        gap: 12,
+        gap: Spacing.md,
     },
     patternCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        borderRadius: 12,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: '#eee',
-        backgroundColor: '#fff',
+        borderColor: Colors.borderLight,
+        backgroundColor: Colors.surface,
     },
     selectedCard: {
-        borderColor: '#17cf54',
-        backgroundColor: '#f0fdf4',
+        borderColor: Colors.primaryDark,
+        backgroundColor: Colors.surfaceSecondary,
     },
     iconContainer: {
-        marginRight: 16,
+        marginRight: Spacing.lg,
     },
     textContainer: {
         flex: 1,
     },
     patternName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 4,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+        marginBottom: Spacing.xs,
     },
     selectedText: {
-        color: '#17cf54',
+        color: Colors.primaryDark,
     },
     patternDesc: {
-        fontSize: 12,
-        color: '#888',
+        fontSize: FontSizes.xs,
+        color: Colors.textMuted,
     },
     radio: {
         width: 20,
         height: 20,
         borderRadius: 10,
         borderWidth: 2,
-        borderColor: '#ddd',
+        borderColor: Colors.border,
     },
     selectedRadio: {
-        borderColor: '#17cf54',
-        backgroundColor: '#17cf54',
+        borderColor: Colors.primaryDark,
+        backgroundColor: Colors.primaryDark,
     },
     eggOption: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 24,
-        padding: 16,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 12,
+        marginTop: Spacing.xxl,
+        padding: Spacing.lg,
+        backgroundColor: Colors.background,
+        borderRadius: BorderRadius.md,
     },
     eggLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#333',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
     },
     button: {
-        backgroundColor: '#17cf54',
-        padding: 18,
-        borderRadius: 12,
+        backgroundColor: Colors.primaryDark,
+        padding: Spacing.xl,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
-        marginTop: 32,
-        shadowColor: '#17cf54',
+        marginTop: Spacing.xxxl,
+        shadowColor: Colors.primaryDark,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
     }
 });

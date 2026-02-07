@@ -3,18 +3,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../hooks/useAuth';
 import { ChevronRight, Bell, Shield, HelpCircle, LogOut, Users, FileText, CreditCard, Gift } from 'lucide-react-native';
-
-// Figma Design Colors
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    white: '#ffffff',
-    error: '#ef4444',
-};
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../../constants/theme';
+import { useToast } from '../../../components/Toast';
 
 interface MenuItemProps {
     icon: typeof Bell;
@@ -29,13 +19,13 @@ function MenuItem({ icon: Icon, title, subtitle, onPress, showChevron = true, da
     return (
         <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
             <View style={[styles.menuIconContainer, danger && styles.menuIconDanger]}>
-                <Icon size={20} color={danger ? colors.error : colors.primary} />
+                <Icon size={20} color={danger ? Colors.error : Colors.primary} />
             </View>
             <View style={styles.menuTextContainer}>
                 <Text style={[styles.menuTitle, danger && styles.menuTitleDanger]}>{title}</Text>
                 {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
             </View>
-            {showChevron && <ChevronRight size={20} color={colors.textSecondary} />}
+            {showChevron && <ChevronRight size={20} color={Colors.textSecondary} />}
         </TouchableOpacity>
     );
 }
@@ -43,6 +33,7 @@ function MenuItem({ icon: Icon, title, subtitle, onPress, showChevron = true, da
 export default function ProfileScreen() {
     const router = useRouter();
     const { logout, client } = useAuth();
+    const toast = useToast();
 
     const handleLogout = () => {
         Alert.alert(
@@ -102,7 +93,7 @@ export default function ProfileScreen() {
                 {/* Subscription Card */}
                 <View style={styles.subscriptionCard}>
                     <View style={styles.subscriptionHeader}>
-                        <CreditCard size={20} color={colors.primary} />
+                        <CreditCard size={20} color={Colors.primary} />
                         <Text style={styles.subscriptionTitle}>Subscription</Text>
                     </View>
                     <View style={styles.subscriptionDetails}>
@@ -136,7 +127,7 @@ export default function ProfileScreen() {
                         <Text style={styles.referralTitle}>Refer & Earn</Text>
                         <Text style={styles.referralSubtitle}>Get 1 month free for every 3 referrals!</Text>
                     </View>
-                    <ChevronRight size={24} color={colors.primary} />
+                    <ChevronRight size={24} color={Colors.primary} />
                 </TouchableOpacity>
 
                 {/* Menu Items */}
@@ -155,12 +146,12 @@ export default function ProfileScreen() {
                     <MenuItem
                         icon={Shield}
                         title="Privacy & Security"
-                        onPress={() => Alert.alert('Coming Soon', 'This feature will be available soon.')}
+                        onPress={() => toast.showToast({ title: 'Coming Soon', message: 'This feature will be available soon.', variant: 'info' })}
                     />
                     <MenuItem
                         icon={HelpCircle}
                         title="Help & Support"
-                        onPress={() => Alert.alert('Help', 'Contact us at support@dietconnect.com')}
+                        onPress={() => toast.showToast({ title: 'Help', message: 'Contact us at support@dietconnect.com', variant: 'info' })}
                     />
                 </View>
 
@@ -185,7 +176,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     scrollView: {
         flex: 1,
@@ -194,18 +185,18 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
         marginBottom: 24,
     },
     profileCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     avatarContainer: {
         marginRight: 16,
@@ -219,14 +210,14 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 32,
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
     },
     avatarText: {
         fontSize: 24,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
     },
     profileInfo: {
         flex: 1,
@@ -234,26 +225,26 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 20,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
         marginBottom: 4,
     },
     profilePhone: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
     },
     profileEmail: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginTop: 2,
     },
     // Subscription Card
     subscriptionCard: {
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     subscriptionHeader: {
         flexDirection: 'row',
@@ -264,7 +255,7 @@ const styles = StyleSheet.create({
     subscriptionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
     },
     subscriptionDetails: {
         gap: 8,
@@ -276,12 +267,12 @@ const styles = StyleSheet.create({
     },
     subscriptionLabel: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
     },
     subscriptionValue: {
         fontSize: 14,
         fontWeight: '500',
-        color: colors.text,
+        color: Colors.text,
     },
     activeBadge: {
         backgroundColor: '#d1fae5',
@@ -298,18 +289,18 @@ const styles = StyleSheet.create({
     referralCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: colors.primary,
+        borderColor: Colors.primary,
     },
     referralIconContainer: {
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -320,18 +311,18 @@ const styles = StyleSheet.create({
     referralTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
     },
     referralSubtitle: {
         fontSize: 13,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginTop: 2,
     },
     menuSection: {
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
         overflow: 'hidden',
         marginBottom: 16,
     },
@@ -340,13 +331,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: Colors.border,
     },
     menuIconContainer: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -360,28 +351,28 @@ const styles = StyleSheet.create({
     menuTitle: {
         fontSize: 16,
         fontWeight: '500',
-        color: colors.text,
+        color: Colors.text,
     },
     menuSubtitle: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginTop: 2,
     },
     menuTitleDanger: {
-        color: colors.error,
+        color: Colors.error,
     },
     logoutSection: {
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
         overflow: 'hidden',
         marginBottom: 24,
     },
     versionText: {
         textAlign: 'center',
         fontSize: 12,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginBottom: 24,
     },
 });

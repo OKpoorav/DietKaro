@@ -2,6 +2,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 
 export default function BasicInfoScreen() {
     const router = useRouter();
@@ -101,65 +102,65 @@ export default function BasicInfoScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
     },
     content: {
-        padding: 24,
+        padding: Spacing.xxl,
     },
     title: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 8,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 32,
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
+        marginBottom: Spacing.xxxl,
         lineHeight: 22,
     },
     formGroup: {
-        marginBottom: 20,
+        marginBottom: Spacing.xl,
     },
     row: {
         flexDirection: 'row',
     },
     label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 8,
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     input: {
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        backgroundColor: '#f9f9f9',
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
+        fontSize: FontSizes.lg,
+        backgroundColor: Colors.background,
     },
     pickerContainer: {
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 12,
-        backgroundColor: '#f9f9f9',
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.background,
         overflow: 'hidden',
     },
     button: {
-        backgroundColor: '#17cf54',
-        padding: 18,
-        borderRadius: 12,
+        backgroundColor: Colors.primaryDark,
+        padding: Spacing.xl,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
-        marginTop: 20,
-        shadowColor: '#17cf54',
+        marginTop: Spacing.xl,
+        shadowColor: Colors.primaryDark,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
     }
 });

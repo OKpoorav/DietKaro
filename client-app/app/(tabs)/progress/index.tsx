@@ -7,31 +7,22 @@ import {
     TouchableOpacity,
     TextInput,
     Modal,
-    Alert,
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useClientStats } from '../../../hooks/useMeals';
 import { useWeightLogs, useCreateWeightLog } from '../../../hooks/useWeight';
+import { useToast } from '../../../components/Toast';
 import { ArrowLeft, PencilLine } from 'lucide-react-native';
-
-// Figma Design Colors
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    error: '#e72a08',
-};
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../../constants/theme';
 
 export default function ProgressScreen() {
     const router = useRouter();
     const { data: stats, refetch: refetchStats } = useClientStats();
     const { data: weightLogs, isLoading: loadingWeights, refetch: refetchWeight } = useWeightLogs(10);
     const createWeightMutation = useCreateWeightLog();
+    const { showToast } = useToast();
 
     const [showWeightModal, setShowWeightModal] = useState(false);
     const [weightInput, setWeightInput] = useState('');
@@ -49,7 +40,7 @@ export default function ProgressScreen() {
     const handleLogWeight = async () => {
         const weight = parseFloat(weightInput);
         if (isNaN(weight) || weight < 20 || weight > 300) {
-            Alert.alert('Invalid Weight', 'Please enter a valid weight between 20-300 kg');
+            showToast({ title: 'Invalid Weight', message: 'Please enter a valid weight between 20-300 kg', variant: 'warning' });
             return;
         }
 
@@ -60,9 +51,9 @@ export default function ProgressScreen() {
             });
             setWeightInput('');
             setShowWeightModal(false);
-            Alert.alert('Success', 'Weight logged successfully!');
+            showToast({ title: 'Success', message: 'Weight logged successfully!', variant: 'success' });
         } catch (error) {
-            Alert.alert('Error', 'Failed to log weight. Please try again.');
+            showToast({ title: 'Error', message: 'Failed to log weight. Please try again.', variant: 'error' });
         }
     };
 
@@ -71,7 +62,7 @@ export default function ProgressScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <ArrowLeft size={24} color={colors.text} />
+                    <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Weight Tracking</Text>
                 <View style={styles.headerSpacer} />
@@ -129,7 +120,7 @@ export default function ProgressScreen() {
                     style={styles.updateButton}
                     onPress={() => setShowWeightModal(true)}
                 >
-                    <PencilLine size={24} color={colors.text} />
+                    <PencilLine size={24} color={Colors.text} />
                     <Text style={styles.updateButtonText}>Update Weight</Text>
                 </TouchableOpacity>
             </View>
@@ -150,7 +141,7 @@ export default function ProgressScreen() {
                                 value={weightInput}
                                 onChangeText={setWeightInput}
                                 placeholder="0.0"
-                                placeholderTextColor={colors.textSecondary}
+                                placeholderTextColor={Colors.textSecondary}
                                 keyboardType="decimal-pad"
                                 autoFocus
                             />
@@ -169,7 +160,7 @@ export default function ProgressScreen() {
                                 disabled={createWeightMutation.isPending}
                             >
                                 {createWeightMutation.isPending ? (
-                                    <ActivityIndicator color={colors.text} />
+                                    <ActivityIndicator color={Colors.text} />
                                 ) : (
                                     <Text style={styles.modalSubmitText}>Save</Text>
                                 )}
@@ -185,14 +176,14 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
     },
     backButton: {
         width: 48,
@@ -200,9 +191,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
         letterSpacing: -0.015 * 18,
     },
     headerSpacer: {
@@ -212,58 +203,58 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     inputContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
     },
     inputLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
-        marginBottom: 8,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     weightInputBox: {
-        backgroundColor: colors.surface,
-        borderRadius: 12,
+        backgroundColor: Colors.surfaceSecondary,
+        borderRadius: BorderRadius.md,
         height: 56,
         justifyContent: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.lg,
     },
     weightInputText: {
-        fontSize: 16,
-        color: colors.textSecondary,
+        fontSize: FontSizes.lg,
+        color: Colors.textSecondary,
     },
     chartSection: {
-        paddingHorizontal: 16,
-        paddingVertical: 24,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.xxl,
     },
     sectionLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
     },
     currentWeightLarge: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: colors.text,
-        marginTop: 8,
+        fontSize: FontSizes.display,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginTop: Spacing.sm,
     },
     chartPeriod: {
-        fontSize: 16,
-        color: colors.textSecondary,
-        marginBottom: 16,
+        fontSize: FontSizes.lg,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.lg,
     },
     chartPlaceholder: {
         height: 180,
-        backgroundColor: colors.surface,
-        borderRadius: 8,
+        backgroundColor: Colors.surfaceSecondary,
+        borderRadius: BorderRadius.sm,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: Spacing.sm,
     },
     chartLine: {
         width: '80%',
         height: 3,
-        backgroundColor: colors.textSecondary,
+        backgroundColor: Colors.textSecondary,
         borderRadius: 2,
     },
     weekLabels: {
@@ -271,53 +262,53 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around',
     },
     weekLabel: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: colors.textSecondary,
+        fontSize: FontSizes.sm,
+        fontWeight: FontWeights.bold,
+        color: Colors.textSecondary,
     },
     goalSection: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
     },
     goalLabel: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
-        marginBottom: 8,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     progressBarContainer: {
         height: 8,
-        backgroundColor: colors.border,
+        backgroundColor: Colors.border,
         borderRadius: 4,
         overflow: 'hidden',
     },
     progressBar: {
         height: '100%',
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         borderRadius: 4,
     },
     toGoText: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginTop: 8,
+        fontSize: FontSizes.md,
+        color: Colors.textSecondary,
+        marginTop: Spacing.sm,
     },
     buttonContainer: {
-        padding: 20,
+        padding: Spacing.xl,
         paddingBottom: 40,
     },
     updateButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 16,
-        backgroundColor: colors.primary,
+        gap: Spacing.lg,
+        backgroundColor: Colors.primary,
         height: 56,
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
     },
     updateButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: colors.text,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
     modalOverlay: {
         flex: 1,
@@ -325,68 +316,68 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 24,
+        backgroundColor: Colors.surface,
+        borderTopLeftRadius: Spacing.xxl,
+        borderTopRightRadius: Spacing.xxl,
+        padding: Spacing.xxl,
         paddingBottom: 40,
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 20,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.xl,
         textAlign: 'center',
     },
     modalInputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        marginBottom: 24,
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.xxl,
     },
     modalInput: {
         flex: 1,
-        fontSize: 32,
-        fontWeight: '700',
-        color: colors.text,
-        paddingVertical: 16,
+        fontSize: FontSizes.display,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        paddingVertical: Spacing.lg,
     },
     modalUnit: {
-        fontSize: 18,
-        color: colors.textSecondary,
+        fontSize: FontSizes.xl,
+        color: Colors.textSecondary,
     },
     modalButtons: {
         flexDirection: 'row',
-        gap: 12,
+        gap: Spacing.md,
     },
     modalCancelButton: {
         flex: 1,
         height: 48,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
+        borderRadius: BorderRadius.md,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     modalCancelText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: colors.text,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
     },
     modalSubmitButton: {
         flex: 1,
         height: 48,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
-        backgroundColor: colors.primary,
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.primary,
     },
     modalSubmitText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: colors.text,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
 });

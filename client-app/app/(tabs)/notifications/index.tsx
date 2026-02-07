@@ -3,17 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { Settings, MessageCircle, Utensils, Scale, Award } from 'lucide-react-native';
-
-// Figma Design Colors
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    white: '#ffffff',
-};
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../../constants/theme';
 
 // Mock notification data - will be replaced with API integration
 const mockNotifications = [
@@ -93,7 +83,7 @@ export default function NotificationsScreen() {
                 <View style={styles.headerSpacer} />
                 <Text style={styles.headerTitle}>Inbox</Text>
                 <TouchableOpacity style={styles.settingsButton}>
-                    <Settings size={24} color={colors.text} />
+                    <Settings size={24} color={Colors.text} />
                 </TouchableOpacity>
             </View>
 
@@ -104,13 +94,13 @@ export default function NotificationsScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor={colors.primary}
+                        tintColor={Colors.primary}
                     />
                 }
             >
                 {notifications.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <MessageCircle size={48} color={colors.textSecondary} />
+                        <MessageCircle size={48} color={Colors.textSecondary} />
                         <Text style={styles.emptyTitle}>No notifications yet</Text>
                         <Text style={styles.emptySubtitle}>
                             You'll see updates from your dietitian here
@@ -130,7 +120,7 @@ export default function NotificationsScreen() {
                                     activeOpacity={0.7}
                                 >
                                     <View style={styles.notificationIcon}>
-                                        <IconComponent size={20} color={colors.primary} />
+                                        <IconComponent size={20} color={Colors.primary} />
                                     </View>
                                     <View style={styles.notificationContent}>
                                         <Text
@@ -164,22 +154,22 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
     },
     headerSpacer: {
         width: 48,
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
     },
     settingsButton: {
         width: 48,
@@ -195,65 +185,65 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingTop: 100,
-        paddingHorizontal: 24,
+        paddingHorizontal: Spacing.xxl,
     },
     emptyTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: colors.text,
-        marginTop: 16,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginTop: Spacing.lg,
     },
     emptySubtitle: {
-        fontSize: 14,
-        color: colors.textSecondary,
+        fontSize: FontSizes.md,
+        color: Colors.textSecondary,
         textAlign: 'center',
-        marginTop: 8,
+        marginTop: Spacing.sm,
     },
     notificationsList: {
-        padding: 16,
+        padding: Spacing.lg,
     },
     notificationItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        backgroundColor: colors.white,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.md,
+        padding: Spacing.lg,
+        marginBottom: Spacing.md,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     notificationUnread: {
-        backgroundColor: colors.surface,
-        borderColor: colors.primary,
+        backgroundColor: Colors.surfaceSecondary,
+        borderColor: Colors.primary,
     },
     notificationIcon: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
+        marginRight: Spacing.md,
     },
     notificationContent: {
         flex: 1,
     },
     notificationTitle: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: colors.text,
-        marginBottom: 4,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
+        marginBottom: Spacing.xs,
     },
     notificationTitleUnread: {
-        fontWeight: '700',
+        fontWeight: FontWeights.bold,
     },
     notificationMessage: {
-        fontSize: 14,
-        color: colors.textSecondary,
-        marginBottom: 4,
+        fontSize: FontSizes.md,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.xs,
     },
     notificationTime: {
-        fontSize: 12,
-        color: colors.textSecondary,
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
     },
 });

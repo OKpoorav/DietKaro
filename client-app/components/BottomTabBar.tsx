@@ -1,15 +1,7 @@
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Home, TrendingUp, Bell, User } from 'lucide-react-native';
-
-// Figma Design Colors
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-};
+import { Colors, Spacing, FontSizes, FontWeights } from '../constants/theme';
 
 interface TabItemProps {
     title: string;
@@ -19,7 +11,7 @@ interface TabItemProps {
 }
 
 function TabItem({ title, icon: Icon, isActive, onPress }: TabItemProps) {
-    const color = isActive ? colors.text : colors.textSecondary;
+    const color = isActive ? Colors.tabActive : Colors.tabInactive;
 
     return (
         <TouchableOpacity style={styles.tabItem} onPress={onPress} activeOpacity={0.7}>
@@ -70,31 +62,31 @@ export function BottomTabBar() {
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        backgroundColor: colors.background,
+        backgroundColor: Colors.tabBackground,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
-        paddingTop: 8,
+        borderTopColor: Colors.border,
+        paddingTop: Spacing.sm,
         paddingBottom: 28,
-        paddingHorizontal: 8,
+        paddingHorizontal: Spacing.sm,
     },
     tabItem: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
+        paddingVertical: Spacing.sm,
         position: 'relative',
     },
     tabLabel: {
-        fontSize: 12,
-        fontWeight: '500',
-        marginTop: 4,
+        fontSize: FontSizes.xs,
+        fontWeight: FontWeights.medium,
+        marginTop: Spacing.xs,
     },
     activeIndicator: {
         position: 'absolute',
         bottom: -4,
         width: 20,
         height: 3,
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         borderRadius: 2,
     },
 });

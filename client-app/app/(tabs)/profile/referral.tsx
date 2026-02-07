@@ -6,7 +6,6 @@ import {
     ScrollView,
     TouchableOpacity,
     Share,
-    Alert,
     ActivityIndicator,
     Linking,
     Clipboard,
@@ -15,34 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Copy, Share2, Gift, Users, Award } from 'lucide-react-native';
 import api from '../../../services/api';
-
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    white: '#ffffff',
-};
-
-interface ReferralData {
-    referralCode: string;
-    shareMessage: string;
-    whatsappLink: string;
-}
-
-interface ReferralStats {
-    referralCount: number;
-    freeMonthsEarned: number;
-    freeMonthsUsed: number;
-    freeMonthsRemaining: number;
-    referralsUntilNextReward: number;
-    referredClients: { name: string; joinedAt: string }[];
-}
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../../constants/theme';
+import { useToast } from '../../../components/Toast';
+import { normalizeError } from '../../../utils/errorHandler';
+import { ReferralData, ReferralStats } from '../../../types';
 
 export default function ReferralScreen() {
     const router = useRouter();
+    const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [referralData, setReferralData] = useState<ReferralData | null>(null);
     const [stats, setStats] = useState<ReferralStats | null>(null);
@@ -61,7 +40,8 @@ export default function ReferralScreen() {
             setReferralData(codeRes.data.data);
             setStats(statsRes.data.data);
         } catch (error) {
-            Alert.alert('Error', 'Failed to load referral data');
+            const normalized = normalizeError(error);
+            toast.showToast({ title: 'Error', message: normalized.message, variant: 'error' });
         } finally {
             setLoading(false);
         }
@@ -80,7 +60,7 @@ export default function ReferralScreen() {
             try {
                 await Linking.openURL(referralData.whatsappLink);
             } catch (error) {
-                Alert.alert('Error', 'WhatsApp is not installed');
+                toast.showToast({ title: 'Error', message: 'WhatsApp is not installed', variant: 'error' });
             }
         }
     };
@@ -101,7 +81,7 @@ export default function ReferralScreen() {
         return (
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator size="large" color={Colors.primary} />
                 </View>
             </SafeAreaView>
         );
@@ -113,7 +93,7 @@ export default function ReferralScreen() {
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <ArrowLeft size={24} color={colors.text} />
+                        <ArrowLeft size={24} color={Colors.text} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Refer & Earn</Text>
                 </View>
@@ -133,7 +113,7 @@ export default function ReferralScreen() {
                     <View style={styles.codeContainer}>
                         <Text style={styles.codeText}>{referralData?.referralCode || '------'}</Text>
                         <TouchableOpacity style={styles.copyButton} onPress={handleCopyCode}>
-                            <Copy size={20} color={copied ? colors.primary : colors.text} />
+                            <Copy size={20} color={copied ? Colors.primary : Colors.text} />
                             <Text style={[styles.copyText, copied && styles.copyTextActive]}>
                                 {copied ? 'Copied!' : 'Copy'}
                             </Text>
@@ -150,7 +130,7 @@ export default function ReferralScreen() {
                             <Text style={styles.shareButtonText}>WhatsApp</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                            <Share2 size={20} color={colors.text} />
+                            <Share2 size={20} color={Colors.text} />
                             <Text style={styles.shareButtonText}>More</Text>
                         </TouchableOpacity>
                     </View>
@@ -162,14 +142,14 @@ export default function ReferralScreen() {
                     <View style={styles.statsGrid}>
                         <View style={styles.statItem}>
                             <View style={styles.statIconContainer}>
-                                <Users size={20} color={colors.primary} />
+                                <Users size={20} color={Colors.primary} />
                             </View>
                             <Text style={styles.statValue}>{stats?.referralCount || 0}</Text>
                             <Text style={styles.statLabel}>Friends Invited</Text>
                         </View>
                         <View style={styles.statItem}>
                             <View style={styles.statIconContainer}>
-                                <Award size={20} color={colors.primary} />
+                                <Award size={20} color={Colors.primary} />
                             </View>
                             <Text style={styles.statValue}>{stats?.freeMonthsRemaining || 0}</Text>
                             <Text style={styles.statLabel}>Free Months</Text>
@@ -218,7 +198,7 @@ export default function ReferralScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     loadingContainer: {
         flex: 1,
@@ -240,10 +220,10 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
     },
     heroCard: {
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         borderRadius: 20,
         padding: 24,
         alignItems: 'center',
@@ -252,7 +232,7 @@ const styles = StyleSheet.create({
     heroTitle: {
         fontSize: 24,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
         marginTop: 16,
         textAlign: 'center',
     },
@@ -264,16 +244,16 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     codeCard: {
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 20,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     codeLabel: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginBottom: 12,
     },
     codeContainer: {
@@ -284,14 +264,14 @@ const styles = StyleSheet.create({
     codeText: {
         fontSize: 32,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
         letterSpacing: 4,
     },
     copyButton: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 12,
@@ -299,17 +279,17 @@ const styles = StyleSheet.create({
     copyText: {
         fontSize: 14,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
     },
     copyTextActive: {
-        color: colors.primary,
+        color: Colors.primary,
     },
     shareSection: {
         marginBottom: 16,
     },
     shareSectionTitle: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginBottom: 12,
     },
     shareButtons: {
@@ -335,29 +315,29 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         paddingVertical: 16,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     shareButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
     },
     statsCard: {
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 20,
         marginBottom: 16,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     statsTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
         marginBottom: 16,
     },
     statsGrid: {
@@ -372,7 +352,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8,
@@ -380,48 +360,48 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 28,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
     },
     statLabel: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginTop: 4,
     },
     progressSection: {
         marginTop: 20,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: colors.border,
+        borderTopColor: Colors.border,
     },
     progressText: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         textAlign: 'center',
         marginBottom: 12,
     },
     progressBar: {
         height: 8,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         borderRadius: 4,
         overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         borderRadius: 4,
     },
     recentCard: {
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 16,
         padding: 20,
         marginBottom: 24,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     recentTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
         marginBottom: 16,
     },
     recentItem: {
@@ -430,15 +410,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: Colors.border,
     },
     recentName: {
         fontSize: 14,
         fontWeight: '500',
-        color: colors.text,
+        color: Colors.text,
     },
     recentDate: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
     },
 });

@@ -1,6 +1,8 @@
 // DietConnect Design Theme Constants
 // Based on Figma design reference
 
+import { StyleSheet } from 'react-native';
+
 export const Colors = {
     // Primary colors
     primary: '#13ec5b',      // Bright green - main accent
@@ -93,3 +95,49 @@ export const Shadows = {
         elevation: 4,
     },
 };
+
+/** Meal status color presets */
+export const StatusColors = {
+    pending: { bg: '#fef3c7', text: '#92400e', label: 'Pending' },
+    eaten: { bg: '#d1fae5', text: '#065f46', label: 'Logged' },
+    skipped: { bg: '#fee2e2', text: '#991b1b', label: 'Skipped' },
+    substituted: { bg: '#dbeafe', text: '#1e40af', label: 'Substituted' },
+    underReview: { bg: '#fef3c7', text: '#92400e', label: 'Under Review' },
+    reviewed: { bg: '#ede9fe', text: '#5b21b6', label: 'Reviewed' },
+} as const;
+
+/** Common style presets used across screens */
+export const CommonStyles = StyleSheet.create({
+    screenContainer: {
+        flex: 1,
+        backgroundColor: Colors.background,
+    },
+    card: {
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        padding: Spacing.lg,
+        ...Shadows.md,
+    },
+    primaryButton: {
+        backgroundColor: Colors.primary,
+        height: 56,
+        borderRadius: BorderRadius.md,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    primaryButtonDisabled: {
+        backgroundColor: Colors.border,
+    },
+    primaryButtonText: {
+        color: Colors.text,
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.bold,
+    },
+    sectionTitle: {
+        fontSize: FontSizes.xxl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+    },
+});

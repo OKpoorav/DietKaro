@@ -16,28 +16,14 @@ import { ArrowLeft, FileText, Upload, Trash2, Image as ImageIcon } from 'lucide-
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import api from '../../../services/api';
-
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    white: '#ffffff',
-    error: '#ef4444',
-};
-
-interface Report {
-    id: string;
-    fileName: string;
-    fileType: string;
-    reportType: string;
-    uploadedAt: string;
-}
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../../constants/theme';
+import { useToast } from '../../../components/Toast';
+import { normalizeError } from '../../../utils/errorHandler';
+import { Report } from '../../../types';
 
 export default function ReportsScreen() {
     const router = useRouter();
+    const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [reports, setReports] = useState<Report[]>([]);
     const [uploading, setUploading] = useState(false);
@@ -87,7 +73,7 @@ export default function ReportsScreen() {
     const handleTakePhoto = async () => {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert('Permission Required', 'Camera access is needed to take photos');
+            toast.showToast({ title: 'Permission Required', message: 'Camera access is needed to take photos', variant: 'warning' });
             return;
         }
 
@@ -125,7 +111,7 @@ export default function ReportsScreen() {
                 uploadFile(uri, name, mimeType || 'application/pdf');
             }
         } catch (error) {
-            Alert.alert('Error', 'Failed to pick document');
+            toast.showToast({ title: 'Error', message: 'Failed to pick document', variant: 'error' });
         }
     };
 
@@ -161,11 +147,12 @@ export default function ReportsScreen() {
                 reportType: 'other',
             });
 
-            Alert.alert('Success', 'Report uploaded successfully!');
+            toast.showToast({ title: 'Success', message: 'Report uploaded successfully!', variant: 'success' });
             fetchReports();
         } catch (error) {
             console.error('Upload error:', error);
-            Alert.alert('Error', 'Failed to upload report. Please try again.');
+            const normalized = normalizeError(error);
+            toast.showToast({ title: 'Upload Failed', message: normalized.message, variant: 'error' });
         } finally {
             setUploading(false);
         }
@@ -185,7 +172,8 @@ export default function ReportsScreen() {
                             await api.delete(`/client/reports/${report.id}`);
                             setReports(reports.filter(r => r.id !== report.id));
                         } catch (error) {
-                            Alert.alert('Error', 'Failed to delete report');
+                            const normalized = normalizeError(error);
+                            toast.showToast({ title: 'Error', message: normalized.message, variant: 'error' });
                         }
                     },
                 },
@@ -197,9 +185,9 @@ export default function ReportsScreen() {
         <View style={styles.reportCard}>
             <View style={styles.reportIcon}>
                 {item.fileType === 'pdf' ? (
-                    <FileText size={24} color={colors.primary} />
+                    <FileText size={24} color={Colors.primary} />
                 ) : (
-                    <ImageIcon size={24} color={colors.primary} />
+                    <ImageIcon size={24} color={Colors.primary} />
                 )}
             </View>
             <View style={styles.reportInfo}>
@@ -212,7 +200,7 @@ export default function ReportsScreen() {
                 style={styles.deleteButton}
                 onPress={() => handleDelete(item)}
             >
-                <Trash2 size={20} color={colors.error} />
+                <Trash2 size={20} color={Colors.error} />
             </TouchableOpacity>
         </View>
     );
@@ -222,14 +210,14 @@ export default function ReportsScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <ArrowLeft size={24} color={colors.text} />
+                    <ArrowLeft size={24} color={Colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>My Reports</Text>
             </View>
 
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator size="large" color={Colors.primary} />
                 </View>
             ) : (
                 <FlatList
@@ -244,12 +232,12 @@ export default function ReportsScreen() {
                                 setRefreshing(true);
                                 fetchReports();
                             }}
-                            tintColor={colors.primary}
+                            tintColor={Colors.primary}
                         />
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <FileText size={48} color={colors.textSecondary} />
+                            <FileText size={48} color={Colors.textSecondary} />
                             <Text style={styles.emptyTitle}>No Reports Yet</Text>
                             <Text style={styles.emptySubtitle}>
                                 Upload your medical reports, blood tests, and other documents
@@ -263,10 +251,10 @@ export default function ReportsScreen() {
                             disabled={uploading}
                         >
                             {uploading ? (
-                                <ActivityIndicator color={colors.text} />
+                                <ActivityIndicator color={Colors.text} />
                             ) : (
                                 <>
-                                    <Upload size={20} color={colors.text} />
+                                    <Upload size={20} color={Colors.text} />
                                     <Text style={styles.uploadButtonText}>Upload Report</Text>
                                 </>
                             )}
@@ -281,7 +269,7 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     header: {
         flexDirection: 'row',
@@ -295,7 +283,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: colors.text,
+        color: Colors.text,
     },
     loadingContainer: {
         flex: 1,
@@ -311,7 +299,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: colors.primary,
+        backgroundColor: Colors.primary,
         paddingVertical: 16,
         borderRadius: 14,
         marginBottom: 24,
@@ -322,23 +310,23 @@ const styles = StyleSheet.create({
     uploadButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
     },
     reportCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.white,
+        backgroundColor: Colors.surface,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: Colors.border,
     },
     reportIcon: {
         width: 48,
         height: 48,
         borderRadius: 12,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -349,11 +337,11 @@ const styles = StyleSheet.create({
     reportName: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
     },
     reportMeta: {
         fontSize: 12,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         marginTop: 4,
     },
     deleteButton: {
@@ -366,12 +354,12 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: colors.text,
+        color: Colors.text,
         marginTop: 16,
     },
     emptySubtitle: {
         fontSize: 14,
-        color: colors.textSecondary,
+        color: Colors.textSecondary,
         textAlign: 'center',
         marginTop: 8,
         paddingHorizontal: 32,

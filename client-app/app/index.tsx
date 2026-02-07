@@ -1,16 +1,12 @@
 import { Redirect } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { LoadingScreen } from '../components/LoadingScreen';
 
 export default function Index() {
     const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
-        return (
-            <View style={styles.loader}>
-                <ActivityIndicator size="large" color="#17cf54" />
-            </View>
-        );
+        return <LoadingScreen />;
     }
 
     if (isAuthenticated) {
@@ -19,12 +15,3 @@ export default function Index() {
 
     return <Redirect href="/(auth)/login" />;
 }
-
-const styles = StyleSheet.create({
-    loader: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-    },
-});

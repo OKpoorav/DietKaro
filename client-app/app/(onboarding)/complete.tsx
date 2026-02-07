@@ -1,18 +1,19 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CheckCircle } from 'lucide-react-native';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../constants/theme';
 
 export default function CompleteScreen() {
     const router = useRouter();
 
     const handleStart = () => {
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/home');
     };
 
     return (
         <View style={styles.container}>
             <View style={styles.iconContainer}>
-                <CheckCircle size={80} color="#17cf54" />
+                <CheckCircle size={80} color={Colors.primaryDark} />
             </View>
 
             <Text style={styles.title}>All Set!</Text>
@@ -33,49 +34,49 @@ export default function CompleteScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: Colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 32,
+        padding: Spacing.xxxl,
     },
     iconContainer: {
-        marginBottom: 32,
-        shadowColor: '#17cf54',
+        marginBottom: Spacing.xxxl,
+        shadowColor: Colors.primaryDark,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.3,
         shadowRadius: 20,
         elevation: 10,
     },
     title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#1a1a1a',
-        marginBottom: 16,
+        fontSize: FontSizes.display,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.lg,
         textAlign: 'center',
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
+        fontSize: FontSizes.lg,
+        color: Colors.textMuted,
         marginBottom: 48,
         textAlign: 'center',
         lineHeight: 24,
     },
     button: {
-        backgroundColor: '#17cf54',
-        paddingVertical: 18,
-        paddingHorizontal: 32,
-        borderRadius: 12,
+        backgroundColor: Colors.primaryDark,
+        paddingVertical: Spacing.xl,
+        paddingHorizontal: Spacing.xxxl,
+        borderRadius: BorderRadius.md,
         alignItems: 'center',
         width: '100%',
-        shadowColor: '#17cf54',
+        shadowColor: Colors.primaryDark,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
     },
     buttonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '600',
+        color: Colors.surface,
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.semibold,
     }
 });

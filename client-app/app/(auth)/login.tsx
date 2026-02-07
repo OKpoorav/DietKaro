@@ -8,33 +8,27 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Phone } from 'lucide-react-native';
 import { useAuth } from '../../hooks/useAuth';
-
-// Figma Design Colors
-const colors = {
-    background: '#f8fcf9',
-    primary: '#13ec5b',
-    text: '#0d1b12',
-    textSecondary: '#4c9a66',
-    border: '#cfe7d7',
-    surface: '#e7f3eb',
-    white: '#ffffff',
-};
+import { useToast } from '../../components/Toast';
+import { normalizeError } from '../../utils/errorHandler';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
 
 export default function LoginScreen() {
     const router = useRouter();
     const { requestOTP } = useAuth();
+    const { showToast } = useToast();
     const [phone, setPhone] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    const isValidPhone = /^\d{10}$/.test(phone);
+
     const handleRequestOTP = async () => {
-        if (phone.length < 10) {
-            Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
+        if (!isValidPhone) {
+            showToast({ title: 'Invalid Phone', message: 'Please enter a valid 10-digit phone number', variant: 'warning' });
             return;
         }
 
@@ -46,8 +40,13 @@ export default function LoginScreen() {
                 params: { phone },
             });
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to send OTP';
-            Alert.alert('Error', message);
+            const appError = normalizeError(error);
+            showToast({
+                title: appError.title,
+                message: appError.message,
+                variant: 'error',
+                action: appError.isRetryable ? { label: 'Retry', onPress: handleRequestOTP } : undefined,
+            });
         } finally {
             setIsLoading(false);
         }
@@ -61,7 +60,7 @@ export default function LoginScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.iconContainer}>
-                        <Phone size={32} color={colors.primary} />
+                        <Phone size={32} color={Colors.primary} />
                     </View>
                     <Text style={styles.title}>Welcome to DietConnect</Text>
                     <Text style={styles.subtitle}>
@@ -78,7 +77,7 @@ export default function LoginScreen() {
                             value={phone}
                             onChangeText={setPhone}
                             placeholder="9876543210"
-                            placeholderTextColor={colors.textSecondary}
+                            placeholderTextColor={Colors.textSecondary}
                             keyboardType="phone-pad"
                             maxLength={10}
                             autoFocus
@@ -86,14 +85,14 @@ export default function LoginScreen() {
                     </View>
 
                     <TouchableOpacity
-                        style={[styles.button, phone.length < 10 && styles.buttonDisabled]}
+                        style={[CommonStyles.primaryButton, !isValidPhone && CommonStyles.primaryButtonDisabled]}
                         onPress={handleRequestOTP}
-                        disabled={isLoading || phone.length < 10}
+                        disabled={isLoading || !isValidPhone}
                     >
                         {isLoading ? (
-                            <ActivityIndicator color={colors.text} />
+                            <ActivityIndicator color={Colors.text} />
                         ) : (
-                            <Text style={styles.buttonText}>Get OTP</Text>
+                            <Text style={CommonStyles.primaryButtonText}>Get OTP</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -109,11 +108,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background,
+        backgroundColor: Colors.background,
     },
     content: {
         flex: 1,
-        padding: 24,
+        padding: Spacing.xxl,
         justifyContent: 'center',
     },
     header: {
@@ -124,74 +123,59 @@ const styles = StyleSheet.create({
         width: 72,
         height: 72,
         borderRadius: 36,
-        backgroundColor: colors.surface,
+        backgroundColor: Colors.surfaceSecondary,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: Spacing.xxl,
     },
     title: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: colors.text,
-        marginBottom: 12,
+        fontSize: FontSizes.xxxl,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+        marginBottom: Spacing.md,
         textAlign: 'center',
     },
     subtitle: {
-        fontSize: 16,
-        color: colors.textSecondary,
+        fontSize: FontSizes.lg,
+        color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 24,
-        paddingHorizontal: 16,
+        paddingHorizontal: Spacing.lg,
     },
     form: {
-        marginBottom: 32,
+        marginBottom: Spacing.xxxl,
     },
     label: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.text,
-        marginBottom: 8,
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+        marginBottom: Spacing.sm,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 12,
-        backgroundColor: colors.white,
-        marginBottom: 24,
+        borderColor: Colors.border,
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.surface,
+        marginBottom: Spacing.xxl,
     },
     prefix: {
-        paddingHorizontal: 16,
-        fontSize: 16,
-        color: colors.text,
-        fontWeight: '500',
+        paddingHorizontal: Spacing.lg,
+        fontSize: FontSizes.lg,
+        color: Colors.text,
+        fontWeight: FontWeights.medium,
     },
     input: {
         flex: 1,
         height: 56,
-        fontSize: 18,
-        color: colors.text,
+        fontSize: FontSizes.xl,
+        color: Colors.text,
         letterSpacing: 1,
     },
-    button: {
-        backgroundColor: colors.primary,
-        height: 56,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    buttonDisabled: {
-        backgroundColor: colors.border,
-    },
-    buttonText: {
-        color: colors.text,
-        fontSize: 16,
-        fontWeight: '700',
-    },
     footer: {
-        fontSize: 12,
-        color: colors.textSecondary,
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
         textAlign: 'center',
         lineHeight: 18,
     },
