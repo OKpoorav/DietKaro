@@ -21,7 +21,7 @@ export default function MealReviewPage() {
     const [feedback, setFeedback] = useState('');
 
     // API hooks
-    const { data, isLoading, error, refetch } = useMealLogs({
+    const { data, isLoading, error } = useMealLogs({
         status: filter === 'all' ? undefined : filter === 'pending' ? 'pending' : undefined,
         pageSize: 50,
     });

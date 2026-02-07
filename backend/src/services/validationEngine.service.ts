@@ -23,6 +23,10 @@ import {
     AlertType,
     FoodRestriction
 } from '../types/validation.types';
+import {
+    matchesCategoryAvoidance,
+    MEAL_SUITABILITY_CONFLICTS
+} from '../utils/validation-rules';
 
 // ============ CONSTANTS ============
 
@@ -164,14 +168,14 @@ export class ValidationEngine {
         // 6. Medical condition warnings
         const medicalAlerts = this.checkMedicalConditions(clientTags, foodTags);
         alerts.push(...medicalAlerts);
-        if (medicalAlerts.length > 0 && highestSeverity !== ValidationSeverity.RED) {
+        if (medicalAlerts.length > 0 && highestSeverity === ValidationSeverity.GREEN) {
             highestSeverity = ValidationSeverity.YELLOW;
         }
 
         // 7. Lab-derived warnings
         const labAlerts = this.checkLabDerivedTags(clientTags, foodTags);
         alerts.push(...labAlerts);
-        if (labAlerts.length > 0 && highestSeverity !== ValidationSeverity.RED) {
+        if (labAlerts.length > 0 && highestSeverity === ValidationSeverity.GREEN) {
             highestSeverity = ValidationSeverity.YELLOW;
         }
 
@@ -184,10 +188,30 @@ export class ValidationEngine {
             }
         }
 
+        // 9. Category avoidance warnings
+        const categoryAlert = this.checkCategoryAvoidance(clientTags, foodTags);
+        if (categoryAlert) {
+            alerts.push(categoryAlert);
+            if (highestSeverity === ValidationSeverity.GREEN) {
+                highestSeverity = ValidationSeverity.YELLOW;
+            }
+        }
+
+        // 10. Meal suitability warnings
+        if (context.mealType) {
+            const mealSuitabilityAlert = this.checkMealSuitability(foodTags, context.mealType);
+            if (mealSuitabilityAlert) {
+                alerts.push(mealSuitabilityAlert);
+                if (highestSeverity === ValidationSeverity.GREEN) {
+                    highestSeverity = ValidationSeverity.YELLOW;
+                }
+            }
+        }
+
         // ===== GREEN RULES (positive) =====
         // These don't change severity, just add positive indicators
 
-        // 9. Liked foods
+        // 11. Liked foods
         const likedAlert = this.checkLikedFoods(clientTags, foodTags);
         if (likedAlert) alerts.push(likedAlert);
 
@@ -287,6 +311,20 @@ export class ValidationEngine {
             if (dislikeAlert) {
                 alerts.push(dislikeAlert);
                 if (highestSeverity === ValidationSeverity.GREEN) highestSeverity = ValidationSeverity.YELLOW;
+            }
+
+            const categoryAlert = this.checkCategoryAvoidance(clientTags, foodTags);
+            if (categoryAlert) {
+                alerts.push(categoryAlert);
+                if (highestSeverity === ValidationSeverity.GREEN) highestSeverity = ValidationSeverity.YELLOW;
+            }
+
+            if (context.mealType) {
+                const mealSuitabilityAlert = this.checkMealSuitability(foodTags, context.mealType);
+                if (mealSuitabilityAlert) {
+                    alerts.push(mealSuitabilityAlert);
+                    if (highestSeverity === ValidationSeverity.GREEN) highestSeverity = ValidationSeverity.YELLOW;
+                }
             }
 
             // Green rules
@@ -473,17 +511,14 @@ export class ValidationEngine {
             };
         }
 
-        // Vegan can't eat non-veg or egg-containing
+        // Vegan can't eat non-veg or egg-containing or anything with dairy
         if (clientPattern === 'vegan' && (foodCategory === 'non_veg' || foodCategory === 'veg_with_egg' || foodCategory === 'vegetarian')) {
-            // Vegan can only eat vegan foods
-            if (foodCategory !== 'vegan') {
-                return {
-                    type: 'diet_pattern',
-                    severity: ValidationSeverity.RED,
-                    message: `⛔ VEGAN: Client only eats vegan food`,
-                    icon: 'sprout'
-                };
-            }
+            return {
+                type: 'diet_pattern',
+                severity: ValidationSeverity.RED,
+                message: `⛔ VEGAN: Client only eats vegan food`,
+                icon: 'sprout'
+            };
         }
 
         // Pescatarian can eat fish but not other meat
@@ -825,6 +860,52 @@ export class ValidationEngine {
                 };
             }
         }
+        return null;
+    }
+
+    private checkCategoryAvoidance(client: ClientTags, food: FoodTags): ValidationAlert | null {
+        if (client.avoidCategories.size === 0) return null;
+
+        for (const category of client.avoidCategories) {
+            const matches = matchesCategoryAvoidance(category, {
+                category: food.name,
+                processingLevel: food.processingLevel || undefined,
+                cuisineTags: Array.from(food.cuisineTags)
+            });
+
+            if (matches) {
+                return {
+                    type: 'dislike',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 AVOID CATEGORY: Client prefers to avoid ${category.replace(/_/g, ' ')}`,
+                    recommendation: 'Consider alternatives from preferred categories',
+                    icon: 'x-circle'
+                };
+            }
+        }
+
+        return null;
+    }
+
+    private checkMealSuitability(food: FoodTags, mealType: string): ValidationAlert | null {
+        if (food.mealSuitabilityTags.size === 0) return null;
+
+        const mealTypeLower = mealType.toLowerCase();
+
+        for (const tag of food.mealSuitabilityTags) {
+            const conflicts = MEAL_SUITABILITY_CONFLICTS[tag];
+            if (conflicts && conflicts.includes(mealTypeLower)) {
+                const tagDisplay = tag.replace(/_/g, ' ');
+                return {
+                    type: 'dislike',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `ℹ️ MEAL TIMING: This food is ${tagDisplay}`,
+                    recommendation: `Consider alternatives better suited for ${mealType}`,
+                    icon: 'clock'
+                };
+            }
+        }
+
         return null;
     }
 

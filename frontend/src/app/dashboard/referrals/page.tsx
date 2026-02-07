@@ -6,7 +6,6 @@ import { useAuth } from '@clerk/nextjs';
 import {
     Users,
     Gift,
-    TrendingUp,
     Award,
     UserPlus,
     Search,

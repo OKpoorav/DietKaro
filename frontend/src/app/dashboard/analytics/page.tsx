@@ -23,7 +23,7 @@ export default function AnalyticsPage() {
 
     // Calculate top performers from client data
     // For now, just show the first 5 clients sorted by name alphabetically
-    const topClients = clients.slice(0, 5).map((c, i) => ({
+    const topClients = clients.slice(0, 5).map((c) => ({
         name: c.fullName,
         adherence: 80 + Math.floor(Math.random() * 15), // Simulated - would need real progress data
         weightLoss: c.targetWeightKg && c.currentWeightKg

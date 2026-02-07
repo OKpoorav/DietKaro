@@ -1,0 +1,247 @@
+import prisma from '../utils/prisma';
+import { AppError } from '../errors/AppError';
+import logger from '../utils/logger';
+import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
+import { scaleNutrition, sumNutrition } from '../utils/nutritionCalculator';
+import { complianceService } from './compliance.service';
+import { CreateMealLogInput, UpdateMealLogInput, ReviewMealLogInput } from '../schemas/mealLog.schema';
+
+export class MealLogService {
+    async createMealLog(data: CreateMealLogInput, orgId: string) {
+        const client = await prisma.client.findFirst({ where: { id: data.clientId, orgId } });
+        if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+
+        const meal = await prisma.meal.findUnique({
+            where: { id: data.mealId },
+            include: { dietPlan: true },
+        });
+
+        if (!meal || meal.dietPlan.orgId !== orgId) {
+            throw AppError.notFound('Meal not found', 'MEAL_NOT_FOUND');
+        }
+
+        const mealLog = await prisma.mealLog.create({
+            data: {
+                orgId,
+                clientId: data.clientId,
+                mealId: data.mealId,
+                scheduledDate: new Date(data.scheduledDate),
+                scheduledTime: data.scheduledTime,
+                status: 'pending',
+            },
+            include: {
+                meal: { select: { name: true, mealType: true } },
+                client: { select: { id: true, fullName: true } },
+            },
+        });
+
+        logger.info('Meal log created', { mealLogId: mealLog.id });
+        return mealLog;
+    }
+
+    async listMealLogs(orgId: string, query: any, userRole: string, userId: string) {
+        const { clientId, status, sortBy = 'scheduledDate' } = query;
+        const pagination = buildPaginationParams(query.page, query.pageSize);
+        const dateFilter = buildDateFilter(query.dateFrom, query.dateTo);
+
+        const where: any = { orgId };
+        if (clientId) where.clientId = String(clientId);
+        if (status) where.status = String(status);
+        if (dateFilter) where.scheduledDate = dateFilter;
+        if (userRole === 'dietitian') where.client = { primaryDietitianId: userId };
+
+        const [mealLogs, total] = await prisma.$transaction([
+            prisma.mealLog.findMany({
+                where,
+                skip: pagination.skip,
+                take: pagination.take,
+                orderBy: { [String(sortBy)]: 'desc' },
+                include: {
+                    meal: { select: { name: true, mealType: true, timeOfDay: true } },
+                    client: { select: { id: true, fullName: true } },
+                    reviewer: { select: { id: true, fullName: true } },
+                },
+            }),
+            prisma.mealLog.count({ where }),
+        ]);
+
+        const data = mealLogs.map((log) => ({
+            id: log.id,
+            mealId: log.mealId,
+            scheduledDate: log.scheduledDate,
+            scheduledTime: log.scheduledTime,
+            meal: { title: log.meal.name, mealType: log.meal.mealType },
+            client: log.client,
+            status: log.status,
+            photoUrl: log.mealPhotoUrl,
+            clientNotes: log.clientNotes,
+            dietitianFeedback: log.dietitianFeedback,
+            reviewedByUser: log.reviewer,
+            dietitianReviewedAt: log.dietitianFeedbackAt,
+            loggedAt: log.loggedAt,
+            createdAt: log.createdAt,
+            complianceScore: log.complianceScore,
+            complianceColor: log.complianceColor,
+            complianceIssues: log.complianceIssues,
+        }));
+
+        return { data, meta: buildPaginationMeta(total, pagination) };
+    }
+
+    async getMealLog(mealLogId: string, orgId: string) {
+        const mealLog = await prisma.mealLog.findFirst({
+            where: { id: mealLogId, orgId },
+            include: {
+                meal: { include: { foodItems: { include: { foodItem: true } } } },
+                client: { select: { id: true, fullName: true } },
+                reviewer: { select: { id: true, fullName: true } },
+            },
+        });
+
+        if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
+
+        const items = mealLog.meal.foodItems.map((mfi) => {
+            const nutrition = scaleNutrition(mfi.foodItem, Number(mfi.quantityG));
+            return {
+                foodId: mfi.foodItem.id,
+                foodName: mfi.foodItem.name,
+                quantity: Number(mfi.quantityG),
+                unit: 'g',
+                nutrition,
+            };
+        });
+
+        const totals = sumNutrition(items.map((i) => i.nutrition));
+
+        return {
+            id: mealLog.id,
+            organizationId: mealLog.orgId,
+            client: mealLog.client,
+            mealId: mealLog.mealId,
+            scheduledDate: mealLog.scheduledDate,
+            scheduledTime: mealLog.scheduledTime,
+            meal: {
+                title: mealLog.meal.name,
+                mealType: mealLog.meal.mealType,
+                instructions: mealLog.meal.instructions,
+                items,
+                totals,
+            },
+            status: mealLog.status,
+            photoUrl: mealLog.mealPhotoUrl,
+            clientNotes: mealLog.clientNotes,
+            dietitianFeedback: mealLog.dietitianFeedback,
+            reviewedByUser: mealLog.reviewer,
+            dietitianReviewedAt: mealLog.dietitianFeedbackAt,
+            loggedAt: mealLog.loggedAt,
+            createdAt: mealLog.createdAt,
+            updatedAt: mealLog.updatedAt,
+            complianceScore: mealLog.complianceScore,
+            complianceColor: mealLog.complianceColor,
+            complianceIssues: mealLog.complianceIssues,
+        };
+    }
+
+    async updateMealLog(mealLogId: string, data: UpdateMealLogInput, orgId: string) {
+        const mealLog = await prisma.mealLog.findFirst({
+            where: { id: mealLogId, orgId },
+            include: { meal: { include: { foodItems: { include: { foodItem: true } } } } },
+        });
+
+        if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
+
+        const updateData: any = {};
+        if (data.status) updateData.status = data.status;
+        if (data.clientNotes !== undefined) updateData.clientNotes = data.clientNotes;
+        if (data.substituteDescription !== undefined) updateData.substituteDescription = data.substituteDescription;
+        if (data.substituteCaloriesEst !== undefined) updateData.substituteCaloriesEst = data.substituteCaloriesEst;
+        if (data.photoUrl) {
+            updateData.mealPhotoUrl = data.photoUrl;
+            updateData.photoUploadedAt = new Date();
+        }
+        if (data.status && data.status !== 'pending') updateData.loggedAt = new Date();
+
+        const updated = await prisma.mealLog.update({ where: { id: mealLogId }, data: updateData });
+
+        if ((data.status === 'eaten' && mealLog.status !== 'eaten') || data.substituteCaloriesEst) {
+            let plannedCalories = 0;
+            mealLog.meal.foodItems.forEach((fi) => {
+                const nutrition = scaleNutrition(fi.foodItem, Number(fi.quantityG));
+                plannedCalories += nutrition.calories;
+            });
+
+            const actualCalories = data.substituteCaloriesEst || plannedCalories;
+            await complianceService.calculateCompliance(updated.id, actualCalories, plannedCalories, true);
+        }
+
+        const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
+        logger.info('Meal log updated', { mealLogId: updated.id });
+
+        return {
+            id: finalLog!.id,
+            status: finalLog!.status,
+            photoUrl: finalLog!.mealPhotoUrl,
+            clientNotes: finalLog!.clientNotes,
+            loggedAt: finalLog!.loggedAt,
+            complianceScore: finalLog!.complianceScore,
+            complianceColor: finalLog!.complianceColor,
+        };
+    }
+
+    async reviewMealLog(mealLogId: string, data: ReviewMealLogInput, orgId: string, userId: string) {
+        const mealLog = await prisma.mealLog.findFirst({ where: { id: mealLogId, orgId } });
+        if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
+
+        const updateData: any = { reviewedByUserId: userId, dietitianFeedbackAt: new Date() };
+        if (data.dietitianFeedback !== undefined) updateData.dietitianFeedback = data.dietitianFeedback;
+        if (data.status) updateData.status = data.status;
+        if (data.overrideCalories !== undefined) updateData.substituteCaloriesEst = data.overrideCalories;
+
+        const updated = await prisma.mealLog.update({
+            where: { id: mealLogId },
+            data: updateData,
+            include: { reviewer: { select: { id: true, fullName: true } } },
+        });
+
+        logger.info('Meal log reviewed', { mealLogId: updated.id, reviewerId: userId });
+
+        return {
+            id: updated.id,
+            status: updated.status,
+            dietitianFeedback: updated.dietitianFeedback,
+            reviewedByUser: updated.reviewer,
+            dietitianReviewedAt: updated.dietitianFeedbackAt,
+        };
+    }
+
+    async uploadMealPhoto(mealLogId: string, fileBuffer: Buffer, fileSize: number, orgId: string) {
+        const mealLog = await prisma.mealLog.findFirst({ where: { id: mealLogId, orgId } });
+        if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
+
+        const { StorageService } = await import('./storage.service');
+
+        const { fullUrl, thumbUrl } = await StorageService.uploadMealPhoto(fileBuffer, orgId, mealLogId);
+
+        const updated = await prisma.mealLog.update({
+            where: { id: mealLogId },
+            data: {
+                mealPhotoUrl: fullUrl,
+                mealPhotoSmallUrl: thumbUrl,
+                photoUploadedAt: new Date(),
+                ...(mealLog.status === 'pending' && { status: 'eaten', loggedAt: new Date() }),
+            },
+        });
+
+        logger.info('Meal photo uploaded', { mealLogId, fullUrl, thumbUrl, originalSize: fileSize });
+
+        return {
+            id: updated.id,
+            mealPhotoUrl: updated.mealPhotoUrl,
+            mealPhotoSmallUrl: updated.mealPhotoSmallUrl,
+            photoUploadedAt: updated.photoUploadedAt,
+            status: updated.status,
+        };
+    }
+}
+
+export const mealLogService = new MealLogService();

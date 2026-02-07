@@ -2,7 +2,6 @@
 
 import {
     Plus,
-    Search,
     MoreVertical,
     Mail,
     Phone,

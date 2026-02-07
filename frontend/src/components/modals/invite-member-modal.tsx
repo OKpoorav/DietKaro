@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { useInviteMember } from '@/lib/hooks/use-team';
-import { Loader2, Mail, Link as LinkIcon, Check, Copy } from 'lucide-react';
+import { Loader2, Mail, Check, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface InviteMemberModalProps {
@@ -28,7 +28,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
             const link = `${window.location.origin}/join?token=${token}`;
             setInviteLink(link);
             toast.success('Invitation generated! Share the link.');
-        } catch (error) {
+        } catch {
             toast.error('Failed to generate invitation');
         }
     };

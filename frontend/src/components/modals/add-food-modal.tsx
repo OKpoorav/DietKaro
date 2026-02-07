@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Search, Plus, Loader2, AlertTriangle, Ban, Heart, Check, Info } from 'lucide-react';
 import { useFoodItems, FoodItem as ApiFoodItem } from '@/lib/hooks/use-food-items';

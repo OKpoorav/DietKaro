@@ -101,11 +101,15 @@ export function useValidation(clientId: string | null) {
 
             const batchResult: BatchValidationResult = data.data;
 
-            // Update cache with new results
+            // Update cache with new results, limit cache size to 500 entries
             const newCache = new Map(validationCache);
             batchResult.results.forEach(result => {
                 newCache.set(result.foodId, result);
             });
+            if (newCache.size > 500) {
+                const keysToDelete = Array.from(newCache.keys()).slice(0, newCache.size - 500);
+                keysToDelete.forEach(key => newCache.delete(key));
+            }
             setValidationCache(newCache);
 
             // Return all requested results (cached + new)

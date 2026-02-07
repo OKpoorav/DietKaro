@@ -78,7 +78,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                 toast.success('Food item created successfully');
             }
             onClose();
-        } catch (error) {
+        } catch {
             toast.error(isEditing ? 'Failed to update food item' : 'Failed to create food item');
         }
     };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../api/use-api-client';
 
 export interface TeamMember {
@@ -34,12 +34,16 @@ export function useTeam() {
 
 export function useInviteMember() {
     const api = useApiClient();
+    const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async (data: InviteMemberInput) => {
             const res = await api.post('/team/invite', data);
             return res.data.data;
-        }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['team'] });
+        },
     });
 }
 
@@ -59,11 +63,15 @@ export function useValidateInvite(token: string) {
 
 export function useAcceptInvite() {
     const api = useApiClient();
+    const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: async (token: string) => {
             const res = await api.post('/team/join', { token });
             return res.data;
-        }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['team'] });
+        },
     });
 }

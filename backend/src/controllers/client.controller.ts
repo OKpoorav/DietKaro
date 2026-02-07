@@ -1,327 +1,41 @@
 import { Response } from 'express';
-import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth.types';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
-import logger from '../utils/logger';
-import { CreateClientInput, UpdateClientInput } from '../schemas/client.schema';
-
-/**
- * Generate a unique 6-character referral code
- * Uses alphanumeric characters excluding confusing ones (O, 0, I, 1, L)
- */
-const generateReferralCode = (): string => {
-    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-};
-
-/**
- * Generate a unique referral code with collision checking
- */
-const generateUniqueReferralCode = async (): Promise<string> => {
-    let code: string;
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    do {
-        code = generateReferralCode();
-        const existing = await prisma.client.findUnique({
-            where: { referralCode: code }
-        });
-        if (!existing) return code;
-        attempts++;
-    } while (attempts < maxAttempts);
-
-    // Fallback: add timestamp suffix for uniqueness
-    return generateReferralCode() + Date.now().toString(36).slice(-2).toUpperCase();
-};
+import { clientService } from '../services/client.service';
 
 export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-
-    const data = req.body;
-
-    const existingClient = await prisma.client.findFirst({
-        where: { orgId: req.user.organizationId, email: data.email }
-    });
-
-    if (existingClient) {
-        throw AppError.conflict('A client with this email already exists', 'CLIENT_EXISTS');
-    }
-
-    // Handle referral code - find referrer if code provided
-    let referredByClientId: string | undefined;
-    if (data.referralCode) {
-        const referrer = await prisma.client.findUnique({
-            where: { referralCode: data.referralCode.toUpperCase() },
-            select: { id: true }
-        });
-        if (referrer) {
-            referredByClientId = referrer.id;
-        }
-    }
-
-    const client = await prisma.client.create({
-        data: {
-            orgId: req.user.organizationId,
-            primaryDietitianId: data.primaryDietitianId || req.user.id,
-            fullName: data.fullName,
-            email: data.email,
-            phone: data.phone,
-            dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-            gender: data.gender,
-            heightCm: data.heightCm,
-            currentWeightKg: data.currentWeightKg,
-            targetWeightKg: data.targetWeightKg,
-            activityLevel: data.activityLevel,
-            dietaryPreferences: data.dietaryPreferences || [],
-            allergies: data.allergies || [],
-            medicalConditions: data.medicalConditions || [],
-            medications: data.medications || [],
-            healthNotes: data.healthNotes,
-            createdByUserId: req.user.id,
-            // Referral tracking fields
-            referralSource: data.referralSource,
-            referralSourceName: data.referralSourceName,
-            referralSourcePhone: data.referralSourcePhone,
-            referredByClientId,
-            // Generate referral code for the new client
-            referralCode: await generateUniqueReferralCode()
-        },
-        include: {
-            primaryDietitian: { select: { id: true, fullName: true } }
-        }
-    });
-
-    // Update referrer's benefit count if referred by another client
-    // Uses atomic increment to prevent race conditions
-    if (referredByClientId) {
-        await prisma.$transaction(async (tx) => {
-            // Get current benefit record or create one
-            const benefit = await tx.referralBenefit.upsert({
-                where: { clientId: referredByClientId },
-                create: {
-                    clientId: referredByClientId,
-                    referralCount: 1,
-                    freeMonthsEarned: 0
-                },
-                update: {
-                    referralCount: { increment: 1 }
-                }
-            });
-
-            // Calculate new freeMonthsEarned based on updated count
-            const newReferralCount = benefit.referralCount + 1; // +1 because upsert returns pre-increment value
-            const newFreeMonths = Math.floor(newReferralCount / 3);
-
-            if (newFreeMonths > benefit.freeMonthsEarned) {
-                await tx.referralBenefit.update({
-                    where: { clientId: referredByClientId },
-                    data: { freeMonthsEarned: newFreeMonths }
-                });
-            }
-        });
-    }
-
-    logger.info('Client created', {
-        clientId: client.id,
-        orgId: req.user.organizationId,
-        referralSource: data.referralSource,
-        referredBy: referredByClientId
-    });
+    const client = await clientService.createClient(req.body, req.user.organizationId, req.user.id);
     res.status(201).json({ success: true, data: client });
 });
 
-
 export const getClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-
-    const client = await prisma.client.findFirst({
-        where: { id: req.params.id, orgId: req.user.organizationId, isActive: true },
-        include: {
-            primaryDietitian: { select: { id: true, fullName: true } },
-            medicalProfile: true
-        }
-    });
-
-    if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
-
+    const client = await clientService.getClient(req.params.id, req.user.organizationId);
     res.status(200).json({ success: true, data: client });
 });
 
 export const listClients = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-
-    const { page = '1', pageSize = '20', search, status, primaryDietitianId, sortBy = 'createdAt' } = req.query;
-
-    const skip = (Number(page) - 1) * Number(pageSize);
-    const take = Number(pageSize);
-
-    const where: any = {
-        orgId: req.user.organizationId,
-        isActive: status !== 'inactive'
-    };
-
-    if (search) {
-        where.OR = [
-            { fullName: { contains: String(search), mode: 'insensitive' } },
-            { email: { contains: String(search), mode: 'insensitive' } },
-            { phone: { contains: String(search) } }
-        ];
-    }
-
-    if (primaryDietitianId) where.primaryDietitianId = String(primaryDietitianId);
-    if (req.user.role === 'dietitian') where.primaryDietitianId = req.user.id;
-
-    const [clients, total] = await prisma.$transaction([
-        prisma.client.findMany({
-            where, skip, take,
-            orderBy: { [String(sortBy)]: 'desc' },
-            include: { primaryDietitian: { select: { id: true, fullName: true } } }
-        }),
-        prisma.client.count({ where })
-    ]);
-
-    res.status(200).json({
-        success: true,
-        data: clients,
-        meta: {
-            page: Number(page),
-            pageSize: Number(pageSize),
-            total,
-            totalPages: Math.ceil(total / Number(pageSize)),
-            hasNextPage: Number(page) < Math.ceil(total / Number(pageSize)),
-            hasPreviousPage: Number(page) > 1
-        }
-    });
+    const { clients, meta } = await clientService.listClients(req.user.organizationId, req.query, req.user.role, req.user.id);
+    res.status(200).json({ success: true, data: clients, meta });
 });
 
 export const updateClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-
-    const { id } = req.params;
-    const updateData: any = req.body;
-
-    const existingClient = await prisma.client.findFirst({
-        where: { id, orgId: req.user.organizationId }
-    });
-
-    if (!existingClient) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
-
-    // Handle date conversion
-    if (updateData.dateOfBirth) {
-        updateData.dateOfBirth = new Date(updateData.dateOfBirth);
-    }
-
-    const client = await prisma.client.update({
-        where: { id },
-        data: updateData,
-        include: { primaryDietitian: { select: { id: true, fullName: true } } }
-    });
-
-    logger.info('Client updated', { clientId: client.id });
+    const client = await clientService.updateClient(req.params.id, req.body, req.user.organizationId);
     res.status(200).json({ success: true, data: client });
 });
 
 export const deleteClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-
-    const existingClient = await prisma.client.findFirst({
-        where: { id: req.params.id, orgId: req.user.organizationId }
-    });
-
-    if (!existingClient) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
-
-    await prisma.client.update({
-        where: { id: req.params.id },
-        data: { isActive: false, deletedAt: new Date() }
-    });
-
-    logger.info('Client deleted (soft)', { clientId: req.params.id });
+    await clientService.deleteClient(req.params.id, req.user.organizationId);
     res.status(204).send();
 });
 
 export const getClientProgress = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-
-    const { id } = req.params;
-    const { dateFrom, dateTo } = req.query;
-
-    const client = await prisma.client.findFirst({
-        where: { id, orgId: req.user.organizationId }
-    });
-
-    if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
-
-    const dateFilter: any = {};
-    if (dateFrom) dateFilter.gte = new Date(String(dateFrom));
-    if (dateTo) dateFilter.lte = new Date(String(dateTo));
-
-    const weightLogs = await prisma.weightLog.findMany({
-        where: { clientId: id, ...(Object.keys(dateFilter).length > 0 && { logDate: dateFilter }) },
-        orderBy: { logDate: 'asc' }
-    });
-
-    let startWeight: number | null = null;
-    let currentWeight: number | null = null;
-    let totalWeightChange: number | null = null;
-    let weeklyAvgChange: number | null = null;
-    let targetWeight = client.targetWeightKg ? Number(client.targetWeightKg) : null;
-    let progressToGoal: number | null = null;
-
-    if (weightLogs.length > 0) {
-        startWeight = Number(weightLogs[0].weightKg);
-        currentWeight = Number(weightLogs[weightLogs.length - 1].weightKg);
-        totalWeightChange = Math.round((currentWeight - startWeight) * 100) / 100;
-
-        const firstDate = new Date(weightLogs[0].logDate);
-        const lastDate = new Date(weightLogs[weightLogs.length - 1].logDate);
-        const weeksDiff = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
-        weeklyAvgChange = Math.round((totalWeightChange / weeksDiff) * 100) / 100;
-
-        if (targetWeight && startWeight) {
-            const totalToLose = startWeight - targetWeight;
-            const lost = startWeight - currentWeight;
-            progressToGoal = totalToLose > 0 ? Math.round((lost / totalToLose) * 100) : 0;
-        }
-    }
-
-    const mealLogs = await prisma.mealLog.findMany({
-        where: { clientId: id, ...(Object.keys(dateFilter).length > 0 && { scheduledDate: dateFilter }) }
-    });
-
-    const totalMeals = mealLogs.length;
-    const eatenMeals = mealLogs.filter(m => m.status === 'eaten').length;
-    const substitutedMeals = mealLogs.filter(m => m.status === 'substituted').length;
-    const skippedMeals = mealLogs.filter(m => m.status === 'skipped').length;
-    const pendingMeals = mealLogs.filter(m => m.status === 'pending').length;
-
-    const adherencePercentage = totalMeals > 0 ? Math.round(((eatenMeals + substitutedMeals) / totalMeals) * 100) : 0;
-    const completionPercentage = totalMeals > 0 ? Math.round(((totalMeals - pendingMeals) / totalMeals) * 100) : 0;
-
-    const activePlansCount = await prisma.dietPlan.count({
-        where: { clientId: id, status: 'active', isActive: true }
-    });
-
-    res.status(200).json({
-        success: true,
-        data: {
-            client: { id: client.id, fullName: client.fullName },
-            weightTrend: {
-                startWeight, currentWeight, targetWeight, totalWeightChange,
-                weeklyAverageChange: weeklyAvgChange, progressToGoalPercentage: progressToGoal,
-                dataPoints: weightLogs.map(w => ({ date: w.logDate, weight: Number(w.weightKg) }))
-            },
-            mealAdherence: {
-                totalMeals, eatenMeals, substitutedMeals, skippedMeals, pendingMeals,
-                adherencePercentage, completionPercentage
-            },
-            activeDietPlans: activePlansCount,
-            period: { from: dateFrom ? new Date(String(dateFrom)) : null, to: dateTo ? new Date(String(dateTo)) : null }
-        }
-    });
+    const data = await clientService.getClientProgress(req.params.id, req.user.organizationId, req.query);
+    res.status(200).json({ success: true, data });
 });

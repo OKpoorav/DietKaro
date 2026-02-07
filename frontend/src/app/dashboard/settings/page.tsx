@@ -65,7 +65,7 @@ export default function SettingsPage() {
         try {
             await updateProfile.mutateAsync(formData);
             toast.success('Profile updated successfully');
-        } catch (error) {
+        } catch {
             toast.error('Failed to update profile');
         }
     };

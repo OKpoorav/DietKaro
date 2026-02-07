@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useClient, useClientProgress } from '@/lib/hooks/use-clients';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
+import { getInitials, calculateAge } from '@/lib/utils/formatters';
 
 export default function ClientProfilePage() {
     const params = useParams();
@@ -26,20 +27,6 @@ export default function ClientProfilePage() {
 
     const activePlan = plansData?.data?.[0];
 
-    const getInitials = (name?: string) => {
-        if (!name) return '??';
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    };
-
-    const calculateAge = (dob?: string) => {
-        if (!dob) return null;
-        const birthDate = new Date(dob);
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-        return age;
-    };
 
     if (clientLoading) {
         return (

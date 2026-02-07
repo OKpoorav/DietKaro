@@ -12,18 +12,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { useDashboardStats } from '@/lib/hooks/use-dashboard';
-
-function formatTimeAgo(date: string | Date) {
-    const d = new Date(date);
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return 'Just now';
-    if (hours < 24) return `${hours} hours ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} days ago`;
-    return d.toLocaleDateString();
-}
+import { formatTimeAgo } from '@/lib/utils/formatters';
 
 export default function DashboardPage() {
     const { user } = useUser();

@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useDietPlan, usePublishDietPlan, useUpdateDietPlan } from '@/lib/hooks/use-diet-plans';
-import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, CheckCircle, Clock, AlertCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -52,7 +52,7 @@ export default function DietPlanDetailPage() {
             <div className="text-center py-20">
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Plan not found</h2>
-                <p className="text-gray-500 mb-4">The diet plan you're looking for doesn't exist.</p>
+                <p className="text-gray-500 mb-4">The diet plan you&apos;re looking for doesn&apos;t exist.</p>
                 <Link href="/dashboard/diet-plans" className="text-[#17cf54] hover:underline">
                     ← Back to Diet Plans
                 </Link>

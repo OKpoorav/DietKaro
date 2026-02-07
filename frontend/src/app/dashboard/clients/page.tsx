@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AddClientModal } from '@/components/modals/add-client-modal';
 import { useClients, useCreateClient, Client } from '@/lib/hooks/use-clients';
+import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
 
 type FilterType = 'all' | 'active' | 'at-risk' | 'completed';
 
@@ -35,14 +36,14 @@ export default function ClientsPage() {
     const clients = data?.data || [];
     const meta = data?.meta;
 
-    const handleAddClient = async (clientData: any) => {
+    const handleAddClient = async (clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string }) => {
         try {
             await createClient.mutateAsync({
                 fullName: clientData.name,
                 email: clientData.email,
                 phone: clientData.phone,
                 dateOfBirth: clientData.dateOfBirth,
-                gender: clientData.gender,
+                gender: clientData.gender as Client['gender'],
                 heightCm: clientData.height ? Number(clientData.height) : undefined,
                 currentWeightKg: clientData.weight ? Number(clientData.weight) : undefined,
                 targetWeightKg: clientData.targetWeight ? Number(clientData.targetWeight) : undefined,
@@ -53,21 +54,6 @@ export default function ClientsPage() {
         }
     };
 
-    const getInitials = (name: string) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    };
-
-    const formatLastActivity = (date?: string) => {
-        if (!date) return 'Never';
-        const d = new Date(date);
-        const now = new Date();
-        const diff = now.getTime() - d.getTime();
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        if (hours < 24) return `${hours} hours ago`;
-        const days = Math.floor(hours / 24);
-        if (days < 7) return `${days} days ago`;
-        return `${Math.floor(days / 7)} weeks ago`;
-    };
 
     return (
         <div className="space-y-6">
@@ -205,7 +191,7 @@ export default function ClientsPage() {
                                             {client.primaryDietitian?.fullName || '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                                            {formatLastActivity(client.lastActivityAt)}
+                                            {client.lastActivityAt ? formatTimeAgo(client.lastActivityAt) : 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2">

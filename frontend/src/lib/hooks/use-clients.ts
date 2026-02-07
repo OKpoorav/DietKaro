@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../api/use-api-client';
+import type { FoodRestriction } from './use-validation';
 
 // Types
 export interface Client {
@@ -31,9 +32,9 @@ export interface Client {
     // Validation-related fields
     allergies?: string[];
     intolerances?: string[];
-    dietPattern?: string | null;
+    dietPattern?: string;
     medicalConditions?: string[];
-    foodRestrictions?: any[];
+    foodRestrictions?: FoodRestriction[];
     dislikes?: string[];
     likedFoods?: string[];
     preferredCuisines?: string[];

@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useValidateInvite, useAcceptInvite } from '@/lib/hooks/use-team';
 import { useUser, SignInButton } from '@clerk/nextjs';
-import { Loader2, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
+import { Loader2, AlertCircle, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 function JoinContent() {
@@ -23,8 +23,9 @@ function JoinContent() {
             await acceptMutation.mutateAsync(token);
             toast.success('Successfully joined the team!');
             router.push('/dashboard');
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to join team');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to join team';
+            toast.error(message);
         }
     };
 
