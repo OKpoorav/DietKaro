@@ -8,34 +8,36 @@ import {
     TextInput,
     Modal,
     ActivityIndicator,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useClientStats } from '../../../hooks/useMeals';
-import { useWeightLogs, useCreateWeightLog } from '../../../hooks/useWeight';
+import { useProgressSummary, useCreateWeightLog } from '../../../hooks/useWeight';
+import { useWeeklyAdherence } from '../../../hooks/useAdherence';
 import { useToast } from '../../../components/Toast';
-import { ArrowLeft, PencilLine } from 'lucide-react-native';
+import { ArrowLeft, PencilLine, TrendingUp, TrendingDown, Minus, Ruler, ChevronRight } from 'lucide-react-native';
+import { LineChart } from 'react-native-chart-kit';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../../constants/theme';
+
+const screenWidth = Dimensions.get('window').width;
 
 export default function ProgressScreen() {
     const router = useRouter();
-    const { data: stats, refetch: refetchStats } = useClientStats();
-    const { data: weightLogs, isLoading: loadingWeights, refetch: refetchWeight } = useWeightLogs(10);
+    const { data: progress } = useProgressSummary();
+    const { data: weeklyAdherence } = useWeeklyAdherence();
     const createWeightMutation = useCreateWeightLog();
     const { showToast } = useToast();
 
     const [showWeightModal, setShowWeightModal] = useState(false);
     const [weightInput, setWeightInput] = useState('');
 
-    // Parse weightKg - Prisma Decimal comes as string from API
-    const latestLog = weightLogs?.[0];
-    const currentWeight = latestLog
-        ? (typeof latestLog.weightKg === 'string' ? parseFloat(latestLog.weightKg) : latestLog.weightKg)
-        : stats?.latestWeight;
-    const targetWeight = stats?.targetWeight || 65;
-    const progressPercent = currentWeight && targetWeight
-        ? Math.min(100, Math.max(0, ((80 - currentWeight) / (80 - targetWeight)) * 100))
-        : 0;
+    // All data computed server-side
+    const currentWeight = progress?.currentWeight;
+    const targetWeight = progress?.targetWeight ?? 65;
+    const progressPercent = progress?.progressPercent ?? 0;
+    const chartEntries = progress?.chartEntries ?? [];
+    const hasChartData = chartEntries.length >= 2;
+    const history = progress?.history ?? [];
 
     const handleLogWeight = async () => {
         const weight = parseFloat(weightInput);
@@ -86,18 +88,75 @@ export default function ProgressScreen() {
                 <View style={styles.chartSection}>
                     <Text style={styles.sectionLabel}>Weight Progress</Text>
                     <Text style={styles.currentWeightLarge}>{currentWeight || '--'} kg</Text>
-                    <Text style={styles.chartPeriod}>Last 8 Weeks</Text>
+                    <Text style={styles.chartPeriod}>
+                        {hasChartData ? `Last ${chartEntries.length} entries` : 'No data yet'}
+                    </Text>
 
-                    {/* Simple chart placeholder - would need react-native-svg for real chart */}
-                    <View style={styles.chartPlaceholder}>
-                        <View style={styles.chartLine} />
-                    </View>
-
-                    <View style={styles.weekLabels}>
-                        {['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7'].map((week, i) => (
-                            <Text key={i} style={styles.weekLabel}>{week}</Text>
-                        ))}
-                    </View>
+                    {hasChartData ? (
+                        <View style={styles.chartContainer}>
+                            <LineChart
+                                data={{
+                                    labels: chartEntries.map(d => {
+                                        const date = new Date(d.date);
+                                        return `${date.getDate()}/${date.getMonth() + 1}`;
+                                    }),
+                                    datasets: [
+                                        {
+                                            data: chartEntries.map(d => d.weight),
+                                            color: (opacity = 1) => `rgba(23, 207, 84, ${opacity})`,
+                                            strokeWidth: 2,
+                                        },
+                                        ...(targetWeight ? [{
+                                            data: chartEntries.map(() => targetWeight),
+                                            color: (opacity = 1) => `rgba(239, 68, 68, ${opacity * 0.4})`,
+                                            strokeWidth: 1,
+                                            withDots: false,
+                                        }] : []),
+                                    ],
+                                }}
+                                width={screenWidth - Spacing.lg * 4}
+                                height={180}
+                                chartConfig={{
+                                    backgroundColor: Colors.surfaceSecondary,
+                                    backgroundGradientFrom: Colors.surfaceSecondary,
+                                    backgroundGradientTo: Colors.surfaceSecondary,
+                                    decimalPlaces: 1,
+                                    color: (opacity = 1) => `rgba(17, 24, 39, ${opacity})`,
+                                    labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
+                                    style: { borderRadius: 12 },
+                                    propsForDots: {
+                                        r: '5',
+                                        strokeWidth: '2',
+                                        stroke: '#17cf54',
+                                    },
+                                    propsForBackgroundLines: {
+                                        strokeDasharray: '',
+                                        stroke: '#e5e7eb',
+                                    },
+                                }}
+                                bezier
+                                style={{ borderRadius: 12 }}
+                            />
+                            {targetWeight && (
+                                <View style={styles.chartLegend}>
+                                    <View style={styles.legendItem}>
+                                        <View style={[styles.legendDot, { backgroundColor: '#17cf54' }]} />
+                                        <Text style={styles.legendText}>Weight</Text>
+                                    </View>
+                                    <View style={styles.legendItem}>
+                                        <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+                                        <Text style={styles.legendText}>Target</Text>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    ) : (
+                        <View style={styles.chartPlaceholder}>
+                            <Text style={styles.chartEmptyText}>
+                                Log at least 2 weights to see your trend
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Goal Progress */}
@@ -107,11 +166,104 @@ export default function ProgressScreen() {
                         <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
                     </View>
                     <Text style={styles.toGoText}>
-                        {currentWeight && targetWeight
-                            ? `${Math.abs(currentWeight - targetWeight).toFixed(1)} kg to go`
+                        {progress?.remaining !== null && progress?.remaining !== undefined
+                            ? `${progress.remaining} kg to go`
                             : 'Set your goal weight'}
                     </Text>
                 </View>
+
+                {/* Weight History */}
+                {history.length > 0 && (
+                    <View style={styles.historySection}>
+                        <Text style={styles.sectionLabel}>Recent Entries</Text>
+                        <View style={styles.historyList}>
+                            {history.map((entry) => (
+                                <View key={entry.id} style={styles.historyItem}>
+                                    <Text style={styles.historyDate}>
+                                        {new Date(entry.logDate).toLocaleDateString('en-US', {
+                                            weekday: 'short', month: 'short', day: 'numeric',
+                                        })}
+                                    </Text>
+                                    <View style={styles.historyRight}>
+                                        <Text style={styles.historyWeight}>{entry.weightKg} kg</Text>
+                                        {entry.delta !== null && (
+                                            <Text style={[
+                                                styles.historyDelta,
+                                                entry.delta < 0 ? styles.deltaDown : entry.delta > 0 ? styles.deltaUp : styles.deltaNeutral,
+                                            ]}>
+                                                {entry.delta > 0 ? '+' : ''}{entry.delta.toFixed(1)} kg
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
+                {/* Body Profile Card */}
+                <TouchableOpacity
+                    style={styles.bodyProfileCard}
+                    onPress={() => router.push('/(tabs)/profile/body-profile')}
+                    activeOpacity={0.7}
+                >
+                    <View style={styles.bodyProfileIcon}>
+                        <Ruler size={20} color={Colors.primaryDark} />
+                    </View>
+                    <View style={styles.bodyProfileText}>
+                        <Text style={styles.bodyProfileTitle}>Body Profile</Text>
+                        <Text style={styles.bodyProfileSubtitle}>Height, measurements & activity level</Text>
+                    </View>
+                    <ChevronRight size={20} color={Colors.textSecondary} />
+                </TouchableOpacity>
+
+                {/* Adherence Section */}
+                {weeklyAdherence && (
+                    <View style={styles.adherenceSection}>
+                        <Text style={styles.sectionLabel}>Weekly Adherence</Text>
+                        <View style={styles.adherenceHeader}>
+                            <Text style={[
+                                styles.adherenceScore,
+                                { color: weeklyAdherence.color === 'GREEN' ? '#17cf54' :
+                                    weeklyAdherence.color === 'YELLOW' ? '#EAB308' : '#EF4444' }
+                            ]}>
+                                {weeklyAdherence.averageScore}%
+                            </Text>
+                            <View style={styles.trendBadge}>
+                                {weeklyAdherence.trend === 'improving' && <TrendingUp size={16} color="#17cf54" />}
+                                {weeklyAdherence.trend === 'declining' && <TrendingDown size={16} color="#EF4444" />}
+                                {weeklyAdherence.trend === 'stable' && <Minus size={16} color={Colors.textSecondary} />}
+                                <Text style={[styles.trendText, {
+                                    color: weeklyAdherence.trend === 'improving' ? '#17cf54' :
+                                        weeklyAdherence.trend === 'declining' ? '#EF4444' : Colors.textSecondary
+                                }]}>
+                                    {weeklyAdherence.trend.charAt(0).toUpperCase() + weeklyAdherence.trend.slice(1)}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* 7-day bar chart */}
+                        <View style={styles.adherenceChart}>
+                            {weeklyAdherence.dailyBreakdown.map((day, i) => {
+                                const barColor = day.mealsLogged === 0 ? Colors.border :
+                                    day.color === 'GREEN' ? '#17cf54' :
+                                    day.color === 'YELLOW' ? '#EAB308' : '#EF4444';
+                                const dayLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' });
+                                return (
+                                    <View key={i} style={styles.adherenceBarContainer}>
+                                        <View style={styles.adherenceBarTrack}>
+                                            <View style={[
+                                                styles.adherenceBar,
+                                                { height: `${Math.max(day.score, 4)}%`, backgroundColor: barColor }
+                                            ]} />
+                                        </View>
+                                        <Text style={styles.adherenceDayLabel}>{dayLabel}</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
             </ScrollView>
 
             {/* Update Weight Button */}
@@ -243,6 +395,9 @@ const styles = StyleSheet.create({
         color: Colors.textSecondary,
         marginBottom: Spacing.lg,
     },
+    chartContainer: {
+        marginBottom: Spacing.sm,
+    },
     chartPlaceholder: {
         height: 180,
         backgroundColor: Colors.surfaceSecondary,
@@ -251,19 +406,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: Spacing.sm,
     },
-    chartLine: {
-        width: '80%',
-        height: 3,
-        backgroundColor: Colors.textSecondary,
-        borderRadius: 2,
-    },
-    weekLabels: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
-    weekLabel: {
+    chartEmptyText: {
         fontSize: FontSizes.sm,
-        fontWeight: FontWeights.bold,
+        color: Colors.textSecondary,
+    },
+    chartLegend: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: Spacing.xxl,
+        marginTop: Spacing.sm,
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    legendDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+    },
+    legendText: {
+        fontSize: FontSizes.xs,
         color: Colors.textSecondary,
     },
     goalSection: {
@@ -379,5 +543,131 @@ const styles = StyleSheet.create({
         fontSize: FontSizes.lg,
         fontWeight: FontWeights.bold,
         color: Colors.text,
+    },
+    historySection: {
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+    },
+    historyList: {
+        marginTop: Spacing.sm,
+        gap: Spacing.sm,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+        padding: Spacing.md,
+        borderRadius: BorderRadius.md,
+    },
+    historyDate: {
+        fontSize: FontSizes.sm,
+        fontWeight: FontWeights.medium,
+        color: Colors.text,
+    },
+    historyRight: {
+        alignItems: 'flex-end',
+    },
+    historyWeight: {
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+    },
+    historyDelta: {
+        fontSize: FontSizes.xs,
+        fontWeight: FontWeights.semibold,
+        marginTop: 2,
+    },
+    deltaDown: { color: '#17cf54' },
+    deltaUp: { color: '#EF4444' },
+    deltaNeutral: { color: Colors.textSecondary },
+    bodyProfileCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+        marginHorizontal: Spacing.lg,
+        marginVertical: Spacing.md,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    bodyProfileIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Colors.surfaceSecondary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: Spacing.md,
+    },
+    bodyProfileText: {
+        flex: 1,
+    },
+    bodyProfileTitle: {
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+    },
+    bodyProfileSubtitle: {
+        fontSize: FontSizes.sm,
+        color: Colors.textSecondary,
+        marginTop: 2,
+    },
+    adherenceSection: {
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.xxl,
+    },
+    adherenceHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: Spacing.sm,
+        marginBottom: Spacing.lg,
+    },
+    adherenceScore: {
+        fontSize: FontSizes.display,
+        fontWeight: FontWeights.bold,
+    },
+    trendBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: Colors.surfaceSecondary,
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.xs,
+        borderRadius: BorderRadius.sm,
+    },
+    trendText: {
+        fontSize: FontSizes.sm,
+        fontWeight: FontWeights.semibold,
+    },
+    adherenceChart: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        height: 120,
+        gap: 6,
+    },
+    adherenceBarContainer: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    adherenceBarTrack: {
+        width: '100%',
+        height: 100,
+        backgroundColor: Colors.surfaceSecondary,
+        borderRadius: 4,
+        justifyContent: 'flex-end',
+        overflow: 'hidden',
+    },
+    adherenceBar: {
+        width: '100%',
+        borderRadius: 4,
+    },
+    adherenceDayLabel: {
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+        marginTop: 4,
+        fontWeight: FontWeights.bold,
     },
 });

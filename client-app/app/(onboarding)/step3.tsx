@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { AlertTriangle, Plus, X } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
+import { onboardingApi } from '../../services/api';
 
 const COMMON_ALLERGENS = [
     'Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish'
@@ -13,6 +14,7 @@ export default function AllergiesScreen() {
     const [allergies, setAllergies] = useState<string[]>([]);
     const [customAllergy, setCustomAllergy] = useState('');
     const [intolerances, setIntolerances] = useState<string[]>([]);
+    const [saving, setSaving] = useState(false);
 
     const toggleAllergy = (allergen: string) => {
         if (allergies.includes(allergen)) {
@@ -30,8 +32,18 @@ export default function AllergiesScreen() {
     };
 
     const handleNext = async () => {
-        // TODO: Save to API
-        router.push('/(onboarding)/step4');
+        setSaving(true);
+        try {
+            await onboardingApi.saveStep(3, {
+                allergies,
+                intolerances,
+            });
+            router.push('/(onboarding)/step4');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -91,10 +103,15 @@ export default function AllergiesScreen() {
             )}
 
             <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, saving && styles.buttonDisabled]}
                 onPress={handleNext}
+                disabled={saving}
             >
-                <Text style={styles.buttonText}>Next Step</Text>
+                {saving ? (
+                    <ActivityIndicator color={Colors.surface} />
+                ) : (
+                    <Text style={styles.buttonText}>Next Step</Text>
+                )}
             </TouchableOpacity>
         </ScrollView>
     );
@@ -199,6 +216,9 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.md,
         alignItems: 'center',
         marginTop: Spacing.xl,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     buttonText: {
         color: Colors.surface,

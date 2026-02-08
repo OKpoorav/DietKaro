@@ -10,6 +10,7 @@ interface AuthContextValue {
     login: (phone: string, otp: string) => Promise<void>;
     logout: () => Promise<void>;
     requestOTP: (phone: string) => Promise<void>;
+    refreshClient: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -65,6 +66,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(false);
     }, []);
 
+    const refreshClient = useCallback(async () => {
+        try {
+            const response = await clientAuthApi.getProfile();
+            const clientData = response.data.data;
+            await authStore.setClientData(clientData);
+            setClient(clientData);
+        } catch (error) {
+            console.error('Failed to refresh client data:', error);
+        }
+    }, []);
+
     const value = useMemo(() => ({
         isAuthenticated,
         isLoading,
@@ -72,7 +84,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         requestOTP,
-    }), [isAuthenticated, isLoading, client, login, logout, requestOTP]);
+        refreshClient,
+    }), [isAuthenticated, isLoading, client, login, logout, requestOTP, refreshClient]);
 
     return (
         <AuthContext.Provider value={value}>

@@ -26,12 +26,30 @@ export function useLogMeal() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ mealLogId, status, notes }: LogMealInput) => {
+        mutationFn: async ({ mealLogId, status, notes, photoUri }: LogMealInput) => {
             const { data } = await mealLogsApi.logMeal(mealLogId, {
                 status,
                 notes,
             });
-            return data.data;
+            const result = data.data;
+
+            // Upload photo if provided (fire-and-forget — meal log succeeds even if photo fails)
+            if (photoUri) {
+                try {
+                    const actualId = result.id || mealLogId;
+                    const formData = new FormData();
+                    formData.append('photo', {
+                        uri: photoUri,
+                        name: 'meal-photo.jpg',
+                        type: 'image/jpeg',
+                    } as any);
+                    await mealLogsApi.uploadPhoto(actualId, formData);
+                } catch (err) {
+                    console.warn('Photo upload failed, meal log was saved:', err);
+                }
+            }
+
+            return result;
         },
         onSuccess: async (_, { mealLogId }) => {
             await queryClient.invalidateQueries({ queryKey: ['meals', 'today'] });

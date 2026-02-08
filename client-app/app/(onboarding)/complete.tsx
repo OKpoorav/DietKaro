@@ -1,14 +1,43 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { CheckCircle } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows } from '../../constants/theme';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
+import { onboardingApi } from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function CompleteScreen() {
     const router = useRouter();
+    const { refreshClient } = useAuth();
+    const [completing, setCompleting] = useState(true);
+
+    useEffect(() => {
+        completeOnboarding();
+    }, []);
+
+    const completeOnboarding = async () => {
+        try {
+            await onboardingApi.complete();
+            await refreshClient();
+        } catch (error) {
+            // Non-critical — user can still proceed
+        } finally {
+            setCompleting(false);
+        }
+    };
 
     const handleStart = () => {
         router.replace('/(tabs)/home');
     };
+
+    if (completing) {
+        return (
+            <View style={styles.container}>
+                <ActivityIndicator size="large" color={Colors.primaryDark} />
+                <Text style={[styles.subtitle, { marginTop: Spacing.lg }]}>Setting up your profile...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>

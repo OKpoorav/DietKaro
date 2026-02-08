@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, I
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTodayMeals, useClientStats } from '../../../hooks/useMeals';
+import { useDailyAdherence } from '../../../hooks/useAdherence';
 import { Clock, Camera, Check, AlertCircle, MessageSquare, CalendarOff } from 'lucide-react-native';
 import { useState } from 'react';
 import { MealLog } from '../../../types';
@@ -100,6 +101,7 @@ export default function HomeScreen() {
     const router = useRouter();
     const { data: meals, isLoading, refetch } = useTodayMeals();
     const { data: stats } = useClientStats();
+    const { data: dailyAdherence } = useDailyAdherence();
     const [refreshing, setRefreshing] = useState(false);
 
     const onRefresh = async () => {
@@ -151,11 +153,20 @@ export default function HomeScreen() {
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{stats?.currentStreak || 0}</Text>
-                        <Text style={styles.statLabel}>Adherence streak</Text>
+                        <Text style={styles.statLabel}>Day streak</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={[styles.statValue, dailyAdherence ? {
+                            color: dailyAdherence.color === 'GREEN' ? '#17cf54' :
+                                dailyAdherence.color === 'YELLOW' ? '#EAB308' : '#EF4444'
+                        } : {}]}>
+                            {dailyAdherence?.score ?? (stats?.weeklyAdherence || 0)}%
+                        </Text>
+                        <Text style={styles.statLabel}>Today&apos;s score</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{stats?.weeklyAdherence || 0}%</Text>
-                        <Text style={styles.statLabel}>On track this week</Text>
+                        <Text style={styles.statLabel}>This week</Text>
                     </View>
                 </View>
 

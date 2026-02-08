@@ -3,13 +3,16 @@ import { useAuth } from '../hooks/useAuth';
 import { LoadingScreen } from '../components/LoadingScreen';
 
 export default function Index() {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, client } = useAuth();
 
     if (isLoading) {
         return <LoadingScreen />;
     }
 
     if (isAuthenticated) {
+        if (!client?.onboardingCompleted) {
+            return <Redirect href="/(onboarding)/step1" />;
+        }
         return <Redirect href="/(tabs)/home" />;
     }
 

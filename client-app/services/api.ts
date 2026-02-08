@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import {
     ApiResponse,
     Client,
+    ClientPreferences,
     MealLog,
     WeightLog,
     ClientStats,
@@ -11,6 +12,11 @@ import {
     UploadUrlResponse,
     ReferralData,
     ReferralStats,
+    DailyAdherence,
+    WeeklyAdherence,
+    ComplianceHistory,
+    OnboardingStatus,
+    ProgressSummary,
 } from '../types';
 
 // Use the local IP for development - change this for production
@@ -94,6 +100,8 @@ export const weightLogsApi = {
 export const clientStatsApi = {
     getStats: () =>
         api.get<ApiResponse<ClientStats>>('/client/stats'),
+    getProgressSummary: () =>
+        api.get<ApiResponse<ProgressSummary>>('/client/progress-summary'),
 };
 
 // Reports API
@@ -118,6 +126,42 @@ export const referralApi = {
 
     getStats: () =>
         api.get<ApiResponse<ReferralStats>>('/client/referral/stats'),
+};
+
+// Onboarding API
+export const onboardingApi = {
+    getStatus: () =>
+        api.get<ApiResponse<OnboardingStatus>>('/client/onboarding/status'),
+
+    saveStep: (step: number, data: any) =>
+        api.post<ApiResponse<{ message: string }>>(`/client/onboarding/step/${step}`, data),
+
+    complete: () =>
+        api.post<ApiResponse<{ message: string }>>('/client/onboarding/complete'),
+
+    getPresets: () =>
+        api.get<ApiResponse<any[]>>('/client/onboarding/presets'),
+};
+
+// Preferences API
+export const preferencesApi = {
+    get: () =>
+        api.get<ApiResponse<ClientPreferences | null>>('/client/preferences'),
+
+    update: (data: Partial<Omit<ClientPreferences, 'id'>>) =>
+        api.put<ApiResponse<ClientPreferences>>('/client/preferences', data),
+};
+
+// Adherence / Compliance API
+export const adherenceApi = {
+    getDaily: (date?: string) =>
+        api.get<ApiResponse<DailyAdherence>>('/client/adherence/daily', { params: date ? { date } : {} }),
+
+    getWeekly: (weekStart?: string) =>
+        api.get<ApiResponse<WeeklyAdherence>>('/client/adherence/weekly', { params: weekStart ? { weekStart } : {} }),
+
+    getHistory: (days: number = 30) =>
+        api.get<ApiResponse<ComplianceHistory>>('/client/adherence/history', { params: { days } }),
 };
 
 export default api;

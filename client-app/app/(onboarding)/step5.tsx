@@ -1,23 +1,35 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ThumbsDown, Plus } from 'lucide-react-native';
+import { ThumbsDown, ThumbsUp, Plus } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
+import { onboardingApi } from '../../services/api';
 
 const COMMON_DISLIKES = [
     'Mushrooms', 'Eggplant', 'Bitter Gourd', 'Okra', 'Seafood', 'Coriander', 'Papaya'
+];
+
+const COMMON_LIKED_FOODS = [
+    'Paneer', 'Chicken', 'Rice', 'Dal', 'Roti', 'Eggs', 'Fish', 'Salad'
+];
+
+const CUISINES = [
+    'North Indian', 'South Indian', 'Chinese', 'Continental', 'Mediterranean', 'Bengali', 'Gujarati', 'Punjabi'
 ];
 
 export default function PreferencesScreen() {
     const router = useRouter();
     const [dislikes, setDislikes] = useState<string[]>([]);
     const [customDislike, setCustomDislike] = useState('');
+    const [likedFoods, setLikedFoods] = useState<string[]>([]);
+    const [preferredCuisines, setPreferredCuisines] = useState<string[]>([]);
+    const [saving, setSaving] = useState(false);
 
-    const toggleDislike = (item: string) => {
-        if (dislikes.includes(item)) {
-            setDislikes(dislikes.filter(i => i !== item));
+    const toggleItem = (list: string[], setList: (items: string[]) => void, item: string) => {
+        if (list.includes(item)) {
+            setList(list.filter(i => i !== item));
         } else {
-            setDislikes([...dislikes, item]);
+            setList([...list, item]);
         }
     };
 
@@ -28,45 +40,56 @@ export default function PreferencesScreen() {
         }
     };
 
-    const handleFinish = async () => {
-        // TODO: Save to API and Complete
-        router.replace('/(onboarding)/complete');
+    const handleNext = async () => {
+        setSaving(true);
+        try {
+            await onboardingApi.saveStep(5, {
+                dislikes,
+                likedFoods,
+                preferredCuisines,
+            });
+            router.push('/(onboarding)/step6');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <Text style={styles.title}>Preferences</Text>
-            <Text style={styles.subtitle}>Any foods you absolutely dislike? We won't include them in your plan.</Text>
+            <Text style={styles.subtitle}>Tell us what you like and dislike so we can personalize your meal plan.</Text>
 
+            {/* Dislikes */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Common Dislikes</Text>
+                <View style={styles.sectionHeader}>
+                    <ThumbsDown size={18} color={Colors.textMuted} />
+                    <Text style={styles.sectionTitle}>Foods You Dislike</Text>
+                </View>
                 <View style={styles.chipContainer}>
                     {COMMON_DISLIKES.map((item) => (
                         <TouchableOpacity
                             key={item}
                             style={[
                                 styles.chip,
-                                dislikes.includes(item) && styles.selectedChip
+                                dislikes.includes(item) && styles.selectedChipDislike
                             ]}
-                            onPress={() => toggleDislike(item)}
+                            onPress={() => toggleItem(dislikes, setDislikes, item)}
                         >
                             <Text style={[
                                 styles.chipText,
-                                dislikes.includes(item) && styles.selectedChipText
+                                dislikes.includes(item) && styles.selectedChipTextDislike
                             ]}>{item}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Add Other Dislike</Text>
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={styles.input}
                         value={customDislike}
                         onChangeText={setCustomDislike}
-                        placeholder="e.g. Broccoli"
+                        placeholder="Add other..."
                         onSubmitEditing={addCustomDislike}
                     />
                     <TouchableOpacity
@@ -78,22 +101,63 @@ export default function PreferencesScreen() {
                 </View>
             </View>
 
-            {dislikes.length > 0 && (
-                <View style={styles.summary}>
-                    <View style={styles.iconBox}>
-                        <ThumbsDown size={20} color={Colors.textMuted} />
-                    </View>
-                    <Text style={styles.summaryText}>
-                        Avoiding: {dislikes.join(', ')}
-                    </Text>
+            {/* Liked Foods */}
+            <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                    <ThumbsUp size={18} color={Colors.primaryDark} />
+                    <Text style={styles.sectionTitle}>Foods You Enjoy</Text>
                 </View>
-            )}
+                <View style={styles.chipContainer}>
+                    {COMMON_LIKED_FOODS.map((item) => (
+                        <TouchableOpacity
+                            key={item}
+                            style={[
+                                styles.chip,
+                                likedFoods.includes(item) && styles.selectedChipLike
+                            ]}
+                            onPress={() => toggleItem(likedFoods, setLikedFoods, item)}
+                        >
+                            <Text style={[
+                                styles.chipText,
+                                likedFoods.includes(item) && styles.selectedChipTextLike
+                            ]}>{item}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            {/* Preferred Cuisines */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Preferred Cuisines</Text>
+                <View style={styles.chipContainer}>
+                    {CUISINES.map((item) => (
+                        <TouchableOpacity
+                            key={item}
+                            style={[
+                                styles.chip,
+                                preferredCuisines.includes(item) && styles.selectedChipLike
+                            ]}
+                            onPress={() => toggleItem(preferredCuisines, setPreferredCuisines, item)}
+                        >
+                            <Text style={[
+                                styles.chipText,
+                                preferredCuisines.includes(item) && styles.selectedChipTextLike
+                            ]}>{item}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
 
             <TouchableOpacity
-                style={styles.button}
-                onPress={handleFinish}
+                style={[styles.button, saving && styles.buttonDisabled]}
+                onPress={handleNext}
+                disabled={saving}
             >
-                <Text style={styles.buttonText}>Complete Setup</Text>
+                {saving ? (
+                    <ActivityIndicator color={Colors.surface} />
+                ) : (
+                    <Text style={styles.buttonText}>Next Step</Text>
+                )}
             </TouchableOpacity>
         </ScrollView>
     );
@@ -122,16 +186,22 @@ const styles = StyleSheet.create({
     section: {
         marginBottom: Spacing.xxl,
     },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        marginBottom: Spacing.md,
+    },
     sectionTitle: {
         fontSize: FontSizes.lg,
         fontWeight: FontWeights.semibold,
-        marginBottom: Spacing.md,
         color: Colors.text,
     },
     chipContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: Spacing.sm,
+        marginBottom: Spacing.md,
     },
     chip: {
         paddingHorizontal: Spacing.lg,
@@ -141,17 +211,25 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: Colors.borderLight,
     },
-    selectedChip: {
+    selectedChipDislike: {
         backgroundColor: '#e5e7eb',
         borderColor: '#9ca3af',
+    },
+    selectedChipTextDislike: {
+        color: '#111',
+        fontWeight: FontWeights.semibold,
+    },
+    selectedChipLike: {
+        backgroundColor: Colors.surfaceSecondary,
+        borderColor: Colors.primaryDark,
+    },
+    selectedChipTextLike: {
+        color: Colors.primaryDark,
+        fontWeight: FontWeights.semibold,
     },
     chipText: {
         color: Colors.textMuted,
         fontWeight: FontWeights.medium,
-    },
-    selectedChipText: {
-        color: '#111',
-        fontWeight: FontWeights.semibold,
     },
     inputContainer: {
         flexDirection: 'row',
@@ -174,32 +252,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    summary: {
-        flexDirection: 'row',
-        backgroundColor: '#f9fafb',
-        padding: Spacing.lg,
-        borderRadius: BorderRadius.md,
-        marginTop: Spacing.sm,
-        marginBottom: Spacing.xxl,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#f3f4f6',
-    },
-    iconBox: {
-        marginRight: Spacing.md,
-    },
-    summaryText: {
-        flex: 1,
-        color: '#4b5563',
-        fontSize: FontSizes.md,
-        lineHeight: 20,
-    },
     button: {
         backgroundColor: Colors.primaryDark,
         padding: Spacing.xl,
         borderRadius: BorderRadius.md,
         alignItems: 'center',
         marginTop: Spacing.xl,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     buttonText: {
         color: Colors.surface,

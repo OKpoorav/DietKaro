@@ -1,8 +1,9 @@
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
+import { onboardingApi } from '../../services/api';
 
 export default function BasicInfoScreen() {
     const router = useRouter();
@@ -11,12 +12,29 @@ export default function BasicInfoScreen() {
     const [targetWeight, setTargetWeight] = useState('');
     const [gender, setGender] = useState('male');
     const [activityLevel, setActivityLevel] = useState('SEDENTARY');
+    const [saving, setSaving] = useState(false);
 
     const handleNext = async () => {
-        // TODO: Validate and save to API
-        // await api.post('/clients/${clientId}/onboarding/step/1', { ... });
+        if (!height || !weight) {
+            Alert.alert('Required Fields', 'Please enter your height and current weight.');
+            return;
+        }
 
-        router.push('/(onboarding)/step2');
+        setSaving(true);
+        try {
+            await onboardingApi.saveStep(1, {
+                heightCm: parseFloat(height),
+                currentWeightKg: parseFloat(weight),
+                targetWeightKg: targetWeight ? parseFloat(targetWeight) : undefined,
+                gender,
+                activityLevel: activityLevel.toLowerCase(),
+            });
+            router.push('/(onboarding)/step2');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -90,10 +108,15 @@ export default function BasicInfoScreen() {
             </View>
 
             <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, saving && styles.buttonDisabled]}
                 onPress={handleNext}
+                disabled={saving}
             >
-                <Text style={styles.buttonText}>Next Step</Text>
+                {saving ? (
+                    <ActivityIndicator color={Colors.surface} />
+                ) : (
+                    <Text style={styles.buttonText}>Next Step</Text>
+                )}
             </TouchableOpacity>
         </ScrollView>
     );
@@ -157,6 +180,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     buttonText: {
         color: Colors.surface,

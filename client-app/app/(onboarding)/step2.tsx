@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Shield, Fish, Egg, Leaf } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
+import { onboardingApi } from '../../services/api';
 
 const DIET_PATTERNS = [
     { id: 'vegetarian', name: 'Vegetarian', icon: Leaf, desc: 'No meat, fish, or poultry. Dairy allowed.' },
@@ -16,10 +17,21 @@ export default function DietPatternScreen() {
     const router = useRouter();
     const [selectedPattern, setSelectedPattern] = useState('vegetarian');
     const [eggAllowed, setEggAllowed] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const handleNext = async () => {
-        // TODO: Save to API
-        router.push('/(onboarding)/step3');
+        setSaving(true);
+        try {
+            await onboardingApi.saveStep(2, {
+                dietPattern: selectedPattern,
+                eggAllowed: selectedPattern === 'vegetarian' ? eggAllowed : selectedPattern === 'eggetarian',
+            });
+            router.push('/(onboarding)/step3');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -68,10 +80,15 @@ export default function DietPatternScreen() {
             )}
 
             <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, saving && styles.buttonDisabled]}
                 onPress={handleNext}
+                disabled={saving}
             >
-                <Text style={styles.buttonText}>Next Step</Text>
+                {saving ? (
+                    <ActivityIndicator color={Colors.surface} />
+                ) : (
+                    <Text style={styles.buttonText}>Next Step</Text>
+                )}
             </TouchableOpacity>
         </ScrollView>
     );
@@ -168,6 +185,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     buttonText: {
         color: Colors.surface,

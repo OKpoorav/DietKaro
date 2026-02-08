@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { weightLogsApi } from '../services/api';
+import { weightLogsApi, clientStatsApi } from '../services/api';
 import { WeightLog } from '../types';
 
 export function useWeightLogs(limit?: number) {
@@ -7,6 +7,18 @@ export function useWeightLogs(limit?: number) {
         queryKey: ['weight-logs', limit],
         queryFn: async () => {
             const { data } = await weightLogsApi.getWeightLogs({ limit });
+            return data.data;
+        },
+        staleTime: 0,
+        gcTime: 30 * 1000,
+    });
+}
+
+export function useProgressSummary() {
+    return useQuery({
+        queryKey: ['progress-summary'],
+        queryFn: async () => {
+            const { data } = await clientStatsApi.getProgressSummary();
             return data.data;
         },
         staleTime: 0,
@@ -37,6 +49,7 @@ export function useCreateWeightLog() {
             });
 
             await queryClient.invalidateQueries({ queryKey: ['client', 'stats'] });
+            await queryClient.invalidateQueries({ queryKey: ['progress-summary'] });
         },
     });
 }

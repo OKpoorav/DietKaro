@@ -24,6 +24,7 @@ export interface Client {
     targetWeightKg?: number;
     dietaryPreferences: string[];
     allergies: string[];
+    onboardingCompleted?: boolean;
 }
 
 export interface Meal {
@@ -80,6 +81,24 @@ export interface ClientStats {
     currentStreak: number;
 }
 
+export interface ProgressSummary {
+    currentWeight: number | null;
+    targetWeight: number | null;
+    startWeight: number | null;
+    progressPercent: number;
+    weightTrend: 'up' | 'down' | 'stable';
+    totalLost: number;
+    remaining: number | null;
+    chartEntries: { date: string; weight: number }[];
+    history: {
+        id: string;
+        logDate: string;
+        weightKg: number;
+        notes: string | null;
+        delta: number | null;
+    }[];
+}
+
 export interface AuthResponse {
     success: boolean;
     data: {
@@ -129,4 +148,77 @@ export interface ReferralStats {
     freeMonthsRemaining: number;
     referralsUntilNextReward: number;
     referredClients: { name: string; joinedAt: string }[];
+}
+
+// ============ PREFERENCES ============
+
+export interface ClientPreferences {
+    id: string;
+    breakfastTime?: string;
+    lunchTime?: string;
+    dinnerTime?: string;
+    snackTime?: string;
+    canCook: boolean;
+    kitchenAvailable: boolean;
+    hasDietaryCook: boolean;
+    weekdayActivity?: string;
+    weekendActivity?: string;
+    sportOrHobby?: string;
+    generalNotes?: string;
+}
+
+// ============ ONBOARDING ============
+
+export interface OnboardingStatus {
+    isComplete: boolean;
+    currentStep: number;
+    totalSteps: number;
+    completedSteps: number[];
+    percentComplete: number;
+    stepsData: Record<string, any>;
+}
+
+// ============ COMPLIANCE / ADHERENCE ============
+
+export type ComplianceColor = 'GREEN' | 'YELLOW' | 'RED';
+
+export interface MealBreakdown {
+    mealLogId: string;
+    mealName: string;
+    mealType: string;
+    score: number | null;
+    color: ComplianceColor | null;
+    status: string;
+    issues: string[];
+}
+
+export interface DailyAdherence {
+    date: string;
+    score: number;
+    color: ComplianceColor;
+    mealsLogged: number;
+    mealsPlanned: number;
+    mealBreakdown: MealBreakdown[];
+}
+
+export interface WeeklyAdherence {
+    weekStart: string;
+    weekEnd: string;
+    averageScore: number;
+    color: ComplianceColor;
+    dailyBreakdown: DailyAdherence[];
+    trend: 'improving' | 'declining' | 'stable';
+}
+
+export interface ComplianceHistoryEntry {
+    date: string;
+    score: number;
+    color: ComplianceColor;
+}
+
+export interface ComplianceHistory {
+    data: ComplianceHistoryEntry[];
+    averageScore: number;
+    bestDay: ComplianceHistoryEntry | null;
+    worstDay: ComplianceHistoryEntry | null;
 }

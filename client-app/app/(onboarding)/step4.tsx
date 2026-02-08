@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Calendar, Apple } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
+import { onboardingApi } from '../../services/api';
 
 const PRESETS = [
     {
@@ -29,10 +30,20 @@ export default function RestrictionsScreen() {
     const router = useRouter();
     const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
     const [customFasting, setCustomFasting] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     const handleNext = async () => {
-        // TODO: Save to API
-        router.push('/(onboarding)/step5');
+        setSaving(true);
+        try {
+            await onboardingApi.saveStep(4, {
+                presetId: selectedPreset || undefined,
+            });
+            router.push('/(onboarding)/step5');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to save. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -102,10 +113,15 @@ export default function RestrictionsScreen() {
             </View>
 
             <TouchableOpacity
-                style={styles.button}
+                style={[styles.button, saving && styles.buttonDisabled]}
                 onPress={handleNext}
+                disabled={saving}
             >
-                <Text style={styles.buttonText}>Next Step</Text>
+                {saving ? (
+                    <ActivityIndicator color={Colors.surface} />
+                ) : (
+                    <Text style={styles.buttonText}>Next Step</Text>
+                )}
             </TouchableOpacity>
         </ScrollView>
     );
@@ -244,6 +260,9 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.md,
         alignItems: 'center',
         marginTop: Spacing.xl,
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     buttonText: {
         color: Colors.surface,
