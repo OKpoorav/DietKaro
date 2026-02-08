@@ -6,6 +6,7 @@
 import prisma from '../utils/prisma';
 import logger from '../utils/logger';
 import { ActivityLevel } from '@prisma/client';
+import { validationEngine } from './validationEngine.service';
 
 // ============ ONBOARDING STEP DEFINITIONS ============
 
@@ -22,6 +23,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     { step: 3, name: 'allergies', description: 'Allergies and intolerances', isRequired: false },
     { step: 4, name: 'restrictions', description: 'Food restrictions and fasting days', isRequired: false },
     { step: 5, name: 'preferences', description: 'Likes, dislikes, and cuisines', isRequired: false },
+    { step: 6, name: 'body_measurements', description: 'Body measurements (optional)', isRequired: false },
 ];
 
 // ============ RESTRICTION PRESETS ============
@@ -158,6 +160,15 @@ export interface Step5Data {
     preferredCuisines: string[];
 }
 
+export interface Step6Data {
+    chestCm?: number;
+    waistCm?: number;
+    hipsCm?: number;
+    thighsCm?: number;
+    armsCm?: number;
+    bodyFatPercentage?: number;
+}
+
 // ============ SERVICE ============
 
 export class OnboardingService {
@@ -182,7 +193,9 @@ export class OnboardingService {
     async getOnboardingStatus(clientId: string): Promise<{
         isComplete: boolean;
         currentStep: number;
+        totalSteps: number;
         completedSteps: number[];
+        percentComplete: number;
         stepsData: Record<string, any>;
     }> {
         const client = await prisma.client.findUnique({
@@ -191,47 +204,101 @@ export class OnboardingService {
                 onboardingCompleted: true,
                 heightCm: true,
                 currentWeightKg: true,
+                targetWeightKg: true,
+                gender: true,
+                activityLevel: true,
                 dietPattern: true,
+                eggAllowed: true,
                 allergies: true,
+                intolerances: true,
+                foodRestrictions: true,
                 eggAvoidDays: true,
                 dislikes: true,
+                likedFoods: true,
+                preferredCuisines: true,
             }
         });
 
         if (!client) throw new Error('Client not found');
 
         const completedSteps: number[] = [];
+        const stepsData: Record<string, any> = {};
 
         // Check step 1
         if (client.heightCm && client.currentWeightKg) {
             completedSteps.push(1);
         }
+        stepsData.step1 = {
+            heightCm: client.heightCm ? Number(client.heightCm) : null,
+            currentWeightKg: client.currentWeightKg ? Number(client.currentWeightKg) : null,
+            targetWeightKg: client.targetWeightKg ? Number(client.targetWeightKg) : null,
+            gender: client.gender,
+            activityLevel: client.activityLevel,
+        };
 
         // Check step 2
         if (client.dietPattern) {
             completedSteps.push(2);
         }
+        stepsData.step2 = {
+            dietPattern: client.dietPattern,
+            eggAllowed: client.eggAllowed,
+        };
 
-        // Check step 3
+        // Check step 3 (optional — completed if allergies were explicitly set, even empty)
         if (client.allergies && client.allergies.length > 0) {
             completedSteps.push(3);
         }
+        stepsData.step3 = {
+            allergies: client.allergies || [],
+            intolerances: client.intolerances || [],
+        };
 
-        // Check step 4
-        if (client.eggAvoidDays && client.eggAvoidDays.length > 0) {
+        // Check step 4 (optional)
+        if (client.foodRestrictions && (client.foodRestrictions as any[]).length > 0) {
             completedSteps.push(4);
         }
+        stepsData.step4 = {
+            foodRestrictions: client.foodRestrictions || [],
+            eggAvoidDays: client.eggAvoidDays || [],
+        };
 
-        // Check step 5
+        // Check step 5 (optional)
         if (client.dislikes && client.dislikes.length > 0) {
             completedSteps.push(5);
         }
+        stepsData.step5 = {
+            dislikes: client.dislikes || [],
+            likedFoods: client.likedFoods || [],
+            preferredCuisines: client.preferredCuisines || [],
+        };
+
+        // Check step 6 — body measurements
+        const bodyMeasurement = await prisma.bodyMeasurement.findFirst({
+            where: { clientId },
+            orderBy: { logDate: 'desc' },
+        });
+        if (bodyMeasurement) {
+            completedSteps.push(6);
+        }
+        stepsData.step6 = bodyMeasurement ? {
+            chestCm: bodyMeasurement.chestCm ? Number(bodyMeasurement.chestCm) : null,
+            waistCm: bodyMeasurement.waistCm ? Number(bodyMeasurement.waistCm) : null,
+            hipsCm: bodyMeasurement.hipsCm ? Number(bodyMeasurement.hipsCm) : null,
+            thighsCm: bodyMeasurement.thighsCm ? Number(bodyMeasurement.thighsCm) : null,
+            armsCm: bodyMeasurement.armsCm ? Number(bodyMeasurement.armsCm) : null,
+            bodyFatPercentage: bodyMeasurement.bodyFatPercentage ? Number(bodyMeasurement.bodyFatPercentage) : null,
+        } : null;
+
+        const totalSteps = ONBOARDING_STEPS.length;
 
         return {
             isComplete: client.onboardingCompleted,
             currentStep: completedSteps.length > 0 ? Math.max(...completedSteps) + 1 : 1,
+            totalSteps,
             completedSteps,
-            stepsData: {}
+            percentComplete: Math.round((completedSteps.length / totalSteps) * 100),
+            stepsData,
         };
     }
 
@@ -264,6 +331,7 @@ export class OnboardingService {
                 eggAllowed: data.eggAllowed,
             }
         });
+        validationEngine.invalidateClientCache(clientId);
         logger.info('Onboarding step 2 saved', { clientId });
     }
 
@@ -278,6 +346,7 @@ export class OnboardingService {
                 intolerances: data.intolerances,
             }
         });
+        validationEngine.invalidateClientCache(clientId);
         logger.info('Onboarding step 3 saved', { clientId });
     }
 
@@ -306,6 +375,7 @@ export class OnboardingService {
                 eggAvoidDays: data.eggAvoidDays || [],
             }
         });
+        validationEngine.invalidateClientCache(clientId);
         logger.info('Onboarding step 4 saved', { clientId, restrictionCount: restrictions.length });
     }
 
@@ -319,10 +389,36 @@ export class OnboardingService {
                 dislikes: data.dislikes,
                 likedFoods: data.likedFoods,
                 preferredCuisines: data.preferredCuisines,
-                onboardingCompleted: true, // Mark complete on last step
             }
         });
-        logger.info('Onboarding step 5 saved, onboarding complete', { clientId });
+        validationEngine.invalidateClientCache(clientId);
+        logger.info('Onboarding step 5 saved', { clientId });
+    }
+
+    /**
+     * Save Step 6: Body Measurements (optional)
+     */
+    async saveStep6(clientId: string, data: Step6Data): Promise<void> {
+        const client = await prisma.client.findUnique({
+            where: { id: clientId },
+            select: { orgId: true },
+        });
+        if (!client) throw new Error('Client not found');
+
+        await prisma.bodyMeasurement.create({
+            data: {
+                clientId,
+                orgId: client.orgId,
+                logDate: new Date(),
+                chestCm: data.chestCm,
+                waistCm: data.waistCm,
+                hipsCm: data.hipsCm,
+                thighsCm: data.thighsCm,
+                armsCm: data.armsCm,
+                bodyFatPercentage: data.bodyFatPercentage,
+            }
+        });
+        logger.info('Onboarding step 6 saved', { clientId });
     }
 
     /**

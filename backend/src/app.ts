@@ -43,12 +43,14 @@ import adminReferralRoutes from './routes/adminReferral.routes';
 import validationRoutes from './routes/validation.routes';
 import onboardingRoutes from './routes/onboarding.routes';
 import notificationRoutes from './routes/notification.routes';
+import complianceRoutes from './routes/compliance.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/organizations', organizationRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/clients/:clientId/onboarding', onboardingRoutes); // Client onboarding
+app.use('/api/v1/clients/:clientId/adherence', complianceRoutes); // Compliance & adherence
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/diet-plans', dietPlanRoutes);
 app.use('/api/v1/meals', mealRoutes);

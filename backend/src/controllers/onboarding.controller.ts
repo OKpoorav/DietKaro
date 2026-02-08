@@ -159,7 +159,32 @@ export const saveStep5 = asyncHandler(async (req: AuthenticatedRequest, res: Res
 
     res.status(200).json({
         success: true,
-        message: 'Onboarding complete!'
+        message: 'Step 5 saved successfully'
+    });
+});
+
+/**
+ * POST /api/v1/clients/:clientId/onboarding/step/6
+ * Save Step 6: Body Measurements
+ */
+export const saveStep6 = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const { clientId } = req.params;
+    const { chestCm, waistCm, hipsCm, thighsCm, armsCm, bodyFatPercentage } = req.body;
+
+    await onboardingService.saveStep6(clientId, {
+        chestCm,
+        waistCm,
+        hipsCm,
+        thighsCm,
+        armsCm,
+        bodyFatPercentage
+    });
+
+    res.status(200).json({
+        success: true,
+        message: 'Step 6 saved successfully'
     });
 });
 

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Human Body Measurements</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 25px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .wrapper {
+      display: flex;
+      gap: 30px;
+      max-width: 1100px;
+      width: 100%;
+      align-items: flex-start;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0px 8px 25px rgba(0,0,0,0.08);
+    }
+
+    .left {
+      width: 420px;
+      text-align: center;
+    }
+
+    .right {
+      flex: 1;
+      min-width: 350px;
+    }
+
+    h2 {
+      margin: 10px 0 20px;
+      font-size: 18px;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+
+    /* BODY SHAPE */
+    .body-part {
+      fill: #dcdcdc;
+      stroke: #888;
+      stroke-width: 2;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .body-part:hover {
+      fill: #ffd08a;
+    }
+
+    .body-part.active {
+      fill: #ff7a2f;
+      stroke: #ff4d00;
+    }
+
+    /* MEASUREMENT LINES */
+    .measure-line {
+      stroke: #222;
+      stroke-width: 2;
+      stroke-dasharray: 6 4;
+      opacity: 0.7;
+    }
+
+    .measure-text {
+      font-size: 12px;
+      font-weight: bold;
+      fill: #111;
+    }
+
+    .measure-box {
+      fill: white;
+      stroke: #222;
+      stroke-width: 1;
+      rx: 6;
+    }
+
+    /* RIGHT PANEL */
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #eee;
+      margin-bottom: 10px;
+      background: #fafafa;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .row:hover {
+      background: #fff1e7;
+      border-color: #ff7a2f;
+    }
+
+    .row.active {
+      background: #ffe7d7;
+      border-color: #ff7a2f;
+    }
+
+    .row label {
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input {
+      width: 90px;
+      padding: 7px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      outline: none;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    input:focus {
+      border-color: #ff7a2f;
+      box-shadow: 0px 0px 6px rgba(255, 122, 47, 0.4);
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      background: #ff7a2f;
+      color: white;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    .save-btn:hover {
+      background: #ff5c00;
+    }
+
+    pre {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #111;
+      color: #0f0;
+      font-size: 12px;
+      overflow: auto;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+
+    <!-- LEFT BODY -->
+    <div class="card left">
+      <h2>Click a Body Part</h2>
+
+      <svg viewBox="0 0 300 520">
+
+        <!-- HEAD -->
+        <ellipse id="head" class="body-part" cx="150" cy="65" rx="45" ry="50"></ellipse>
+
+        <!-- NECK -->
+        <rect id="neck" class="body-part" x="130" y="110" width="40" height="20" rx="10"></rect>
+
+        <!-- TORSO (smooth) -->
+        <path id="chest" class="body-part"
+          d="M90 135
+             Q150 105 210 135
+             Q225 150 220 190
+             Q210 250 150 250
+             Q90 250 80 190
+             Q75 150 90 135 Z"></path>
+
+        <!-- WAIST / STOMACH -->
+        <path id="waist" class="body-part"
+          d="M105 250
+             Q150 235 195 250
+             Q205 265 200 305
+             Q190 340 150 340
+             Q110 340 100 305
+             Q95 265 105 250 Z"></path>
+
+        <!-- HIP -->
+        <path id="hips" class="body-part"
+          d="M95 340
+             Q150 325 205 340
+             Q225 360 215 400
+             Q200 435 150 435
+             Q100 435 85 400
+             Q75 360 95 340 Z"></path>
+
+        <!-- LEFT ARM -->
+        <path id="leftArm" class="body-part"
+          d="M70 155
+             Q45 190 50 250
+             Q55 310 80 325
+             Q95 320 92 300
+             Q80 250 85 195
+             Q88 165 70 155 Z"></path>
+
+        <!-- RIGHT ARM -->
+        <path id="rightArm" class="body-part"
+          d="M230 155
+             Q255 190 250 250
+             Q245 310 220 325
+             Q205 320 208 300
+             Q220 250 215 195
+             Q212 165 230 155 Z"></path>
+
+        <!-- LEFT LEG -->
+        <path id="leftLeg" class="body-part"
+          d="M120 435
+             Q95 470 105 520
+             Q115 555 140 555
+             Q155 555 155 520
+             Q155 470 150 435 Z"></path>
+
+        <!-- RIGHT LEG -->
+        <path id="rightLeg" class="body-part"
+          d="M180 435
+             Q205 470 195 520
+             Q185 555 160 555
+             Q145 555 145 520
+             Q145 470 150 435 Z"></path>
+
+        <!-- ===== Measurement Lines + Values ===== -->
+
+        <!-- Chest -->
+        <line x1="65" y1="175" x2="235" y2="175" class="measure-line"></line>
+        <rect x="95" y="150" width="110" height="22" class="measure-box"></rect>
+        <text id="label-chest" x="150" y="166" text-anchor="middle" class="measure-text">
+          Chest: 45"
+        </text>
+
+        <!-- Waist -->
+        <line x1="80" y1="285" x2="220" y2="285" class="measure-line"></line>
+        <rect x="100" y="260" width="100" height="22" class="measure-box"></rect>
+        <text id="label-waist" x="150" y="276" text-anchor="middle" class="measure-text">
+          Waist: 39.5"
+        </text>
+
+        <!-- Stomach -->
+        <line x1="75" y1="315" x2="225" y2="315" class="measure-line"></line>
+        <rect x="85" y="290" width="130" height="22" class="measure-box"></rect>
+        <text id="label-stomach" x="150" y="306" text-anchor="middle" class="measure-text">
+          Stomach: 42"
+        </text>
+
+        <!-- Hip -->
+        <line x1="65" y1="375" x2="235" y2="375" class="measure-line"></line>
+        <rect x="100" y="350" width="100" height="22" class="measure-box"></rect>
+        <text id="label-hips" x="150" y="366" text-anchor="middle" class="measure-text">
+          Hip: 41"
+        </text>
+
+        <!-- Thigh -->
+        <line x1="95" y1="470" x2="155" y2="470" class="measure-line"></line>
+        <rect x="60" y="445" width="120" height="22" class="measure-box"></rect>
+        <text id="label-thigh" x="120" y="461" text-anchor="middle" class="measure-text">
+          Thigh: 24"
+        </text>
+
+        <!-- Calf -->
+        <line x1="110" y1="515" x2="150" y2="515" class="measure-line"></line>
+        <rect x="60" y="490" width="120" height="22" class="measure-box"></rect>
+        <text id="label-calf" x="120" y="506" text-anchor="middle" class="measure-text">
+          Calf: 15"
+        </text>
+
+        <!-- Arm -->
+        <line x1="35" y1="240" x2="85" y2="240" class="measure-line"></line>
+        <rect x="10" y="215" width="100" height="22" class="measure-box"></rect>
+        <text id="label-arm" x="60" y="231" text-anchor="middle" class="measure-text">
+          Arm: 12.5"
+        </text>
+
+      </svg>
+
+      <div class="hint">
+        Hover highlights. Click body part to edit measurement.
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="card right">
+      <h2>Measurements (Inches)</h2>
+
+      <div class="row" id="row-upperArm">
+        <label>Upper Arm</label>
+        <input id="input-upperArm" type="number" step="0.1" value="12.5" />
+      </div>
+
+      <div class="row" id="row-chest">
+        <label>Chest</label>
+        <input id="input-chest" type="number" step="0.1" value="45" />
+      </div>
+
+      <div class="row" id="row-waist">
+        <label>Waist</label>
+        <input id="input-waist" type="number" step="0.1" value="39.5" />
+      </div>
+
+      <div class="row" id="row-stomach">
+        <label>Stomach (Naval)</label>
+        <input id="input-stomach" type="number" step="0.1" value="42" />
+      </div>
+
+      <div class="row" id="row-bellyAbove">
+        <label>Belly (2 inch above)</label>
+        <input id="input-bellyAbove" type="number" step="0.1" value="41" />
+      </div>
+
+      <div class="row" id="row-bellyBelow">
+        <label>Belly (2 inch below)</label>
+        <input id="input-bellyBelow" type="number" step="0.1" value="41" />
+      </div>
+
+      <div class="row" id="row-hips">
+        <label>Hip</label>
+        <input id="input-hips" type="number" step="0.1" value="41" />
+      </div>
+
+      <div class="row" id="row-thigh">
+        <label>Upper Thigh</label>
+        <input id="input-thigh" type="number" step="0.1" value="24" />
+      </div>
+
+      <div class="row" id="row-calf">
+        <label>Calf</label>
+        <input id="input-calf" type="number" step="0.1" value="15" />
+      </div>
+
+      <button class="save-btn" onclick="saveMeasurements()">Save</button>
+
+      <pre id="output"></pre>
+    </div>
+
+  </div>
+
+  <script>
+    const partMap = {
+      upperArm: ["leftArm", "rightArm"],
+      chest: ["chest"],
+      waist: ["waist"],
+      stomach: ["waist"],
+      bellyAbove: ["waist"],
+      bellyBelow: ["hips"],
+      hips: ["hips"],
+      thigh: ["leftLeg", "rightLeg"],
+      calf: ["leftLeg", "rightLeg"]
+    };
+
+    function clearActive() {
+      document.querySelectorAll(".body-part").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".row").forEach(r => r.classList.remove("active"));
+    }
+
+    function highlight(partKey) {
+      clearActive();
+
+      const row = document.getElementById("row-" + partKey);
+      if (row) row.classList.add("active");
+
+      const svgParts = partMap[partKey];
+      if (svgParts) {
+        svgParts.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.add("active");
+        });
+      }
+
+      const input = document.getElementById("input-" + partKey);
+      if (input) input.focus();
+    }
+
+    // Bind row clicks
+    Object.keys(partMap).forEach(key => {
+      const row = document.getElementById("row-" + key);
+      if (row) row.addEventListener("click", () => highlight(key));
+    });
+
+    // Bind svg clicks
+    document.getElementById("chest").addEventListener("click", () => highlight("chest"));
+    document.getElementById("waist").addEventListener("click", () => highlight("waist"));
+    document.getElementById("hips").addEventListener("click", () => highlight("hips"));
+    document.getElementById("leftArm").addEventListener("click", () => highlight("upperArm"));
+    document.getElementById("rightArm").addEventListener("click", () => highlight("upperArm"));
+    document.getElementById("leftLeg").addEventListener("click", () => highlight("thigh"));
+    document.getElementById("rightLeg").addEventListener("click", () => highlight("thigh"));
+
+    function updateLabels() {
+      const upperArm = document.getElementById("input-upperArm").value;
+      const chest = document.getElementById("input-chest").value;
+      const waist = document.getElementById("input-waist").value;
+      const stomach = document.getElementById("input-stomach").value;
+      const hips = document.getElementById("input-hips").value;
+      const thigh = document.getElementById("input-thigh").value;
+      const calf = document.getElementById("input-calf").value;
+
+      document.getElementById("label-arm").textContent = `Arm: ${upperArm}"`;
+      document.getElementById("label-chest").textContent = `Chest: ${chest}"`;
+      document.getElementById("label-waist").textContent = `Waist: ${waist}"`;
+      document.getElementById("label-stomach").textContent = `Stomach: ${stomach}"`;
+      document.getElementById("label-hips").textContent = `Hip: ${hips}"`;
+      document.getElementById("label-thigh").textContent = `Thigh: ${thigh}"`;
+      document.getElementById("label-calf").textContent = `Calf: ${calf}"`;
+    }
+
+    document.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", updateLabels);
+    });
+
+    function saveMeasurements() {
+      const data = {
+        upperArm: document.getElementById("input-upperArm").value,
+        chest: document.getElementById("input-chest").value,
+        waist: document.getElementById("input-waist").value,
+        stomach: document.getElementById("input-stomach").value,
+        bellyAbove: document.getElementById("input-bellyAbove").value,
+        bellyBelow: document.getElementById("input-bellyBelow").value,
+        hips: document.getElementById("input-hips").value,
+        thigh: document.getElementById("input-thigh").value,
+        calf: document.getElementById("input-calf").value
+      };
+
+      document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+      alert("Saved!");
+    }
+
+    // Initial label render
+    updateLabels();
+  </script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import {
     saveStep3,
     saveStep4,
     saveStep5,
+    saveStep6,
     completeOnboarding
 } from '../controllers/onboarding.controller';
 import { requireAuth } from '../middleware/auth.middleware';
@@ -27,6 +28,7 @@ router.post('/step/2', saveStep2);
 router.post('/step/3', saveStep3);
 router.post('/step/4', saveStep4);
 router.post('/step/5', saveStep5);
+router.post('/step/6', saveStep6);
 
 // Complete manually
 router.post('/complete', completeOnboarding);

@@ -47,6 +47,7 @@ interface MealLogsParams {
     pageSize?: number;
     clientId?: string;
     status?: string;
+    reviewStatus?: 'pending' | 'reviewed';
     dateFrom?: string;
     dateTo?: string;
 }
@@ -59,13 +60,13 @@ interface ReviewMealLogInput {
 // Hooks
 export function useMealLogs(params: MealLogsParams = {}) {
     const api = useApiClient();
-    const { page = 1, pageSize = 20, clientId, status, dateFrom, dateTo } = params;
+    const { page = 1, pageSize = 20, clientId, status, reviewStatus, dateFrom, dateTo } = params;
 
     return useQuery({
-        queryKey: ['meal-logs', page, pageSize, clientId, status, dateFrom, dateTo],
+        queryKey: ['meal-logs', page, pageSize, clientId, status, reviewStatus, dateFrom, dateTo],
         queryFn: async () => {
             const { data } = await api.get<PaginatedResponse<MealLog>>('/meal-logs', {
-                params: { page, pageSize, clientId, status, dateFrom, dateTo },
+                params: { page, pageSize, clientId, status, reviewStatus, dateFrom, dateTo },
             });
             return data;
         },

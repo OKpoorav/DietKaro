@@ -22,7 +22,7 @@ export default function MealReviewPage() {
 
     // API hooks
     const { data, isLoading, error } = useMealLogs({
-        status: filter === 'all' ? undefined : filter === 'pending' ? 'pending' : undefined,
+        reviewStatus: filter === 'all' ? undefined : filter === 'pending' ? 'pending' : 'reviewed',
         pageSize: 50,
     });
     const reviewMutation = useReviewMealLog();
@@ -144,7 +144,7 @@ export default function MealReviewPage() {
                             </div>
                             <div className="flex-shrink-0">
                                 <div
-                                    className={`w-3 h-3 rounded-full ${meal.status === 'pending' ? 'bg-yellow-500 animate-pulse' : 'bg-green-600'
+                                    className={`w-3 h-3 rounded-full ${!meal.dietitianFeedback ? 'bg-yellow-500 animate-pulse' : 'bg-green-600'
                                         }`}
                                 />
                             </div>

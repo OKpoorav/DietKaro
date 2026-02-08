@@ -68,6 +68,7 @@ export const INTOLERANCE_MAPPING: Record<string, string[]> = {
  * Used for YELLOW warnings
  */
 export const MEDICAL_FLAG_MAPPING: Record<string, string[]> = {
+    // Manual conditions (from client creation)
     diabetes: ['diabetic_caution', 'high_sugar'],
     pre_diabetes: ['diabetic_caution', 'high_sugar'],
     heart_disease: ['heart_caution', 'high_saturated_fat', 'high_sodium'],
@@ -79,7 +80,23 @@ export const MEDICAL_FLAG_MAPPING: Record<string, string[]> = {
     pcos: ['diabetic_caution', 'high_sugar'],
     thyroid: ['iodine_caution'],
     obesity: ['diabetic_caution', 'high_fat'],
-    anemia: [] // Positive matching for iron-rich foods
+    anemia: [], // Positive matching for iron-rich foods
+
+    // Lab-derived conditions (auto-generated from lab values)
+    diabetic: ['diabetic_caution', 'high_sugar', 'high_carb'],
+    pre_diabetic: ['diabetic_caution', 'high_sugar'],
+    borderline_cholesterol: ['cholesterol_caution'],
+    high_triglycerides: ['heart_caution', 'high_fat'],
+    low_hdl: ['heart_caution'],
+    hypothyroid: ['iodine_caution'],
+    hyperthyroid: [],
+    iron_deficiency: [], // Positive match for iron-rich foods
+    b12_deficiency: [],  // Positive match for B12-rich foods
+    vitamin_d_deficiency: [], // Positive match for Vit D foods
+    severe_vitamin_d_deficiency: [],
+    kidney_caution: ['kidney_caution', 'high_protein', 'high_sodium'],
+    high_uric_acid: ['kidney_caution', 'high_protein'],
+    calcium_deficiency: [],
 };
 
 // ============ NUTRITION THRESHOLDS ============

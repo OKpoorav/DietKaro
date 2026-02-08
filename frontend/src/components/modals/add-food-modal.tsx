@@ -28,7 +28,7 @@ interface LocalFoodItem {
     description?: string;
     // Validation data
     validationSeverity?: ValidationSeverity;
-    validationAlerts?: string[];
+    validationAlerts?: Array<{ type: string; severity: string; message: string; recommendation?: string }>;
     canAdd?: boolean;
 }
 
@@ -145,7 +145,12 @@ export function AddFoodModal({
             fat: food.nutrition.fatsG || 0,
             description: `${food.servingSize} • ${food.nutrition.calories} kcal`,
             validationSeverity: validation?.severity,
-            validationAlerts: validation?.alerts.map(a => a.message),
+            validationAlerts: validation?.alerts.map(a => ({
+                type: a.type,
+                severity: a.severity,
+                message: a.message,
+                recommendation: a.recommendation,
+            })),
             canAdd: validation?.canAdd ?? true
         });
     };

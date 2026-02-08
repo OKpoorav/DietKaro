@@ -4,10 +4,16 @@ import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { foodItemService } from '../services/foodItem.service';
 import { foodTaggingService } from '../services/foodTagging.service';
+import logger from '../utils/logger';
 
 export const createFoodItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
     const foodItem = await foodItemService.createFoodItem(req.body, req.user.organizationId, req.user.id);
+
+    // Auto-tag in background (merges with any manually provided allergens)
+    foodTaggingService.autoTagFood(foodItem.id).catch(err =>
+        logger.warn('Auto-tag failed for new food', { foodId: foodItem.id, error: err.message })
+    );
 
     res.status(201).json({
         success: true,
@@ -110,6 +116,11 @@ export const getFoodItem = asyncHandler(async (req: AuthenticatedRequest, res: R
 export const updateFoodItem = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
     const updated = await foodItemService.updateFoodItem(req.params.id, req.body, req.user.organizationId);
+
+    // Re-tag in background (name or nutrition may have changed)
+    foodTaggingService.autoTagFood(updated.id).catch(err =>
+        logger.warn('Auto-tag failed for updated food', { foodId: updated.id, error: err.message })
+    );
 
     res.status(200).json({
         success: true,

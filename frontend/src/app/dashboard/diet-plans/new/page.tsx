@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Send, Loader2 } from 'lucide-react';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
 import { ClientInfoCard } from '@/components/diet-plan/client-info-card';
+import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { DayNavigator } from '@/components/diet-plan/day-navigator';
 import { MealEditor } from '@/components/diet-plan/meal-editor';
 import { NutritionSummary } from '@/components/diet-plan/nutrition-summary';
@@ -132,6 +133,9 @@ function BuilderContent() {
                 {/* Left Sidebar */}
                 <aside className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-2">
                     <ClientInfoCard client={client} isTemplateMode={isTemplateMode} />
+                    {!isTemplateMode && clientId && (
+                        <MedicalSidebar clientId={clientId} />
+                    )}
                     <TemplateSidebar
                         templates={templates}
                         applyingTemplateId={builder.applyingTemplateId}
@@ -163,6 +167,7 @@ function BuilderContent() {
                     dayNutrition={builder.dayNutrition}
                     targets={builder.targets}
                     hasAllergyWarning={builder.hasAllergyWarning}
+                    onTargetsChange={builder.setTargets}
                 />
             </main>
 

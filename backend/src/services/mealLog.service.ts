@@ -40,13 +40,24 @@ export class MealLogService {
     }
 
     async listMealLogs(orgId: string, query: any, userRole: string, userId: string) {
-        const { clientId, status, sortBy = 'scheduledDate' } = query;
+        const { clientId, status, reviewStatus, sortBy = 'scheduledDate' } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
         const dateFilter = buildDateFilter(query.dateFrom, query.dateTo);
 
         const where: any = { orgId };
         if (clientId) where.clientId = String(clientId);
-        if (status) where.status = String(status);
+
+        // reviewStatus takes precedence: filters by dietitian review state
+        if (reviewStatus === 'pending') {
+            // Client acted on it, dietitian hasn't reviewed
+            where.status = { in: ['eaten', 'skipped', 'substituted'] };
+            where.reviewedByUserId = null;
+        } else if (reviewStatus === 'reviewed') {
+            where.reviewedByUserId = { not: null };
+        } else if (status) {
+            where.status = String(status);
+        }
+
         if (dateFilter) where.scheduledDate = dateFilter;
         if (userRole === 'dietitian') where.client = { primaryDietitianId: userId };
 
@@ -70,10 +81,11 @@ export class MealLogService {
             mealId: log.mealId,
             scheduledDate: log.scheduledDate,
             scheduledTime: log.scheduledTime,
-            meal: { title: log.meal.name, mealType: log.meal.mealType },
+            meal: { name: log.meal.name, mealType: log.meal.mealType },
             client: log.client,
             status: log.status,
-            photoUrl: log.mealPhotoUrl,
+            mealPhotoUrl: log.mealPhotoUrl,
+            mealPhotoSmallUrl: log.mealPhotoSmallUrl,
             clientNotes: log.clientNotes,
             dietitianFeedback: log.dietitianFeedback,
             reviewedByUser: log.reviewer,
@@ -145,7 +157,6 @@ export class MealLogService {
     async updateMealLog(mealLogId: string, data: UpdateMealLogInput, orgId: string) {
         const mealLog = await prisma.mealLog.findFirst({
             where: { id: mealLogId, orgId },
-            include: { meal: { include: { foodItems: { include: { foodItem: true } } } } },
         });
 
         if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
@@ -163,15 +174,9 @@ export class MealLogService {
 
         const updated = await prisma.mealLog.update({ where: { id: mealLogId }, data: updateData });
 
-        if ((data.status === 'eaten' && mealLog.status !== 'eaten') || data.substituteCaloriesEst) {
-            let plannedCalories = 0;
-            mealLog.meal.foodItems.forEach((fi) => {
-                const nutrition = scaleNutrition(fi.foodItem, Number(fi.quantityG));
-                plannedCalories += nutrition.calories;
-            });
-
-            const actualCalories = data.substituteCaloriesEst || plannedCalories;
-            await complianceService.calculateCompliance(updated.id, actualCalories, plannedCalories, true);
+        // Recalculate compliance when status changes from pending
+        if (data.status && data.status !== 'pending' && data.status !== mealLog.status) {
+            await complianceService.calculateMealCompliance(updated.id);
         }
 
         const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
@@ -203,14 +208,20 @@ export class MealLogService {
             include: { reviewer: { select: { id: true, fullName: true } } },
         });
 
+        // Recalculate compliance after dietitian review (adds dietitian_approved factor)
+        await complianceService.calculateMealCompliance(updated.id);
+
         logger.info('Meal log reviewed', { mealLogId: updated.id, reviewerId: userId });
 
+        const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
         return {
             id: updated.id,
             status: updated.status,
             dietitianFeedback: updated.dietitianFeedback,
             reviewedByUser: updated.reviewer,
             dietitianReviewedAt: updated.dietitianFeedbackAt,
+            complianceScore: finalLog?.complianceScore,
+            complianceColor: finalLog?.complianceColor,
         };
     }
 
@@ -232,14 +243,20 @@ export class MealLogService {
             },
         });
 
+        // Recalculate compliance after photo upload (adds photo factor)
+        await complianceService.calculateMealCompliance(updated.id);
+
         logger.info('Meal photo uploaded', { mealLogId, fullUrl, thumbUrl, originalSize: fileSize });
 
+        const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
         return {
             id: updated.id,
             mealPhotoUrl: updated.mealPhotoUrl,
             mealPhotoSmallUrl: updated.mealPhotoSmallUrl,
             photoUploadedAt: updated.photoUploadedAt,
             status: updated.status,
+            complianceScore: finalLog?.complianceScore,
+            complianceColor: finalLog?.complianceColor,
         };
     }
 }

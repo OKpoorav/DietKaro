@@ -72,6 +72,8 @@ export interface CreateFoodItemInput {
     carbsG: number;
     fatsG: number;
     fiberG?: number;
+    sugarG?: number;
+    sodiumMg?: number;
     dietaryTags?: string[];
     allergenFlags?: string[];
     nutrition?: never; // Ensure we don't accidentally use this

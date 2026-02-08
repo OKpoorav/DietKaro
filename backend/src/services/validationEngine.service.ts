@@ -21,17 +21,14 @@ import {
     FoodTags,
     CachedClientTags,
     AlertType,
-    FoodRestriction
+    FoodRestriction,
+    PlanTargets
 } from '../types/validation.types';
 import {
     matchesCategoryAvoidance,
     MEAL_SUITABILITY_CONFLICTS
 } from '../utils/validation-rules';
-
-// ============ CONSTANTS ============
-
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 50;
+import { VALIDATION_CONFIG } from '../config/validation-rules.config';
 
 // Day name mapping
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -84,7 +81,7 @@ export class ValidationEngine {
     private clientTagsCache: LRUCache<string, CachedClientTags>;
 
     constructor() {
-        this.clientTagsCache = new LRUCache(MAX_CACHE_SIZE);
+        this.clientTagsCache = new LRUCache(VALIDATION_CONFIG.MAX_CACHE_SIZE);
     }
 
     /**
@@ -208,14 +205,37 @@ export class ValidationEngine {
             }
         }
 
+        // 11. Meal repetition check
+        if (context.planId) {
+            const repetitionAlerts = await this.checkRepetition(foodTags.id, context.planId);
+            if (repetitionAlerts.length > 0) {
+                alerts.push(...repetitionAlerts);
+                if (highestSeverity === ValidationSeverity.GREEN) {
+                    highestSeverity = ValidationSeverity.YELLOW;
+                }
+            }
+        }
+
+        // 12. Nutrition strength check
+        if (context.planId) {
+            const planTargets = await this.getPlanTargets(context.planId);
+            if (planTargets) {
+                const nutritionAlerts = this.checkNutritionStrength(foodTags, planTargets);
+                alerts.push(...nutritionAlerts);
+                if (nutritionAlerts.length > 0 && highestSeverity === ValidationSeverity.GREEN) {
+                    highestSeverity = ValidationSeverity.YELLOW;
+                }
+            }
+        }
+
         // ===== GREEN RULES (positive) =====
         // These don't change severity, just add positive indicators
 
-        // 11. Liked foods
+        // 13. Liked foods
         const likedAlert = this.checkLikedFoods(clientTags, foodTags);
         if (likedAlert) alerts.push(likedAlert);
 
-        // 10. Preferred cuisines
+        // 14. Preferred cuisines
         const cuisineAlert = this.checkPreferredCuisines(clientTags, foodTags);
         if (cuisineAlert) alerts.push(cuisineAlert);
 
@@ -251,9 +271,23 @@ export class ValidationEngine {
                 healthFlags: true,
                 cuisineTags: true,
                 processingLevel: true,
-                mealSuitabilityTags: true
+                mealSuitabilityTags: true,
+                calories: true,
+                proteinG: true,
+                carbsG: true,
+                fatsG: true
             }
         });
+
+        // Pre-load plan targets and repetition counts if planId is provided
+        let planTargets: PlanTargets | null = null;
+        let planFoodCounts: Map<string, number> | null = null;
+        if (context.planId) {
+            [planTargets, planFoodCounts] = await Promise.all([
+                this.getPlanTargets(context.planId),
+                this.getPlanFoodCounts(context.planId)
+            ]);
+        }
 
         const results: ValidationResult[] = [];
 
@@ -296,6 +330,23 @@ export class ValidationEngine {
                 continue;
             }
 
+            // Food restrictions check (flexible rules from client profile)
+            const restrictionAlerts = this.checkFoodRestrictions(clientTags, foodTags, context, planFoodCounts);
+            for (const alert of restrictionAlerts) {
+                alerts.push(alert);
+                if (alert.severity === ValidationSeverity.RED) {
+                    highestSeverity = ValidationSeverity.RED;
+                    break;
+                }
+                if (alert.severity === ValidationSeverity.YELLOW && highestSeverity === ValidationSeverity.GREEN) {
+                    highestSeverity = ValidationSeverity.YELLOW;
+                }
+            }
+            if (highestSeverity === ValidationSeverity.RED) {
+                results.push(this.buildResult(foodTags, highestSeverity, alerts, itemStartTime));
+                continue;
+            }
+
             // Yellow rules
             const medicalAlerts = this.checkMedicalConditions(clientTags, foodTags);
             alerts.push(...medicalAlerts);
@@ -324,6 +375,24 @@ export class ValidationEngine {
                 if (mealSuitabilityAlert) {
                     alerts.push(mealSuitabilityAlert);
                     if (highestSeverity === ValidationSeverity.GREEN) highestSeverity = ValidationSeverity.YELLOW;
+                }
+            }
+
+            // Repetition + spacing check
+            if (context.planId) {
+                const repetitionAlerts = await this.checkRepetition(food.id, context.planId);
+                if (repetitionAlerts.length > 0) {
+                    alerts.push(...repetitionAlerts);
+                    if (highestSeverity === ValidationSeverity.GREEN) highestSeverity = ValidationSeverity.YELLOW;
+                }
+            }
+
+            // Nutrition strength check (using pre-loaded targets)
+            if (planTargets) {
+                const nutritionAlerts = this.checkNutritionStrength(foodTags, planTargets);
+                alerts.push(...nutritionAlerts);
+                if (nutritionAlerts.length > 0 && highestSeverity === ValidationSeverity.GREEN) {
+                    highestSeverity = ValidationSeverity.YELLOW;
                 }
             }
 
@@ -364,7 +433,7 @@ export class ValidationEngine {
     protected async getClientTags(clientId: string): Promise<ClientTags | null> {
         // Check cache first
         const cached = this.clientTagsCache.get(clientId);
-        if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+        if (cached && Date.now() - cached.cachedAt < VALIDATION_CONFIG.CACHE_TTL_MS) {
             return cached.tags;
         }
 
@@ -422,7 +491,11 @@ export class ValidationEngine {
                 healthFlags: true,
                 cuisineTags: true,
                 processingLevel: true,
-                mealSuitabilityTags: true
+                mealSuitabilityTags: true,
+                calories: true,
+                proteinG: true,
+                carbsG: true,
+                fatsG: true
             }
         });
 
@@ -441,6 +514,10 @@ export class ValidationEngine {
         cuisineTags: string[];
         processingLevel: string | null;
         mealSuitabilityTags: string[];
+        calories?: number | null;
+        proteinG?: any;
+        carbsG?: any;
+        fatsG?: any;
     }): FoodTags {
         return {
             id: food.id,
@@ -451,7 +528,11 @@ export class ValidationEngine {
             healthFlags: new Set(food.healthFlags.map(h => h.toLowerCase())),
             cuisineTags: new Set(food.cuisineTags.map(c => c.toLowerCase())),
             processingLevel: food.processingLevel?.toLowerCase() || null,
-            mealSuitabilityTags: new Set(food.mealSuitabilityTags.map(m => m.toLowerCase()))
+            mealSuitabilityTags: new Set(food.mealSuitabilityTags.map(m => m.toLowerCase())),
+            calories: food.calories ?? undefined,
+            proteinG: food.proteinG ? Number(food.proteinG) : undefined,
+            carbsG: food.carbsG ? Number(food.carbsG) : undefined,
+            fatsG: food.fatsG ? Number(food.fatsG) : undefined
         };
     }
 
@@ -560,7 +641,8 @@ export class ValidationEngine {
     private checkFoodRestrictions(
         client: ClientTags,
         food: FoodTags,
-        context: ValidationContext
+        context: ValidationContext,
+        planFoodCounts?: Map<string, number> | null
     ): ValidationAlert[] {
         const alerts: ValidationAlert[] = [];
         const currentDay = context.currentDay.toLowerCase();
@@ -578,8 +660,17 @@ export class ValidationEngine {
             }
 
             // Step 3: Is the restriction active based on context?
-            const isActive = this.isRestrictionActive(restriction, currentDay, currentMeal);
+            const isActive = this.isRestrictionActive(restriction, currentDay, currentMeal, context.scheduledTime);
             if (!isActive) continue;
+
+            // Step 3b: For frequency restrictions, check actual usage count
+            if (restriction.restrictionType === 'frequency' && planFoodCounts) {
+                const count = planFoodCounts.get(food.id) || 0;
+                if (restriction.maxPerWeek && count < restriction.maxPerWeek) continue;
+                if (restriction.maxPerDay) {
+                    // maxPerDay can't be checked from plan-level counts, always warn
+                }
+            }
 
             // Step 4: Add alert based on severity
             const severity = restriction.severity === 'strict'
@@ -590,23 +681,26 @@ export class ValidationEngine {
                 ? ` (${restriction.reason.replace(/_/g, ' ')})`
                 : '';
 
+            const foodLabel = restriction.foodCategory || restriction.foodName || 'this food';
             let message: string;
             if (restriction.restrictionType === 'day_based') {
                 message = severity === ValidationSeverity.RED
-                    ? `⛔ RESTRICTED: No ${restriction.foodCategory || restriction.foodName || 'this food'} on ${currentDay}${reasonText}`
-                    : `🟡 CAUTION: Client prefers to avoid ${restriction.foodCategory || restriction.foodName || 'this food'} on ${currentDay}${reasonText}`;
+                    ? `⛔ RESTRICTED: No ${foodLabel} on ${currentDay}${reasonText}`
+                    : `🟡 CAUTION: Client prefers to avoid ${foodLabel} on ${currentDay}${reasonText}`;
             } else if (restriction.restrictionType === 'always') {
                 message = severity === ValidationSeverity.RED
-                    ? `⛔ RESTRICTED: Client never eats ${restriction.foodCategory || restriction.foodName || 'this food'}${reasonText}`
-                    : `🟡 CAUTION: Client prefers to avoid ${restriction.foodCategory || restriction.foodName || 'this food'}${reasonText}`;
+                    ? `⛔ RESTRICTED: Client never eats ${foodLabel}${reasonText}`
+                    : `🟡 CAUTION: Client prefers to avoid ${foodLabel}${reasonText}`;
             } else if (restriction.restrictionType === 'time_based') {
                 message = severity === ValidationSeverity.RED
-                    ? `⛔ RESTRICTED: No ${restriction.foodCategory || restriction.foodName || 'this food'} during ${currentMeal}${reasonText}`
-                    : `🟡 CAUTION: Client prefers to avoid ${restriction.foodCategory || restriction.foodName || 'this food'} during ${currentMeal}${reasonText}`;
+                    ? `⛔ RESTRICTED: No ${foodLabel} during ${currentMeal}${reasonText}`
+                    : `🟡 CAUTION: Client prefers to avoid ${foodLabel} during ${currentMeal}${reasonText}`;
             } else if (restriction.restrictionType === 'frequency') {
-                message = `🟡 FREQUENCY: Limit ${restriction.foodCategory || restriction.foodName || 'this food'} to ${restriction.maxPerWeek || restriction.maxPerDay}/week${reasonText}`;
+                const count = planFoodCounts?.get(food.id) || 0;
+                const limit = restriction.maxPerWeek || restriction.maxPerDay;
+                message = `🟡 FREQUENCY: ${foodLabel} appears ${count}/${limit} times${restriction.maxPerWeek ? '/week' : '/day'}${reasonText}`;
             } else if (restriction.restrictionType === 'quantity') {
-                message = `🟡 QUANTITY: Limit ${restriction.foodCategory || restriction.foodName || 'this food'} to ${restriction.maxGramsPerMeal}g/meal${reasonText}`;
+                message = `🟡 QUANTITY: Limit ${foodLabel} to ${restriction.maxGramsPerMeal}g/meal${reasonText}`;
             } else {
                 message = `⚠️ RESTRICTION: ${restriction.note || 'Food has restrictions'}`;
             }
@@ -708,7 +802,8 @@ export class ValidationEngine {
     private isRestrictionActive(
         restriction: FoodRestriction,
         currentDay: string,
-        currentMeal: string
+        currentMeal: string,
+        scheduledTime?: string
     ): boolean {
         switch (restriction.restrictionType) {
             case 'always':
@@ -722,13 +817,29 @@ export class ValidationEngine {
 
             case 'time_based':
                 if (restriction.avoidMeals) {
-                    return restriction.avoidMeals.some(m => m.toLowerCase() === currentMeal);
+                    if (restriction.avoidMeals.some(m => m.toLowerCase() === currentMeal)) {
+                        return true;
+                    }
                 }
-                // Could add avoidAfter/avoidBefore logic here with time comparison
-                return true;
+                // Time window check using scheduledTime or meal-to-time fallback
+                if (restriction.avoidAfter || restriction.avoidBefore) {
+                    const timeStr = scheduledTime || this.mealToDefaultTime(currentMeal);
+                    if (timeStr) {
+                        const mins = this.timeToMinutes(timeStr);
+                        if (restriction.avoidAfter) {
+                            const afterMins = this.timeToMinutes(restriction.avoidAfter);
+                            if (mins >= afterMins) return true;
+                        }
+                        if (restriction.avoidBefore) {
+                            const beforeMins = this.timeToMinutes(restriction.avoidBefore);
+                            if (mins <= beforeMins) return true;
+                        }
+                    }
+                }
+                return false;
 
             case 'frequency':
-                // For now, always show warning (would need weekly usage tracking)
+                // Always show the frequency limit reminder so dietitian is aware
                 return true;
 
             case 'quantity':
@@ -738,6 +849,21 @@ export class ValidationEngine {
             default:
                 return true;
         }
+    }
+
+    private timeToMinutes(time: string): number {
+        const [h, m] = time.split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+    }
+
+    private mealToDefaultTime(meal: string): string {
+        const defaults: Record<string, string> = {
+            breakfast: '08:00',
+            lunch: '13:00',
+            snack: '16:00',
+            dinner: '20:00',
+        };
+        return defaults[meal] || '12:00';
     }
 
     private checkMedicalConditions(client: ClientTags, food: FoodTags): ValidationAlert[] {
@@ -791,9 +917,26 @@ export class ValidationEngine {
     private checkLabDerivedTags(client: ClientTags, food: FoodTags): ValidationAlert[] {
         const alerts: ValidationAlert[] = [];
 
+        // Diabetic / pre-diabetic + high sugar food
+        if (
+            (client.labDerivedTags.has('diabetic') || client.labDerivedTags.has('pre_diabetic')) &&
+            (food.nutritionTags.has('high_sugar') || food.healthFlags.has('diabetic_caution'))
+        ) {
+            const isDiabetic = client.labDerivedTags.has('diabetic');
+            alerts.push({
+                type: 'lab_derived',
+                severity: ValidationSeverity.YELLOW,
+                message: isDiabetic
+                    ? `🟡 LAB ALERT: Client is diabetic (elevated HbA1c) - avoid high-sugar foods`
+                    : `🟡 LAB ALERT: Client is pre-diabetic - limit sugar intake`,
+                recommendation: isDiabetic ? 'Choose sugar-free or low-GI alternatives' : 'Moderate sugar intake',
+                icon: 'test-tube'
+            });
+        }
+
         // High cholesterol + cholesterol-heavy food
         if (
-            client.labDerivedTags.has('high_cholesterol') &&
+            (client.labDerivedTags.has('high_cholesterol') || client.labDerivedTags.has('borderline_cholesterol')) &&
             food.healthFlags.has('cholesterol_caution')
         ) {
             alerts.push({
@@ -805,9 +948,37 @@ export class ValidationEngine {
             });
         }
 
-        // Vitamin D deficiency - could add positive nudge for vitamin D rich foods
+        // High triglycerides + high fat food
         if (
-            client.labDerivedTags.has('vitamin_d_deficiency') &&
+            client.labDerivedTags.has('high_triglycerides') &&
+            (food.nutritionTags.has('high_fat') || food.healthFlags.has('heart_caution'))
+        ) {
+            alerts.push({
+                type: 'lab_derived',
+                severity: ValidationSeverity.YELLOW,
+                message: `🟡 LAB ALERT: Client has high triglycerides - limit high-fat foods`,
+                recommendation: 'Choose lean proteins and healthy fats',
+                icon: 'test-tube'
+            });
+        }
+
+        // Kidney caution / high uric acid + high protein food
+        if (
+            (client.labDerivedTags.has('kidney_caution') || client.labDerivedTags.has('high_uric_acid')) &&
+            (food.nutritionTags.has('high_protein') || food.healthFlags.has('kidney_caution'))
+        ) {
+            alerts.push({
+                type: 'lab_derived',
+                severity: ValidationSeverity.YELLOW,
+                message: `🟡 LAB ALERT: Client has elevated kidney markers - limit high-protein foods`,
+                recommendation: 'Keep protein moderate, reduce red meat and organ meats',
+                icon: 'test-tube'
+            });
+        }
+
+        // Vitamin D deficiency - positive nudge for vitamin D rich foods
+        if (
+            (client.labDerivedTags.has('vitamin_d_deficiency') || client.labDerivedTags.has('severe_vitamin_d_deficiency')) &&
             food.healthFlags.has('vitamin_d_rich')
         ) {
             alerts.push({
@@ -818,33 +989,98 @@ export class ValidationEngine {
             });
         }
 
+        // B12 deficiency - positive nudge for B12-rich foods
+        if (
+            client.labDerivedTags.has('b12_deficiency') &&
+            food.healthFlags.has('b12_rich')
+        ) {
+            alerts.push({
+                type: 'lab_derived',
+                severity: ValidationSeverity.GREEN,
+                message: `✅ NUTRIENT MATCH: Good source of Vitamin B12 for client`,
+                icon: 'pill'
+            });
+        }
+
+        // Iron deficiency / anemia - positive nudge for iron-rich foods
+        if (
+            (client.labDerivedTags.has('iron_deficiency') || client.labDerivedTags.has('anemia')) &&
+            food.healthFlags.has('iron_rich')
+        ) {
+            alerts.push({
+                type: 'lab_derived',
+                severity: ValidationSeverity.GREEN,
+                message: `✅ NUTRIENT MATCH: Good source of Iron for client with low iron/hemoglobin`,
+                icon: 'heart-pulse'
+            });
+        }
+
         return alerts;
+    }
+
+    /**
+     * Word-level matching with plural normalization.
+     * "egg" matches "eggs" or "egg curry" but NOT "eggplant".
+     * "bitter gourd" matches "bitter gourd curry".
+     */
+    private wordMatch(foodName: string, keyword: string): boolean {
+        const foodWords = foodName.split(/\s+/);
+        const keyWords = keyword.split(/\s+/);
+
+        // Multi-word keyword (e.g. "bitter gourd"): check contiguous word sequence
+        if (keyWords.length > 1) {
+            for (let i = 0; i <= foodWords.length - keyWords.length; i++) {
+                const allMatch = keyWords.every((kw, j) => this.pluralMatch(foodWords[i + j], kw));
+                if (allMatch) return true;
+            }
+            return false;
+        }
+
+        // Single-word keyword: check if any food word matches
+        return foodWords.some(fw => this.pluralMatch(fw, keyWords[0]));
+    }
+
+    /** Two words match if identical, or one is the other + 's'/'es' */
+    private pluralMatch(a: string, b: string): boolean {
+        if (a === b) return true;
+        if (a + 's' === b || b + 's' === a) return true;
+        if (a + 'es' === b || b + 'es' === a) return true;
+        return false;
     }
 
     private checkDislikes(client: ClientTags, food: FoodTags): ValidationAlert | null {
         const foodNameLower = food.name.toLowerCase();
 
-        if (client.dislikes.has(foodNameLower)) {
-            return {
-                type: 'dislike',
-                severity: ValidationSeverity.YELLOW,
-                message: `🟡 DISLIKE: Client has indicated they dislike ${food.name}`,
-                recommendation: 'Consider alternative options',
-                icon: 'thumb-down'
-            };
+        for (const dislike of client.dislikes) {
+            if (this.wordMatch(foodNameLower, dislike)) {
+                const displayName = dislike.charAt(0).toUpperCase() + dislike.slice(1);
+                return {
+                    type: 'dislike',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 DISLIKE: Client has indicated they dislike ${displayName}`,
+                    recommendation: 'Consider alternative options',
+                    icon: 'thumb-down'
+                };
+            }
         }
 
         return null;
     }
 
     private checkLikedFoods(client: ClientTags, food: FoodTags): ValidationAlert | null {
-        if (client.likedFoods.has(food.id)) {
-            return {
-                type: 'preference_match',
-                severity: ValidationSeverity.GREEN,
-                message: `✅ CLIENT FAVORITE: Client likes ${food.name}`,
-                icon: 'heart'
-            };
+        const foodNameLower = food.name.toLowerCase();
+
+        for (const liked of client.likedFoods) {
+            const likedLower = liked.toLowerCase();
+            if (this.wordMatch(foodNameLower, likedLower)) {
+                const displayName = liked.charAt(0).toUpperCase() + liked.slice(1);
+                return {
+                    type: 'preference_match',
+                    severity: ValidationSeverity.GREEN,
+                    message: `✅ CLIENT FAVORITE: Client likes ${displayName}`,
+                    icon: 'heart'
+                };
+            }
         }
         return null;
     }
@@ -907,6 +1143,149 @@ export class ValidationEngine {
         }
 
         return null;
+    }
+
+    // ============ PRIVATE: PLAN-CONTEXT RULES ============
+
+    protected async getPlanTargets(planId: string): Promise<PlanTargets | null> {
+        const plan = await prisma.dietPlan.findUnique({
+            where: { id: planId },
+            select: {
+                targetCalories: true,
+                targetProteinG: true,
+                targetCarbsG: true,
+                targetFatsG: true
+            }
+        });
+        if (!plan) return null;
+        return {
+            targetCalories: plan.targetCalories,
+            targetProteinG: plan.targetProteinG ? Number(plan.targetProteinG) : null,
+            targetCarbsG: plan.targetCarbsG ? Number(plan.targetCarbsG) : null,
+            targetFatsG: plan.targetFatsG ? Number(plan.targetFatsG) : null
+        };
+    }
+
+    protected async getPlanFoodCounts(planId: string): Promise<Map<string, number>> {
+        const items = await prisma.mealFoodItem.findMany({
+            where: { meal: { planId } },
+            select: { foodId: true }
+        });
+        const counts = new Map<string, number>();
+        for (const item of items) {
+            counts.set(item.foodId, (counts.get(item.foodId) || 0) + 1);
+        }
+        return counts;
+    }
+
+    protected async checkRepetition(foodId: string, planId: string): Promise<ValidationAlert[]> {
+        const items = await prisma.mealFoodItem.findMany({
+            where: { foodId, meal: { planId } },
+            select: { meal: { select: { dayOfWeek: true } } }
+        });
+
+        const alerts: ValidationAlert[] = [];
+        const count = items.length;
+
+        // Total count check
+        if (count >= VALIDATION_CONFIG.REPETITION_THRESHOLD) {
+            alerts.push({
+                type: 'repetition',
+                severity: ValidationSeverity.YELLOW,
+                message: `🟡 REPETITION: This food appears ${count} times this week. Consider variety.`,
+                recommendation: 'Try different foods for nutritional variety',
+                icon: 'repeat'
+            });
+        }
+
+        // Consecutive days check
+        if (count >= 2) {
+            const days = [...new Set(items.map(i => i.meal.dayOfWeek).filter((d): d is number => d !== null))].sort();
+            const maxConsecutive = this.longestConsecutiveRun(days);
+            if (maxConsecutive > VALIDATION_CONFIG.REPETITION_MAX_CONSECUTIVE_DAYS) {
+                alerts.push({
+                    type: 'repetition',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 SPACING: This food appears on ${maxConsecutive} consecutive days. Spread it out for variety.`,
+                    recommendation: 'Leave at least a day gap between servings of the same food',
+                    icon: 'calendar'
+                });
+            }
+        }
+
+        return alerts;
+    }
+
+    private longestConsecutiveRun(sortedDays: number[]): number {
+        if (sortedDays.length <= 1) return sortedDays.length;
+        let maxRun = 1;
+        let currentRun = 1;
+        for (let i = 1; i < sortedDays.length; i++) {
+            if (sortedDays[i] === sortedDays[i - 1] + 1) {
+                currentRun++;
+                maxRun = Math.max(maxRun, currentRun);
+            } else if (sortedDays[i] !== sortedDays[i - 1]) {
+                currentRun = 1;
+            }
+        }
+        return maxRun;
+    }
+
+    private checkNutritionStrength(food: FoodTags, targets: PlanTargets): ValidationAlert[] {
+        const alerts: ValidationAlert[] = [];
+        const calWarnPct = VALIDATION_CONFIG.SINGLE_FOOD_CALORIE_WARN_PCT;
+        const macroWarnPct = VALIDATION_CONFIG.SINGLE_FOOD_MACRO_WARN_PCT;
+
+        if (food.calories && targets.targetCalories) {
+            const pct = food.calories / targets.targetCalories;
+            if (pct > calWarnPct) {
+                alerts.push({
+                    type: 'nutrition_strength',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 HIGH CALORIE: This food provides ${Math.round(pct * 100)}% of the daily calorie target in one serving`,
+                    recommendation: 'Consider a smaller portion or lower-calorie alternative',
+                    icon: 'flame'
+                });
+            }
+        }
+
+        if (food.proteinG && targets.targetProteinG) {
+            const pct = food.proteinG / targets.targetProteinG;
+            if (pct > macroWarnPct) {
+                alerts.push({
+                    type: 'nutrition_strength',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 HIGH PROTEIN: This food provides ${Math.round(pct * 100)}% of the daily protein target`,
+                    icon: 'beef'
+                });
+            }
+        }
+
+        if (food.carbsG && targets.targetCarbsG) {
+            const pct = food.carbsG / targets.targetCarbsG;
+            if (pct > macroWarnPct) {
+                alerts.push({
+                    type: 'nutrition_strength',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 HIGH CARBS: This food provides ${Math.round(pct * 100)}% of the daily carb target`,
+                    icon: 'wheat'
+                });
+            }
+        }
+
+        if (food.fatsG && targets.targetFatsG) {
+            const pct = food.fatsG / targets.targetFatsG;
+            if (pct > macroWarnPct) {
+                alerts.push({
+                    type: 'nutrition_strength',
+                    severity: ValidationSeverity.YELLOW,
+                    message: `🟡 HIGH FAT: This food provides ${Math.round(pct * 100)}% of the daily fat target`,
+                    icon: 'droplets'
+                });
+            }
+        }
+
+        return alerts;
     }
 
     // ============ PRIVATE: RESULT BUILDING ============

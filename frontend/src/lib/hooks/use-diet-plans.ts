@@ -9,7 +9,7 @@ export interface Meal {
     name: string;
     mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
     scheduledTime: string;
-    foods: MealFoodItem[];
+    foodItems: MealFoodItem[];
 }
 
 export interface MealFoodItem {

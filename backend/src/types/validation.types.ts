@@ -22,7 +22,9 @@ export type AlertType =
     | 'dislike'
     | 'preference_match'
     | 'cuisine_match'
-    | 'goal_aligned';
+    | 'goal_aligned'
+    | 'repetition'
+    | 'nutrition_strength';
 
 // ============ REQUEST/RESPONSE ============
 
@@ -30,6 +32,7 @@ export interface ValidationContext {
     currentDay: string;  // "monday", "tuesday", etc.
     mealType: 'breakfast' | 'lunch' | 'snack' | 'dinner';
     planId?: string;
+    scheduledTime?: string; // "HH:mm" format for time-based restriction checks
     // For repetition checks (how many times this food was used this week)
     weeklyUsage?: Record<string, number>;
 }
@@ -148,6 +151,10 @@ export interface FoodTags {
 
     // Nutrition
     nutritionTags: Set<string>;
+    calories?: number;
+    proteinG?: number;
+    carbsG?: number;
+    fatsG?: number;
 
     // Medical
     healthFlags: Set<string>;
@@ -157,6 +164,15 @@ export interface FoodTags {
 
     // Suitability
     mealSuitabilityTags: Set<string>;
+}
+
+// ============ PLAN TARGETS ============
+
+export interface PlanTargets {
+    targetCalories: number | null;
+    targetProteinG: number | null;
+    targetCarbsG: number | null;
+    targetFatsG: number | null;
 }
 
 // ============ CACHE ENTRY ============

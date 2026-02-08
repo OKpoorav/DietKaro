@@ -24,6 +24,10 @@ export interface ClientData {
     foodRestrictions?: FoodRestriction[];
     dislikes?: string[];
     likedFoods?: string[];
+    targetCalories?: number | null;
+    targetProteinG?: number | null;
+    targetCarbsG?: number | null;
+    targetFatsG?: number | null;
 }
 
 export interface FoodItemData {
@@ -33,6 +37,8 @@ export interface FoodItemData {
     protein: number;
     carbs: number;
     fat: number;
+    validationSeverity?: 'RED' | 'YELLOW' | 'GREEN';
+    validationAlerts?: Array<{ type: string; severity: string; message: string; recommendation?: string }>;
 }
 
 export interface NutritionTargets {
@@ -60,6 +66,8 @@ export interface LocalFoodItem {
     carbs: number;
     fat: number;
     hasWarning: boolean;
+    validationSeverity?: 'RED' | 'YELLOW' | 'GREEN';
+    validationAlerts?: Array<{ type: string; severity: string; message: string; recommendation?: string }>;
 }
 
 export interface LocalMeal {

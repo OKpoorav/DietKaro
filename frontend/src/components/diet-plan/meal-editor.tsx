@@ -1,7 +1,32 @@
 'use client';
 
-import { Trash2, Plus, AlertTriangle } from 'lucide-react';
-import type { LocalMeal } from '@/lib/types/diet-plan.types';
+import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
+import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
+
+function getFoodSeverityStyles(food: LocalFoodItem) {
+    switch (food.validationSeverity) {
+        case 'RED':
+            return {
+                bgClass: 'bg-red-50 border border-red-300',
+                iconEl: <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />,
+            };
+        case 'YELLOW':
+            return {
+                bgClass: 'bg-yellow-50 border border-yellow-300',
+                iconEl: <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />,
+            };
+        case 'GREEN':
+            return {
+                bgClass: 'bg-green-50 border border-green-300',
+                iconEl: <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />,
+            };
+        default:
+            return {
+                bgClass: food.hasWarning ? 'bg-red-50 border border-red-300' : 'bg-gray-50',
+                iconEl: food.hasWarning ? <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" /> : null,
+            };
+    }
+}
 
 interface MealEditorProps {
     meals: LocalMeal[];
@@ -59,32 +84,41 @@ export function MealEditor({
 
                     {/* Food Items */}
                     <div className="space-y-2 mb-3">
-                        {meal.foods.map((food) => (
-                            <div
-                                key={food.tempId}
-                                className={`flex items-center gap-2 p-2 rounded-md ${food.hasWarning
-                                    ? 'bg-red-50 border border-red-300'
-                                    : 'bg-gray-50'
-                                    }`}
-                            >
-                                {food.hasWarning && (
-                                    <AlertTriangle className="w-4 h-4 text-red-500 mr-1" />
-                                )}
-                                <span className="text-gray-800 text-sm font-medium flex-grow truncate">{food.name}</span>
-                                <input
-                                    type="text"
-                                    value={food.quantity}
-                                    onChange={(e) => onUpdateFoodQuantity(meal.id, food.tempId, e.target.value)}
-                                    className="w-24 text-sm text-right p-1 border border-gray-200 rounded-md text-gray-700 bg-white"
-                                />
-                                <button
-                                    onClick={() => onRemoveFood(meal.id, food.tempId)}
-                                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        ))}
+                        {meal.foods.map((food) => {
+                            const { bgClass, iconEl } = getFoodSeverityStyles(food);
+
+                            return (
+                                <div key={food.tempId}>
+                                    <div
+                                        className={`flex items-center gap-2 p-2 rounded-md ${bgClass}`}
+                                    >
+                                        {iconEl}
+                                        <span className="text-gray-800 text-sm font-medium flex-grow truncate">{food.name}</span>
+                                        <input
+                                            type="text"
+                                            value={food.quantity}
+                                            onChange={(e) => onUpdateFoodQuantity(meal.id, food.tempId, e.target.value)}
+                                            className="w-24 text-sm text-right p-1 border border-gray-200 rounded-md text-gray-700 bg-white"
+                                        />
+                                        <button
+                                            onClick={() => onRemoveFood(meal.id, food.tempId)}
+                                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    {food.validationAlerts && food.validationAlerts.length > 0 && (
+                                        <p className={`text-xs mt-1 ml-7 ${
+                                            food.validationSeverity === 'RED' ? 'text-red-600' :
+                                            food.validationSeverity === 'YELLOW' ? 'text-yellow-600' :
+                                            'text-green-600'
+                                        }`}>
+                                            {food.validationAlerts[0].message}
+                                        </p>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Add Food */}

@@ -93,7 +93,10 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
             protein: food.protein,
             carbs: food.carbs,
             fat: food.fat,
-            hasWarning: client?.medicalProfile?.allergies?.some((a: string) => food.name.toLowerCase().includes(a.toLowerCase())) || false
+            hasWarning: food.validationSeverity === 'RED' || food.validationSeverity === 'YELLOW' ||
+                client?.medicalProfile?.allergies?.some((a: string) => food.name.toLowerCase().includes(a.toLowerCase())) || false,
+            validationSeverity: food.validationSeverity,
+            validationAlerts: food.validationAlerts,
         };
 
         setWeeklyMeals(prev => ({
@@ -153,12 +156,12 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         return { calories, protein, carbs, fat };
     }, [currentMeals]);
 
-    const targets = useMemo(() => ({
-        calories: client?.targetWeightKg ? client.targetWeightKg * 30 : 2000,
-        protein: 150,
-        carbs: 200,
-        fat: 70
-    }), [client]);
+    const [targets, setTargets] = useState(() => ({
+        calories: Number(client?.targetCalories) || (client?.targetWeightKg ? Math.round(Number(client.targetWeightKg) * 30) : 2000),
+        protein: Number(client?.targetProteinG) || 150,
+        carbs: Number(client?.targetCarbsG) || 200,
+        fat: Number(client?.targetFatsG) || 70,
+    }));
 
     // Apply template
     const applyTemplate = useCallback(async (templateId: string) => {
@@ -267,12 +270,27 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
             return;
         }
 
+        // Block publish if any food has RED validation alerts
+        if (publish) {
+            const hasRedAlert = Object.values(weeklyMeals).some(dayMeals =>
+                dayMeals.some(m => m.foods.some(f => f.validationSeverity === 'RED'))
+            );
+            if (hasRedAlert) {
+                toast.error('Cannot publish: some foods have blocking validation alerts. Remove or replace them first.');
+                return;
+            }
+        }
+
         try {
             const createdPlan = await createMutation.mutateAsync({
                 clientId: clientId || undefined,
                 title: planName,
                 description: planDescription,
                 startDate: startDate.toISOString(),
+                targetCalories: targets.calories,
+                targetProteinG: targets.protein,
+                targetCarbsG: targets.carbs,
+                targetFatsG: targets.fat,
                 meals: apiMeals,
                 options: isTemplateMode ? { saveAsTemplate: true } : undefined,
             });
@@ -312,6 +330,7 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         // Computed
         dayNutrition,
         targets,
+        setTargets,
         hasAllergyWarning,
 
         // Actions

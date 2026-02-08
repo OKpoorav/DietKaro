@@ -196,6 +196,10 @@ model Client {
   heightCm              Decimal?       @db.Decimal(5, 2)
   currentWeightKg       Decimal?       @db.Decimal(5, 2)
   targetWeightKg        Decimal?       @db.Decimal(5, 2)
+  targetCalories        Int?
+  targetProteinG        Decimal?       @db.Decimal(5, 1)
+  targetCarbsG          Decimal?       @db.Decimal(5, 1)
+  targetFatsG           Decimal?       @db.Decimal(5, 1)
   activityLevel         ActivityLevel?
   dietaryPreferences    String[]
   allergies             String[]
@@ -242,6 +246,7 @@ model Client {
   invoices         Invoice[]
   referralBenefit  ReferralBenefit?
   clientReports    ClientReport[]
+  preferences      ClientPreferences?
 
   // Self-referential relation for client referrals
   referredByClient Client?  @relation("ClientReferrals", fields: [referredByClientId], references: [id])
@@ -255,6 +260,7 @@ model Client {
   @@index([isActive])
   @@index([referralCode])
   @@index([referredByClientId])
+  @@index([orgId, isActive, createdAt])
 }
 
 model MedicalProfile {
@@ -269,6 +275,9 @@ model MedicalProfile {
   familyHistory       String?
   healthNotes         String?
   dietaryRestrictions String?
+  labValues           Json?
+  labDate             DateTime?
+  labDerivedTags      String[]
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   updatedByUserId     String?
@@ -315,6 +324,8 @@ model DietPlan {
   @@index([clientId])
   @@index([status])
   @@index([isTemplate])
+  @@index([orgId, status, createdAt])
+  @@index([clientId, status])
 }
 
 model Meal {
@@ -336,6 +347,8 @@ model Meal {
   totalFiberG      Decimal?  @db.Decimal(5, 1)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+  createdByUserId  String?
 
   // Relations
   dietPlan  DietPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
@@ -369,6 +382,8 @@ model FoodItem {
   createdByUserId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  updatedByUserId String?
 
   // Validation Tags (for diet validation engine)
   nutritionTags       String[] @default([]) // ["high_protein", "low_carb", "high_sugar"]
@@ -385,6 +400,7 @@ model FoodItem {
 
   @@index([orgId])
   @@index([category])
+  @@index([orgId, category])
 }
 
 model MealFoodItem {
@@ -398,8 +414,10 @@ model MealFoodItem {
   fatsG     Decimal? @db.Decimal(5, 1)
   fiberG    Decimal? @db.Decimal(5, 1)
   sortOrder Int      @default(0)
-  notes     String?
-  createdAt DateTime @default(now())
+  notes           String?
+  createdAt       DateTime @default(now())
+  deletedAt       DateTime?
+  createdByUserId String?
 
   // Relations
   meal     Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
@@ -436,6 +454,7 @@ model MealLog {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   // Relations
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -448,6 +467,8 @@ model MealLog {
   @@index([clientId])
   @@index([scheduledDate])
   @@index([status])
+  @@index([orgId, status, scheduledDate])
+  @@index([clientId, scheduledDate])
 }
 
 model WeightLog {
@@ -463,6 +484,8 @@ model WeightLog {
   weightChangeFromPrevious Decimal? @db.Decimal(5, 2)
   isOutlier                Boolean  @default(false)
   createdAt                DateTime @default(now())
+  deletedAt                DateTime?
+  createdByUserId          String?
 
   // Relations
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -471,6 +494,7 @@ model WeightLog {
   @@unique([clientId, logDate])
   @@index([orgId])
   @@index([clientId])
+  @@index([clientId, logDate])
 }
 
 model BodyMeasurement {
@@ -486,6 +510,8 @@ model BodyMeasurement {
   bodyFatPercentage Decimal? @db.Decimal(4, 2)
   notes             String?
   createdAt         DateTime @default(now())
+  deletedAt         DateTime?
+  createdByUserId   String?
 
   // Relations
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -546,6 +572,7 @@ model Notification {
   @@index([recipientId, recipientType])
   @@index([isRead])
   @@index([orgId])
+  @@index([recipientId, recipientType, isRead, createdAt])
 }
 
 model ActivityLog {
@@ -592,6 +619,7 @@ model Invoice {
   sentAt          DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
 
   // Relations
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -650,4 +678,26 @@ model ClientReport {
 
   @@index([clientId])
   @@index([orgId])
+}
+
+model ClientPreferences {
+  id               String   @id @default(uuid())
+  clientId         String   @unique
+  breakfastTime    String?
+  lunchTime        String?
+  dinnerTime       String?
+  snackTime        String?
+  canCook          Boolean  @default(true)
+  kitchenAvailable Boolean  @default(true)
+  hasDietaryCook   Boolean  @default(false)
+  weekdayActivity  String?
+  weekendActivity  String?
+  sportOrHobby     String?
+  generalNotes     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }

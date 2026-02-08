@@ -38,6 +38,11 @@ export interface Client {
     dislikes?: string[];
     likedFoods?: string[];
     preferredCuisines?: string[];
+    // Nutrition targets
+    targetCalories?: number | null;
+    targetProteinG?: number | null;
+    targetCarbsG?: number | null;
+    targetFatsG?: number | null;
 }
 
 export interface ClientProgress {
@@ -117,7 +122,29 @@ export function useClientProgress(clientId: string, params?: { dateFrom?: string
         queryKey: ['clients', clientId, 'progress', params],
         queryFn: async () => {
             const { data } = await api.get(`/clients/${clientId}/progress`, { params });
-            return data.data as ClientProgress;
+            const raw = data.data;
+            // Map backend field names to frontend interface
+            const progress: ClientProgress = {
+                weight: {
+                    startWeight: raw.weightTrend?.startWeight ?? null,
+                    currentWeight: raw.weightTrend?.currentWeight ?? null,
+                    targetWeight: raw.weightTrend?.targetWeight ?? null,
+                    totalChange: raw.weightTrend?.totalWeightChange ?? null,
+                    weeklyAvgChange: raw.weightTrend?.weeklyAverageChange ?? null,
+                    progressToGoal: raw.weightTrend?.progressToGoalPercentage ?? null,
+                },
+                meals: {
+                    total: raw.mealAdherence?.totalMeals ?? 0,
+                    eaten: raw.mealAdherence?.eatenMeals ?? 0,
+                    substituted: raw.mealAdherence?.substitutedMeals ?? 0,
+                    skipped: raw.mealAdherence?.skippedMeals ?? 0,
+                    pending: raw.mealAdherence?.pendingMeals ?? 0,
+                    adherencePercentage: raw.mealAdherence?.adherencePercentage ?? 0,
+                    completionPercentage: raw.mealAdherence?.completionPercentage ?? 0,
+                },
+                activeDietPlans: raw.activeDietPlans ?? 0,
+            };
+            return progress;
         },
         enabled: !!clientId,
     });

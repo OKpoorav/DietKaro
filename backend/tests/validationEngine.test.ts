@@ -6,7 +6,7 @@
  */
 
 import { ValidationEngine } from '../src/services/validationEngine.service';
-import { ValidationSeverity, ClientTags, FoodTags, FoodRestriction } from '../src/types/validation.types';
+import { ValidationSeverity, ClientTags, FoodTags, FoodRestriction, PlanTargets, ValidationAlert } from '../src/types/validation.types';
 
 // ============ TEST DATA ============
 
@@ -45,6 +45,8 @@ const createFoodTags = (name: string, overrides: Partial<FoodTags> = {}): FoodTa
 class TestableValidationEngine extends ValidationEngine {
     private testClientTags: ClientTags | null = null;
     private testFoodTags: FoodTags | null = null;
+    private testPlanTargets: PlanTargets | null = null;
+    private testRepetitionCount: number = 0;
 
     setTestClientTags(tags: ClientTags) {
         this.testClientTags = tags;
@@ -54,6 +56,14 @@ class TestableValidationEngine extends ValidationEngine {
         this.testFoodTags = tags;
     }
 
+    setTestPlanTargets(targets: PlanTargets) {
+        this.testPlanTargets = targets;
+    }
+
+    setTestRepetitionCount(count: number) {
+        this.testRepetitionCount = count;
+    }
+
     // Override to use test data instead of DB
     protected async getClientTags(clientId: string): Promise<ClientTags | null> {
         return this.testClientTags;
@@ -61,6 +71,31 @@ class TestableValidationEngine extends ValidationEngine {
 
     protected async getFoodTags(foodId: string): Promise<FoodTags | null> {
         return this.testFoodTags;
+    }
+
+    protected async getPlanTargets(planId: string): Promise<PlanTargets | null> {
+        return this.testPlanTargets;
+    }
+
+    protected async getPlanFoodCounts(planId: string): Promise<Map<string, number>> {
+        const counts = new Map<string, number>();
+        if (this.testFoodTags && this.testRepetitionCount > 0) {
+            counts.set(this.testFoodTags.id, this.testRepetitionCount);
+        }
+        return counts;
+    }
+
+    protected async checkRepetition(foodId: string, planId: string): Promise<ValidationAlert | null> {
+        if (this.testRepetitionCount >= 3) {
+            return {
+                type: 'repetition',
+                severity: ValidationSeverity.YELLOW,
+                message: `🟡 REPETITION: This food appears ${this.testRepetitionCount} times this week. Consider variety.`,
+                recommendation: 'Try different foods for nutritional variety',
+                icon: 'repeat'
+            };
+        }
+        return null;
     }
 }
 
@@ -525,6 +560,170 @@ async function runTests() {
         assertEqual(result.severity, ValidationSeverity.YELLOW, 'Should be YELLOW for flexible restriction');
         assertEqual(result.canAdd, true, 'Should allow adding with warning');
         assert(result.alerts.some(a => a.type === 'food_restriction'), 'Should have food_restriction alert');
+    });
+
+    // ============ REPETITION TESTS ============
+
+    // Test 19: Repetition check triggers YELLOW when threshold exceeded
+    await test('Repetition check triggers YELLOW when food appears 4 times', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('White Rice', { id: 'food_white_rice' }));
+        engine.setTestRepetitionCount(4);
+
+        const result = await engine.validate('client1', 'food_white_rice', {
+            currentDay: 'monday',
+            mealType: 'lunch',
+            planId: 'plan_123'
+        });
+
+        assertEqual(result.canAdd, true, 'Should allow adding with warning');
+        assert(result.alerts.some(a => a.type === 'repetition'), 'Should have repetition alert');
+        assert(result.alerts.some(a => a.severity === ValidationSeverity.YELLOW), 'Repetition alert should be YELLOW');
+    });
+
+    // Test 20: Repetition check does NOT trigger when under threshold
+    await test('Repetition check does not trigger when food appears 2 times', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('Brown Rice', { id: 'food_brown_rice' }));
+        engine.setTestRepetitionCount(2);
+
+        const result = await engine.validate('client1', 'food_brown_rice', {
+            currentDay: 'monday',
+            mealType: 'lunch',
+            planId: 'plan_123'
+        });
+
+        assert(!result.alerts.some(a => a.type === 'repetition'), 'Should NOT have repetition alert');
+    });
+
+    // Test 21: No repetition check without planId
+    await test('Repetition check skipped without planId', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('White Rice', { id: 'food_white_rice' }));
+        engine.setTestRepetitionCount(10);
+
+        const result = await engine.validate('client1', 'food_white_rice', {
+            currentDay: 'monday',
+            mealType: 'lunch'
+            // No planId
+        });
+
+        assert(!result.alerts.some(a => a.type === 'repetition'), 'Should NOT have repetition alert without planId');
+    });
+
+    // ============ NUTRITION STRENGTH TESTS ============
+
+    // Test 22: Nutrition strength triggers YELLOW when food exceeds calorie threshold
+    await test('Nutrition strength triggers YELLOW for high calorie food', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('Biryani', {
+            id: 'food_biryani',
+            calories: 600
+        }));
+        engine.setTestPlanTargets({
+            targetCalories: 1000,
+            targetProteinG: null,
+            targetCarbsG: null,
+            targetFatsG: null
+        });
+
+        const result = await engine.validate('client1', 'food_biryani', {
+            currentDay: 'monday',
+            mealType: 'lunch',
+            planId: 'plan_123'
+        });
+
+        assertEqual(result.canAdd, true, 'Should allow adding with warning');
+        assert(result.alerts.some(a => a.type === 'nutrition_strength'), 'Should have nutrition_strength alert');
+        assert(
+            result.alerts.some(a => a.message.includes('60%')),
+            'Should mention 60% in message'
+        );
+    });
+
+    // Test 23: Nutrition strength does NOT trigger when under threshold
+    await test('Nutrition strength does not trigger for low calorie food', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('Salad', {
+            id: 'food_salad',
+            calories: 200
+        }));
+        engine.setTestPlanTargets({
+            targetCalories: 2000,
+            targetProteinG: null,
+            targetCarbsG: null,
+            targetFatsG: null
+        });
+
+        const result = await engine.validate('client1', 'food_salad', {
+            currentDay: 'monday',
+            mealType: 'lunch',
+            planId: 'plan_123'
+        });
+
+        assert(!result.alerts.some(a => a.type === 'nutrition_strength'), 'Should NOT have nutrition_strength alert');
+    });
+
+    // Test 24: Nutrition strength triggers for high protein
+    await test('Nutrition strength triggers YELLOW for high protein food', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('Whey Protein Shake', {
+            id: 'food_whey',
+            calories: 200,
+            proteinG: 50
+        }));
+        engine.setTestPlanTargets({
+            targetCalories: 2000,
+            targetProteinG: 60,
+            targetCarbsG: null,
+            targetFatsG: null
+        });
+
+        const result = await engine.validate('client1', 'food_whey', {
+            currentDay: 'monday',
+            mealType: 'snack',
+            planId: 'plan_123'
+        });
+
+        assert(result.alerts.some(a => a.type === 'nutrition_strength' && a.message.includes('PROTEIN')),
+            'Should have nutrition_strength protein alert');
+    });
+
+    // Test 25: No nutrition strength check without planId
+    await test('Nutrition strength check skipped without planId', async () => {
+        const engine = new TestableValidationEngine();
+
+        engine.setTestClientTags(createClientTags({}));
+        engine.setTestFoodTags(createFoodTags('Biryani', {
+            id: 'food_biryani',
+            calories: 600
+        }));
+        engine.setTestPlanTargets({
+            targetCalories: 1000,
+            targetProteinG: null,
+            targetCarbsG: null,
+            targetFatsG: null
+        });
+
+        const result = await engine.validate('client1', 'food_biryani', {
+            currentDay: 'monday',
+            mealType: 'lunch'
+            // No planId
+        });
+
+        assert(!result.alerts.some(a => a.type === 'nutrition_strength'), 'Should NOT have nutrition_strength alert without planId');
     });
 
     // ============ SUMMARY ============

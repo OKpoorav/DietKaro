@@ -210,9 +210,9 @@ export default function DietPlanDetailPage() {
                                         {meal.scheduledTime}
                                     </p>
                                 )}
-                                {meal.foods && meal.foods.length > 0 && (
+                                {meal.foodItems && meal.foodItems.length > 0 && (
                                     <div className="mt-3 space-y-1">
-                                        {meal.foods.map((food, fi) => (
+                                        {meal.foodItems.map((food, fi) => (
                                             <div key={fi} className="text-sm text-gray-600 flex justify-between">
                                                 <span>{food.foodItem?.name || 'Unknown'}</span>
                                                 <span>{food.quantityG}g</span>

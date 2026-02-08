@@ -104,6 +104,7 @@ export const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
                 targetWeightKg: client.targetWeightKg,
                 dietaryPreferences: client.dietaryPreferences,
                 allergies: client.allergies,
+                onboardingCompleted: client.onboardingCompleted,
                 dietitian: client.primaryDietitian,
             },
         },
@@ -139,6 +140,7 @@ export const getClientProfile = asyncHandler(async (req: ClientAuthRequest, res:
             targetWeightKg: client.targetWeightKg,
             dietaryPreferences: client.dietaryPreferences,
             allergies: client.allergies,
+            onboardingCompleted: client.onboardingCompleted,
             dietitian: client.primaryDietitian,
         },
     });

@@ -2,6 +2,9 @@ import prisma from '../utils/prisma';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
+import { validationEngine } from './validationEngine.service';
+import { labService } from './lab.service';
+import type { MedicalSummary } from '../types/medical.types';
 
 const REFERRAL_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const REFERRAL_CODE_LENGTH = 6;
@@ -160,6 +163,7 @@ export class ClientService {
             include: { primaryDietitian: { select: { id: true, fullName: true } } },
         });
 
+        validationEngine.invalidateClientCache(clientId);
         logger.info('Client updated', { clientId: client.id });
         return client;
     }
@@ -243,6 +247,65 @@ export class ClientService {
                 from: query.dateFrom ? new Date(String(query.dateFrom)) : null,
                 to: query.dateTo ? new Date(String(query.dateTo)) : null,
             },
+        };
+    }
+
+    async getMedicalSummary(clientId: string, orgId: string): Promise<MedicalSummary> {
+        const client = await prisma.client.findFirst({
+            where: { id: clientId, orgId, isActive: true },
+            select: {
+                allergies: true,
+                intolerances: true,
+                dietPattern: true,
+                eggAllowed: true,
+                eggAvoidDays: true,
+                medicalConditions: true,
+                medications: true,
+                dislikes: true,
+                likedFoods: true,
+                avoidCategories: true,
+                labDerivedTags: true,
+                medicalProfile: true,
+            },
+        });
+
+        if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+
+        // Compute lab alerts from stored lab values
+        const labValues = (client.medicalProfile?.labValues as Record<string, number>) || {};
+        const hasLabValues = Object.keys(labValues).length > 0;
+        const { alerts: labAlerts } = hasLabValues
+            ? labService.deriveRiskFlags(labValues)
+            : { alerts: [] };
+
+        const criticalCount = labAlerts.filter(a => a.status === 'critical').length;
+        const warningCount = labAlerts.filter(a => a.status === 'warning').length;
+
+        return {
+            allergies: client.allergies,
+            intolerances: client.intolerances,
+            dietPattern: client.dietPattern || null,
+            eggAllowed: client.eggAllowed,
+            eggAvoidDays: client.eggAvoidDays,
+            medicalConditions: client.medicalConditions,
+            dislikes: client.dislikes,
+            likedFoods: client.likedFoods,
+            avoidCategories: client.avoidCategories,
+
+            diagnoses: client.medicalProfile?.diagnoses || [],
+            medications: client.medicalProfile?.medications || client.medications || [],
+            supplements: client.medicalProfile?.supplements || [],
+            surgeries: client.medicalProfile?.surgeries || [],
+            familyHistory: client.medicalProfile?.familyHistory || null,
+            healthNotes: client.medicalProfile?.healthNotes || null,
+
+            labAlerts,
+            labDate: client.medicalProfile?.labDate?.toISOString() || null,
+            labDerivedTags: client.medicalProfile?.labDerivedTags || client.labDerivedTags || [],
+
+            criticalCount,
+            warningCount,
+            lastUpdated: client.medicalProfile?.updatedAt?.toISOString() || '',
         };
     }
 }

@@ -198,7 +198,36 @@ router.patch('/meals/:mealLogId/log', asyncHandler(async (req: ClientAuthRequest
         });
     }
 
+    // Trigger compliance calculation after meal log update
+    if (mealLog.status !== 'pending') {
+        await complianceService.calculateMealCompliance(mealLog.id);
+        mealLog = await prisma.mealLog.findUnique({ where: { id: mealLog.id } }) || mealLog;
+    }
+
     res.status(200).json({ success: true, data: mealLog });
+}));
+
+// Upload meal photo
+import { uploadSinglePhoto } from '../middleware/upload.middleware';
+import { mealLogService } from '../services/mealLog.service';
+
+router.post('/meals/:mealLogId/photo', uploadSinglePhoto, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    if (!req.file) throw AppError.badRequest('No photo file provided', 'NO_FILE');
+
+    const { mealLogId } = req.params;
+
+    // Verify the meal log belongs to this client
+    const mealLog = await prisma.mealLog.findFirst({
+        where: { id: mealLogId, clientId: req.client.id },
+    });
+    if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
+
+    const result = await mealLogService.uploadMealPhoto(
+        mealLogId, req.file.buffer, req.file.size, req.client.orgId
+    );
+
+    res.status(200).json({ success: true, data: result });
 }));
 
 // Get client weight logs
@@ -325,6 +354,202 @@ router.get('/stats', asyncHandler(async (req: ClientAuthRequest, res: Response) 
             currentStreak: Math.min(eatenMeals, 7), // Simplified streak
         },
     });
+}));
+
+// Get progress summary (all weight + progress data computed server-side)
+router.get('/progress-summary', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+
+    const client = await prisma.client.findUnique({
+        where: { id: req.client.id },
+        select: { currentWeightKg: true, targetWeightKg: true },
+    });
+
+    const weightLogs = await prisma.weightLog.findMany({
+        where: { clientId: req.client.id },
+        orderBy: { logDate: 'desc' },
+        take: 10,
+    });
+
+    const currentWeight = weightLogs.length > 0
+        ? Number(weightLogs[0].weightKg)
+        : (client?.currentWeightKg ? Number(client.currentWeightKg) : null);
+    const targetWeight = client?.targetWeightKg ? Number(client.targetWeightKg) : null;
+    const startWeight = weightLogs.length > 0 ? Number(weightLogs[weightLogs.length - 1].weightKg) : null;
+
+    // Compute progress percentage
+    let progressPercent = 0;
+    if (startWeight && currentWeight && targetWeight && startWeight !== targetWeight) {
+        progressPercent = Math.min(100, Math.max(0,
+            ((startWeight - currentWeight) / (startWeight - targetWeight)) * 100
+        ));
+    }
+
+    // Weight trend
+    let weightTrend: 'up' | 'down' | 'stable' = 'stable';
+    if (weightLogs.length >= 2) {
+        const diff = Number(weightLogs[0].weightKg) - Number(weightLogs[1].weightKg);
+        if (diff > 0.5) weightTrend = 'up';
+        else if (diff < -0.5) weightTrend = 'down';
+    }
+
+    // Chart data (oldest first)
+    const chartEntries = weightLogs.slice(0, 7).reverse().map(log => ({
+        date: log.logDate.toISOString().split('T')[0],
+        weight: Number(log.weightKg),
+    }));
+
+    // History with backend-computed deltas
+    const history = weightLogs.slice(0, 5).map(log => ({
+        id: log.id,
+        logDate: log.logDate.toISOString().split('T')[0],
+        weightKg: Number(log.weightKg),
+        notes: log.notes,
+        delta: log.weightChangeFromPrevious ? Number(log.weightChangeFromPrevious) : null,
+    }));
+
+    res.status(200).json({
+        success: true,
+        data: {
+            currentWeight,
+            targetWeight,
+            startWeight,
+            progressPercent: Math.round(progressPercent * 10) / 10,
+            weightTrend,
+            totalLost: startWeight && currentWeight ? Math.round((startWeight - currentWeight) * 10) / 10 : 0,
+            remaining: currentWeight && targetWeight ? Math.round(Math.abs(currentWeight - targetWeight) * 10) / 10 : null,
+            chartEntries,
+            history,
+        },
+    });
+}));
+
+// ============ ONBOARDING ============
+
+import { onboardingService } from '../services/onboarding.service';
+
+// Get onboarding status
+router.get('/onboarding/status', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const status = await onboardingService.getOnboardingStatus(req.client.id);
+    res.status(200).json({ success: true, data: status });
+}));
+
+// Get restriction presets
+router.get('/onboarding/presets', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const presets = onboardingService.getPresets();
+    res.status(200).json({ success: true, data: presets });
+}));
+
+// Save onboarding step (1-6)
+router.post('/onboarding/step/:step', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const step = parseInt(req.params.step);
+
+    const handlers: Record<number, (clientId: string, data: any) => Promise<void>> = {
+        1: (id, data) => onboardingService.saveStep1(id, data),
+        2: (id, data) => onboardingService.saveStep2(id, data),
+        3: (id, data) => onboardingService.saveStep3(id, data),
+        4: (id, data) => onboardingService.saveStep4(id, data),
+        5: (id, data) => onboardingService.saveStep5(id, data),
+        6: (id, data) => onboardingService.saveStep6(id, data),
+    };
+
+    const handler = handlers[step];
+    if (!handler) {
+        throw AppError.badRequest(`Invalid step: ${step}`, 'INVALID_STEP');
+    }
+
+    await handler(req.client.id, req.body);
+    res.status(200).json({ success: true, message: `Step ${step} saved successfully` });
+}));
+
+// Complete onboarding
+router.post('/onboarding/complete', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    await onboardingService.completeOnboarding(req.client.id);
+    res.status(200).json({ success: true, message: 'Onboarding marked as complete' });
+}));
+
+// ============ PREFERENCES ============
+
+// Get client preferences
+router.get('/preferences', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+
+    const preferences = await prisma.clientPreferences.findUnique({
+        where: { clientId: req.client.id },
+    });
+
+    res.status(200).json({ success: true, data: preferences });
+}));
+
+// Update client preferences (upsert)
+router.put('/preferences', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+
+    const {
+        breakfastTime, lunchTime, dinnerTime, snackTime,
+        canCook, kitchenAvailable, hasDietaryCook,
+        weekdayActivity, weekendActivity, sportOrHobby, generalNotes,
+    } = req.body;
+
+    // Validate time format if provided
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const times: Record<string, string | undefined> = { breakfastTime, lunchTime, dinnerTime, snackTime };
+    for (const [field, value] of Object.entries(times)) {
+        if (value && !timeRegex.test(value)) {
+            throw AppError.badRequest(`${field} must be in HH:MM format`, 'INVALID_TIME_FORMAT');
+        }
+    }
+
+    const data: Record<string, any> = {
+        breakfastTime, lunchTime, dinnerTime, snackTime,
+        canCook, kitchenAvailable, hasDietaryCook,
+        weekdayActivity, weekendActivity, sportOrHobby, generalNotes,
+    };
+
+    // Remove undefined keys so we don't overwrite existing values
+    const cleanData = Object.fromEntries(
+        Object.entries(data).filter(([, v]) => v !== undefined)
+    );
+
+    const preferences = await prisma.clientPreferences.upsert({
+        where: { clientId: req.client.id },
+        create: { clientId: req.client.id, ...cleanData },
+        update: cleanData,
+    });
+
+    res.status(200).json({ success: true, data: preferences });
+}));
+
+// ============ ADHERENCE / COMPLIANCE ============
+
+import { complianceService } from '../services/compliance.service';
+
+// Get daily adherence
+router.get('/adherence/daily', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const date = req.query.date ? new Date(req.query.date as string) : new Date();
+    const data = await complianceService.calculateDailyAdherence(req.client.id, date);
+    res.status(200).json({ success: true, data });
+}));
+
+// Get weekly adherence
+router.get('/adherence/weekly', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const weekStart = req.query.weekStart ? new Date(req.query.weekStart as string) : undefined;
+    const data = await complianceService.calculateWeeklyAdherence(req.client.id, weekStart);
+    res.status(200).json({ success: true, data });
+}));
+
+// Get compliance history
+router.get('/adherence/history', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const days = req.query.days ? parseInt(req.query.days as string) : 30;
+    const data = await complianceService.getClientComplianceHistory(req.client.id, days);
+    res.status(200).json({ success: true, data });
 }));
 
 export default router;
