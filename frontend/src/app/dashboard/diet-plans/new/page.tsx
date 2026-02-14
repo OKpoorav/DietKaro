@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Send, Loader2 } from 'lucide-react';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
 import { ClientInfoCard } from '@/components/diet-plan/client-info-card';
@@ -13,6 +14,7 @@ import { MealEditor } from '@/components/diet-plan/meal-editor';
 import { NutritionSummary } from '@/components/diet-plan/nutrition-summary';
 import { TemplateSidebar } from '@/components/diet-plan/template-sidebar';
 import { useClient } from '@/lib/hooks/use-clients';
+import { calculateAge } from '@/lib/utils/formatters';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
 import { useMealBuilder } from '@/lib/hooks/use-meal-builder';
 
@@ -80,10 +82,7 @@ function BuilderContent() {
                             <>
                                 <span className="text-gray-400">|</span>
                                 <span className="text-gray-600 text-sm">
-                                    {client.fullName} ({client.dateOfBirth ?
-                                        Math.floor((new Date().getTime() - new Date(client.dateOfBirth).getTime()) / 3.15576e10) :
-                                        '?'
-                                    } yrs)
+                                    {client.fullName} ({calculateAge(client.dateOfBirth) ?? '?'} yrs)
                                 </span>
                             </>
                         )}
@@ -100,7 +99,7 @@ function BuilderContent() {
                         <button
                             onClick={() => builder.save(false)}
                             disabled={builder.isSaving}
-                            className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                            className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                         >
                             <Save className="w-4 h-4" />
                             {builder.isSaving ? 'Saving...' : 'Save Template'}
@@ -118,7 +117,7 @@ function BuilderContent() {
                             <button
                                 onClick={() => builder.save(true)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Send className="w-4 h-4" />
                                 Publish
@@ -150,19 +149,31 @@ function BuilderContent() {
                         selectedDayIndex={builder.selectedDayIndex}
                         onSelectDay={builder.setSelectedDayIndex}
                         isTemplateMode={isTemplateMode}
+                        onAddDay={builder.addDay}
+                        onRemoveDay={builder.removeDay}
                     />
-                    <MealEditor
-                        meals={builder.currentMeals}
-                        onAddMeal={builder.addMeal}
-                        onRemoveMeal={builder.removeMeal}
-                        onOpenAddFood={builder.openAddFood}
-                        onRemoveFood={builder.removeFood}
-                        onUpdateFoodQuantity={builder.updateFoodQuantity}
-                        onUpdateMealField={builder.updateMealField}
-                        onAddAlternative={builder.addMealOption}
-                        onRemoveOption={builder.removeOption}
-                        onUpdateOptionLabel={builder.updateOptionLabel}
-                    />
+                    <ErrorBoundary
+                        fallback={
+                            <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl border border-red-200">
+                                <p className="text-red-600 font-medium mb-2">Failed to render meal editor</p>
+                                <p className="text-gray-500 text-sm mb-4">Your other data is preserved. Try refreshing the page.</p>
+                                <button onClick={() => window.location.reload()} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium">Refresh Page</button>
+                            </div>
+                        }
+                    >
+                        <MealEditor
+                            meals={builder.currentMeals}
+                            onAddMeal={builder.addMeal}
+                            onRemoveMeal={builder.removeMeal}
+                            onOpenAddFood={builder.openAddFood}
+                            onRemoveFood={builder.removeFood}
+                            onUpdateFoodQuantity={builder.updateFoodQuantity}
+                            onUpdateMealField={builder.updateMealField}
+                            onAddAlternative={builder.addMealOption}
+                            onRemoveOption={builder.removeOption}
+                            onUpdateOptionLabel={builder.updateOptionLabel}
+                        />
+                    </ErrorBoundary>
                 </section>
 
                 {/* Right Sidebar - Nutrition Summary */}
@@ -196,7 +207,7 @@ function BuilderContent() {
 
 export default function DietPlanBuilderPage() {
     return (
-        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-brand" /></div>}>
             <BuilderContent />
         </Suspense>
     );

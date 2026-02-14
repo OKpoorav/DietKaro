@@ -28,6 +28,7 @@ import {
     matchesCategoryAvoidance,
     MEAL_SUITABILITY_CONFLICTS
 } from '../utils/validation-rules';
+import { foodRestrictionsArraySchema } from '../schemas/client.schema';
 import { VALIDATION_CONFIG } from '../config/validation-rules.config';
 
 // Day name mapping
@@ -464,7 +465,14 @@ export class ValidationEngine {
             dietPattern: client.dietPattern?.toLowerCase() || null,
             eggAllowed: client.eggAllowed,
             eggAvoidDays: new Set(client.eggAvoidDays.map((d: string) => d.toLowerCase())),
-            foodRestrictions: (client.foodRestrictions as unknown as FoodRestriction[]) || [],
+            foodRestrictions: (() => {
+                const parsed = foodRestrictionsArraySchema.safeParse(client.foodRestrictions);
+                if (!parsed.success) {
+                    logger.warn(`[Validation] Client ${clientId} has malformed foodRestrictions`, parsed.error);
+                    return [];
+                }
+                return parsed.data as FoodRestriction[];
+            })(),
             dislikes: new Set(client.dislikes.map((d: string) => d.toLowerCase())),
             avoidCategories: new Set(client.avoidCategories.map((c: string) => c.toLowerCase())),
             medicalConditions: new Set(client.medicalConditions.map((m: string) => m.toLowerCase())),

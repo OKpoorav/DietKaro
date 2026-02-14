@@ -90,15 +90,15 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-10 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#17cf54]/20 text-[#17cf54]">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand/20 text-brand">
                 <Leaf className="w-5 h-5" />
               </div>
               <span className="text-lg font-bold tracking-tight">Diet Karo</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-sm font-medium hover:text-[#17cf54] transition-colors">Features</a>
-              <a href="#pricing" className="text-sm font-medium hover:text-[#17cf54] transition-colors">Pricing</a>
-              <a href="#about" className="text-sm font-medium hover:text-[#17cf54] transition-colors">About</a>
+              <a href="#features" className="text-sm font-medium hover:text-brand transition-colors">Features</a>
+              <a href="#pricing" className="text-sm font-medium hover:text-brand transition-colors">Pricing</a>
+              <a href="#about" className="text-sm font-medium hover:text-brand transition-colors">About</a>
             </div>
             <div className="hidden md:flex items-center gap-2">
               <Link
@@ -109,7 +109,7 @@ export default async function HomePage() {
               </Link>
               <Link
                 href="/sign-up"
-                className="px-4 py-2 text-sm font-bold bg-[#17cf54] hover:bg-[#17cf54]/90 text-[#0e1b12] rounded-lg shadow-sm shadow-[#17cf54]/20 transition-colors"
+                className="px-4 py-2 text-sm font-bold bg-brand hover:bg-brand/90 text-[#0e1b12] rounded-lg shadow-sm shadow-brand/20 transition-colors"
               >
                 Get Started
               </Link>
@@ -123,18 +123,18 @@ export default async function HomePage() {
 
       {/* Hero Section */}
       <div className="relative w-full">
-        <div className="absolute top-0 right-0 -z-10 w-1/2 h-full bg-gradient-to-l from-[#17cf54]/5 to-transparent" />
+        <div className="absolute top-0 right-0 -z-10 w-1/2 h-full bg-gradient-to-l from-brand/5 to-transparent" />
         <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-20 py-16 lg:py-24">
           <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
             {/* Hero Content */}
             <div className="flex flex-col gap-6 flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 self-center lg:self-start px-3 py-1 rounded-full bg-[#17cf54]/10 border border-[#17cf54]/20 text-xs font-bold text-[#17cf54] uppercase tracking-wide">
-                <span className="w-2 h-2 rounded-full bg-[#17cf54] animate-pulse" />
+              <div className="inline-flex items-center gap-2 self-center lg:self-start px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-xs font-bold text-brand uppercase tracking-wide">
+                <span className="w-2 h-2 rounded-full bg-brand animate-pulse" />
                 New: AI Meal Planning
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-tight tracking-tight">
                 Empower Your Practice with{' '}
-                <span className="text-[#17cf54]">Intelligent</span> Nutrition.
+                <span className="text-brand">Intelligent</span> Nutrition.
               </h1>
               <p className="text-lg text-[#0e1b12]/70 max-w-2xl mx-auto lg:mx-0">
                 Streamline client tracking, automate meal plans, and visualize patient progress in one secure dashboard tailored for modern dieticians.
@@ -142,7 +142,7 @@ export default async function HomePage() {
               <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
                 <Link
                   href="/sign-up"
-                  className="flex items-center justify-center gap-2 min-w-[140px] h-12 px-6 bg-[#17cf54] hover:bg-[#17cf54]/90 text-[#0e1b12] text-base font-bold rounded-lg shadow-lg shadow-[#17cf54]/25 transition-all"
+                  className="flex items-center justify-center gap-2 min-w-[140px] h-12 px-6 bg-brand hover:bg-brand/90 text-[#0e1b12] text-base font-bold rounded-lg shadow-lg shadow-brand/25 transition-all"
                 >
                   Start Free Trial
                   <ArrowRight className="w-4 h-4" />
@@ -159,12 +159,12 @@ export default async function HomePage() {
                   {['PS', 'RK', 'AM'].map((initials, i) => (
                     <div
                       key={i}
-                      className="w-8 h-8 rounded-full bg-[#17cf54]/20 border-2 border-white flex items-center justify-center text-xs font-bold text-[#17cf54]"
+                      className="w-8 h-8 rounded-full bg-brand/20 border-2 border-white flex items-center justify-center text-xs font-bold text-brand"
                     >
                       {initials}
                     </div>
                   ))}
-                  <div className="w-8 h-8 rounded-full bg-[#17cf54] text-[#0e1b12] text-[10px] font-bold border-2 border-white flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-brand text-[#0e1b12] text-[10px] font-bold border-2 border-white flex items-center justify-center">
                     +2k
                   </div>
                 </div>
@@ -174,20 +174,20 @@ export default async function HomePage() {
 
             {/* Hero Image */}
             <div className="w-full lg:w-1/2 flex justify-center lg:justify-end relative">
-              <div className="absolute -inset-4 bg-[#17cf54]/20 blur-3xl rounded-full opacity-30" />
+              <div className="absolute -inset-4 bg-brand/20 blur-3xl rounded-full opacity-30" />
               <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow-2xl border border-black/5 bg-white">
                 <div className="w-full h-full bg-gradient-to-br from-[#f0fdf4] to-[#e7f3eb] flex items-center justify-center">
                   <div className="text-center p-8">
-                    <div className="w-24 h-24 mx-auto bg-[#17cf54]/10 rounded-2xl flex items-center justify-center mb-4">
-                      <UtensilsCrossed className="w-12 h-12 text-[#17cf54]" />
+                    <div className="w-24 h-24 mx-auto bg-brand/10 rounded-2xl flex items-center justify-center mb-4">
+                      <UtensilsCrossed className="w-12 h-12 text-brand" />
                     </div>
                     <h3 className="text-xl font-bold text-[#0e1b12]">Diet Dashboard</h3>
                     <p className="text-sm text-[#0e1b12]/60 mt-2">Analytics • Plans • Progress</p>
                   </div>
                 </div>
                 {/* Floating notification */}
-                <div className="absolute bottom-6 left-6 p-4 bg-white rounded-lg shadow-lg border border-[#17cf54]/10 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-[#17cf54]">
+                <div className="absolute bottom-6 left-6 p-4 bg-white rounded-lg shadow-lg border border-brand/10 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-brand">
                     <CheckCircle className="w-5 h-5" />
                   </div>
                   <div>
@@ -205,7 +205,7 @@ export default async function HomePage() {
       <div id="features" className="w-full bg-white py-20">
         <div className="max-w-7xl mx-auto px-4 md:px-10">
           <div className="text-center mb-12">
-            <span className="text-[#17cf54] font-bold tracking-wider text-sm uppercase mb-2 block">
+            <span className="text-brand font-bold tracking-wider text-sm uppercase mb-2 block">
               Core Features
             </span>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
@@ -220,9 +220,9 @@ export default async function HomePage() {
             {features.map((feature, i) => (
               <div
                 key={i}
-                className="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] bg-[#f6f8f6] p-6 transition-all hover:shadow-lg hover:border-[#17cf54]/50"
+                className="group flex flex-col gap-4 rounded-xl border border-[#d0e7d7] bg-[#f6f8f6] p-6 transition-all hover:shadow-lg hover:border-brand/50"
               >
-                <div className="w-12 h-12 rounded-lg bg-[#17cf54]/10 flex items-center justify-center text-[#17cf54] group-hover:bg-[#17cf54] group-hover:text-[#0e1b12] transition-colors">
+                <div className="w-12 h-12 rounded-lg bg-brand/10 flex items-center justify-center text-brand group-hover:bg-brand group-hover:text-[#0e1b12] transition-colors">
                   <feature.icon className="w-6 h-6" />
                 </div>
                 <div>
@@ -238,7 +238,7 @@ export default async function HomePage() {
       </div>
 
       {/* Stats Section */}
-      <div className="w-full bg-[#17cf54]/5 border-y border-[#17cf54]/10 py-12">
+      <div className="w-full bg-brand/5 border-y border-brand/10 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-10">
           <div className="flex flex-wrap justify-around items-center gap-8 text-center">
             {stats.map((stat, i) => (
@@ -267,14 +267,14 @@ export default async function HomePage() {
                 key={i}
                 className="flex flex-col justify-between p-8 bg-white rounded-2xl shadow-sm border border-[#e7f3eb]"
               >
-                <div className="mb-6 text-[#17cf54]">
+                <div className="mb-6 text-brand">
                   <Quote className="w-10 h-10" />
                 </div>
                 <p className="text-lg font-medium leading-relaxed mb-8">
                   &ldquo;{testimonial.quote}&rdquo;
                 </p>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold">
+                  <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
                     {testimonial.avatar}
                   </div>
                   <div>
@@ -309,7 +309,7 @@ export default async function HomePage() {
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Link
                   href="/sign-up"
-                  className="flex items-center justify-center rounded-lg h-12 px-8 bg-[#17cf54] hover:bg-[#17cf54]/90 text-[#0e1b12] text-base font-bold shadow-lg shadow-[#17cf54]/30 transition-all"
+                  className="flex items-center justify-center rounded-lg h-12 px-8 bg-brand hover:bg-brand/90 text-[#0e1b12] text-base font-bold shadow-lg shadow-brand/30 transition-all"
                 >
                   Get Started Now
                 </Link>
@@ -322,8 +322,8 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="hidden lg:block relative">
-              <div className="w-64 h-64 bg-[#17cf54]/20 rounded-full blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-              <Leaf className="w-48 h-48 text-[#17cf54]/30 rotate-12" />
+              <div className="w-64 h-64 bg-brand/20 rounded-full blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              <Leaf className="w-48 h-48 text-brand/30 rotate-12" />
             </div>
           </div>
         </div>
@@ -336,7 +336,7 @@ export default async function HomePage() {
             {/* Brand */}
             <div className="col-span-2 md:col-span-1 flex flex-col gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded bg-[#17cf54]/20 text-[#17cf54] flex items-center justify-center">
+                <div className="w-6 h-6 rounded bg-brand/20 text-brand flex items-center justify-center">
                   <Leaf className="w-4 h-4" />
                 </div>
                 <span className="font-bold text-lg">Diet Karo</span>
@@ -348,21 +348,21 @@ export default async function HomePage() {
             {/* Links */}
             <div className="flex flex-col gap-4">
               <h4 className="font-bold">Product</h4>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Features</a>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Pricing</a>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Case Studies</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Features</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Pricing</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Case Studies</a>
             </div>
             <div className="flex flex-col gap-4">
               <h4 className="font-bold">Company</h4>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">About</a>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Careers</a>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Contact</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">About</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Careers</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Contact</a>
             </div>
             <div className="flex flex-col gap-4">
               <h4 className="font-bold">Legal</h4>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Privacy Policy</a>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Terms of Service</a>
-              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-[#17cf54] transition-colors">Cookie Policy</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Privacy Policy</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Terms of Service</a>
+              <a href="#" className="text-sm text-[#0e1b12]/60 hover:text-brand transition-colors">Cookie Policy</a>
             </div>
           </div>
           <div className="border-t border-[#e7f3eb] pt-8 text-center">

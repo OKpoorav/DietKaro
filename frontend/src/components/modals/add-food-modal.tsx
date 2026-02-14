@@ -36,7 +36,7 @@ interface LocalFoodItem {
 const typeColors = {
     food: 'text-purple-600 bg-purple-100',
     meal: 'text-blue-600 bg-blue-100',
-    template: 'text-[#17cf54] bg-[#17cf54]/10',
+    template: 'text-brand bg-brand/10',
 };
 
 // Get day name from date
@@ -168,7 +168,7 @@ export function AddFoodModal({
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                            className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:ring-brand focus:border-brand text-gray-900"
                             placeholder="Search food database..."
                             autoFocus
                         />
@@ -208,7 +208,7 @@ export function AddFoodModal({
                 <div className="p-4 max-h-[400px] overflow-y-auto">
                     {isLoading ? (
                         <div className="flex justify-center py-8">
-                            <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                            <Loader2 className="w-8 h-8 animate-spin text-brand" />
                         </div>
                     ) : foodItems.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">
@@ -217,7 +217,7 @@ export function AddFoodModal({
                                     <p>No foods found matching &quot;{search}&quot;.</p>
                                     <button
                                         onClick={() => setShowCreateModal(true)}
-                                        className="text-[#17cf54] font-medium hover:underline"
+                                        className="text-brand font-medium hover:underline"
                                     >
                                         Create a new food item
                                     </button>
@@ -230,7 +230,7 @@ export function AddFoodModal({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {foodItems.map((food: ApiFoodItem) => {
                                 const validation = clientId ? getValidation(food.id) : undefined;
-                                const borderClass = clientId ? getBorderClass(validation?.severity) : 'border-gray-200 hover:border-[#17cf54]';
+                                const borderClass = clientId ? getBorderClass(validation?.severity) : 'border-gray-200 hover:border-brand';
                                 const isBlocked = validation?.severity === 'RED';
 
                                 return (
@@ -265,7 +265,7 @@ export function AddFoodModal({
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className={`p-1 transition-colors ${isBlocked ? 'text-red-400' : 'text-gray-300 group-hover:text-[#17cf54]'
+                                            <div className={`p-1 transition-colors ${isBlocked ? 'text-red-400' : 'text-gray-300 group-hover:text-brand'
                                                 }`}>
                                                 {getValidationIcon(validation) || <Plus className="w-5 h-5" />}
                                             </div>

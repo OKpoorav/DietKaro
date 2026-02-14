@@ -8,11 +8,13 @@ import {
     uploadMealPhoto
 } from '../controllers/mealLog.controller';
 import { requireAuth } from '../middleware/auth.middleware';
+import { requireActiveSubscription } from '../middleware/subscription.middleware';
 import { uploadSinglePhoto } from '../middleware/upload.middleware';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
 router.post('/', createMealLog);
 router.get('/', listMealLogs);

@@ -68,7 +68,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                     required
                                     value={formData.name}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                     placeholder="Enter full name"
                                 />
                             </div>
@@ -85,7 +85,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                     required
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                     placeholder="email@example.com"
                                 />
                             </div>
@@ -102,7 +102,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                     required
                                     value={formData.phone}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                     placeholder="+91 98765 43210"
                                 />
                             </div>
@@ -119,7 +119,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                     required
                                     value={formData.dateOfBirth}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 />
                             </div>
                         </div>
@@ -132,7 +132,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                 required
                                 value={formData.gender}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                             >
                                 <option value="">Select gender</option>
                                 <option value="male">Male</option>
@@ -159,7 +159,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                 required
                                 value={formData.height}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 placeholder="165"
                             />
                         </div>
@@ -173,7 +173,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                 required
                                 value={formData.weight}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 placeholder="70"
                             />
                         </div>
@@ -188,7 +188,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                     name="targetWeight"
                                     value={formData.targetWeight}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                     placeholder="65"
                                 />
                             </div>
@@ -212,7 +212,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                 value={formData.allergies}
                                 onChange={handleChange}
                                 rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 placeholder="Dairy, Peanuts, Shellfish..."
                             />
                         </div>
@@ -225,7 +225,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                 value={formData.medicalConditions}
                                 onChange={handleChange}
                                 rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 placeholder="Diabetes, Hypertension..."
                             />
                         </div>
@@ -243,7 +243,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                     </button>
                     <button
                         type="submit"
-                        className="px-4 py-2.5 text-sm font-bold text-white bg-[#17cf54] rounded-lg hover:bg-[#17cf54]/90 transition-colors"
+                        className="px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
                     >
                         Add Client
                     </button>

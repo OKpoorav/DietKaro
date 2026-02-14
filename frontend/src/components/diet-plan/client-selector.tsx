@@ -16,8 +16,8 @@ export function ClientSelector() {
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
             <div className="w-full max-w-md space-y-6 text-center">
-                <div className="w-16 h-16 bg-[#17cf54]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-8 h-8 text-[#17cf54]" />
+                <div className="w-16 h-16 bg-brand/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-brand" />
                 </div>
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900">Select a Client</h2>
@@ -31,7 +31,7 @@ export function ClientSelector() {
                         placeholder="Search clients by name..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none transition-all"
                         autoFocus
                     />
                 </div>
@@ -49,14 +49,14 @@ export function ClientSelector() {
                                     onClick={() => router.push(`/dashboard/diet-plans/new?clientId=${c.id}`)}
                                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors group"
                                 >
-                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-medium group-hover:bg-[#17cf54]/10 group-hover:text-[#17cf54]">
+                                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-medium group-hover:bg-brand/10 group-hover:text-brand">
                                         {c.fullName.charAt(0)}
                                     </div>
                                     <div>
                                         <p className="font-semibold text-gray-900">{c.fullName}</p>
                                         <p className="text-xs text-gray-500">{c.email}</p>
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-gray-400 ml-auto group-hover:text-[#17cf54]" />
+                                    <ChevronRight className="w-4 h-4 text-gray-400 ml-auto group-hover:text-brand" />
                                 </button>
                             ))}
                         </div>
@@ -65,7 +65,7 @@ export function ClientSelector() {
 
                 <div className="text-sm">
                     <span className="text-gray-500">Don&apos;t see the client? </span>
-                    <Link href="/dashboard/clients" className="text-[#17cf54] font-medium hover:underline">
+                    <Link href="/dashboard/clients" className="text-brand font-medium hover:underline">
                         Add new client
                     </Link>
                 </div>

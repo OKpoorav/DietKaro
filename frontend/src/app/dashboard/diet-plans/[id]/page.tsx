@@ -2,10 +2,12 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useDietPlan, usePublishDietPlan, useUpdateDietPlan } from '@/lib/hooks/use-diet-plans';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
+import { toast } from 'sonner';
 
 export default function DietPlanDetailPage() {
     const params = useParams();
@@ -26,7 +28,7 @@ export default function DietPlanDetailPage() {
             await publishMutation.mutateAsync(planId);
             await refetch(); // Refetch to update UI immediately
         } catch (err) {
-            console.error('Failed to publish plan:', err);
+            toast.error('Failed to publish plan');
         }
     };
 
@@ -37,7 +39,7 @@ export default function DietPlanDetailPage() {
             setIsEditingName(false);
             await refetch();
         } catch (err) {
-            console.error('Failed to update name:', err);
+            toast.error('Failed to update name');
         }
     };
 
@@ -53,7 +55,7 @@ export default function DietPlanDetailPage() {
             a.click();
             window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error('Failed to download PDF:', err);
+            toast.error('Failed to download PDF');
         }
     };
 
@@ -68,14 +70,14 @@ export default function DietPlanDetailPage() {
                 printWindow.print();
             }
         } catch (err) {
-            console.error('Failed to get print view:', err);
+            toast.error('Failed to get print view');
         }
     };
 
     if (isLoading) {
         return (
             <div className="flex justify-center items-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                <Loader2 className="w-8 h-8 animate-spin text-brand" />
             </div>
         );
     }
@@ -86,7 +88,7 @@ export default function DietPlanDetailPage() {
                 <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">Plan not found</h2>
                 <p className="text-gray-500 mb-4">The diet plan you&apos;re looking for doesn&apos;t exist.</p>
-                <Link href="/dashboard/diet-plans" className="text-[#17cf54] hover:underline">
+                <Link href="/dashboard/diet-plans" className="text-brand hover:underline">
                     ← Back to Diet Plans
                 </Link>
             </div>
@@ -113,7 +115,7 @@ export default function DietPlanDetailPage() {
                                     type="text"
                                     value={editedName}
                                     onChange={(e) => setEditedName(e.target.value)}
-                                    className="text-2xl font-bold text-gray-900 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-[#17cf54] focus:border-transparent outline-none"
+                                    className="text-2xl font-bold text-gray-900 border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
                                     autoFocus
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter') handleSaveName();
@@ -123,7 +125,7 @@ export default function DietPlanDetailPage() {
                                 <button
                                     onClick={handleSaveName}
                                     disabled={updateMutation.isPending}
-                                    className="px-3 py-1 bg-[#17cf54] text-white text-sm font-medium rounded-lg hover:bg-[#17cf54]/90 disabled:opacity-50"
+                                    className="px-3 py-1 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 disabled:opacity-50"
                                 >
                                     {updateMutation.isPending ? 'Saving...' : 'Save'}
                                 </button>
@@ -178,7 +180,7 @@ export default function DietPlanDetailPage() {
                         <button
                             onClick={handlePublish}
                             disabled={publishMutation.isPending}
-                            className="px-4 py-2 bg-[#17cf54] text-white font-medium rounded-lg hover:bg-[#17cf54]/90 transition-colors disabled:opacity-50"
+                            className="px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50"
                         >
                             {publishMutation.isPending ? 'Publishing...' : 'Publish Plan'}
                         </button>
@@ -243,6 +245,14 @@ export default function DietPlanDetailPage() {
             {/* Meals Section */}
             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Meals</h2>
+                <ErrorBoundary
+                    fallback={
+                        <div className="text-center py-8 text-red-500">
+                            <p className="font-medium">Could not display meals</p>
+                            <p className="text-sm text-gray-500 mt-1">The plan data may be corrupted. Try refreshing.</p>
+                        </div>
+                    }
+                >
                 {plan.meals && plan.meals.length > 0 ? (
                     <div className="space-y-4">
                         {plan.meals.map((meal, index) => {
@@ -269,10 +279,10 @@ export default function DietPlanDetailPage() {
                                             <span className="text-sm text-gray-500 capitalize">{meal.mealType}</span>
                                         </div>
                                     </div>
-                                    {meal.scheduledTime && (
+                                    {meal.timeOfDay && (
                                         <p className="text-sm text-gray-500 flex items-center gap-1">
                                             <Clock className="w-4 h-4" />
-                                            {meal.scheduledTime}
+                                            {meal.timeOfDay}
                                         </p>
                                     )}
                                     {sortedGroups.length > 0 && (
@@ -287,7 +297,7 @@ export default function DietPlanDetailPage() {
                                                         </div>
                                                     )}
                                                     {hasAlts && (
-                                                        <p className="text-xs font-semibold text-[#17cf54] mb-1">
+                                                        <p className="text-xs font-semibold text-brand mb-1">
                                                             {(foods as any)[0]?.optionLabel || `Option ${String.fromCharCode(65 + gIdx)}`}
                                                         </p>
                                                     )}
@@ -313,6 +323,7 @@ export default function DietPlanDetailPage() {
                         <p>No meals added yet</p>
                     </div>
                 )}
+                </ErrorBoundary>
             </div>
         </div>
     );

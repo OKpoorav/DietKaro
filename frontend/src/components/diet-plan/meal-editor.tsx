@@ -177,8 +177,8 @@ function MealCard({
                     {groupedFoods.map(([optionGroup, foods], idx) => {
                         const optionCalories = foods.reduce((acc, f) => acc + f.calories, 0);
                         const label = foods[0]?.optionLabel || `Option ${String.fromCharCode(65 + idx)}`;
-                        const borderColor = idx === 0 ? 'border-l-[#17cf54]' : 'border-l-blue-400';
-                        const labelColor = idx === 0 ? 'text-[#17cf54] bg-green-50' : 'text-blue-500 bg-blue-50';
+                        const borderColor = idx === 0 ? 'border-l-brand' : 'border-l-blue-400';
+                        const labelColor = idx === 0 ? 'text-brand bg-green-50' : 'text-blue-500 bg-blue-50';
 
                         return (
                             <div key={optionGroup}>
@@ -250,7 +250,7 @@ function MealCard({
             {onAddAlternative && (
                 <button
                     onClick={() => onAddAlternative(meal.id)}
-                    className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-gray-400 border border-dashed border-gray-200 rounded-md hover:bg-gray-50 hover:border-[#17cf54] hover:text-[#17cf54] transition-colors"
+                    className="w-full mt-3 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-gray-400 border border-dashed border-gray-200 rounded-md hover:bg-gray-50 hover:border-brand hover:text-brand transition-colors"
                 >
                     <GitBranch className="w-3.5 h-3.5" />
                     Add Alternative Option
@@ -277,7 +277,7 @@ export function MealEditor({
             {meals.length === 0 && (
                 <div className="text-center py-8 bg-white rounded-lg border border-gray-200 border-dashed">
                     <p className="text-gray-400 mb-2">No meals for this day</p>
-                    <button onClick={onAddMeal} className="text-[#17cf54] font-medium hover:underline">Start adding meals</button>
+                    <button onClick={onAddMeal} className="text-brand font-medium hover:underline">Start adding meals</button>
                 </div>
             )}
 
@@ -299,7 +299,7 @@ export function MealEditor({
             {/* Add Meal Button */}
             <button
                 onClick={onAddMeal}
-                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 hover:border-[#17cf54] hover:text-[#17cf54] transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 hover:border-brand hover:text-brand transition-colors"
             >
                 <Plus className="w-5 h-5" />
                 <span className="text-sm font-medium">Add another meal</span>

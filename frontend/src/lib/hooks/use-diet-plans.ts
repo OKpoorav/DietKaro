@@ -8,7 +8,8 @@ export interface Meal {
     id: string;
     name: string;
     mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-    scheduledTime: string;
+    timeOfDay?: string;
+    dayOfWeek?: number;
     foodItems: MealFoodItem[];
 }
 
@@ -17,19 +18,24 @@ export interface MealFoodItem {
     foodItem: {
         id: string;
         name: string;
-        caloriesPer100g: number;
-        proteinPer100g: number;
-        carbsPer100g: number;
-        fatsPer100g: number;
+        calories: number;
+        proteinG: number;
+        carbsG: number;
+        fatsG: number;
+        fiberG?: number;
+        servingSizeG?: number;
+        category?: string;
     };
     quantityG: number;
+    optionGroup?: number;
+    optionLabel?: string;
+    notes?: string;
 }
 
 export interface DietPlan {
     id: string;
     clientId?: string; // Optional for templates
-    name?: string; // Backend returns name
-    title?: string; // Keep for backwards compatibility
+    name: string;
     description?: string;
     startDate: string;
     endDate?: string;
@@ -72,7 +78,7 @@ interface DietPlansParams {
 
 export interface CreateDietPlanInput {
     clientId?: string; // Optional for templates
-    title: string; // 'name' in backend schema mapped to 'title'
+    name: string;
     description?: string;
     startDate: string;
     endDate?: string;
@@ -83,16 +89,16 @@ export interface CreateDietPlanInput {
     notesForClient?: string;
     internalNotes?: string;
     meals?: {
-        dayIndex?: number;
+        dayOfWeek?: number;
         mealDate?: string;
         mealType: string;
         timeOfDay?: string;
-        title: string;
+        name: string;
         description?: string;
         instructions?: string;
         foodItems?: {
             foodId: string;
-            quantity: number;
+            quantityG: number;
             notes?: string;
             optionGroup?: number;
             optionLabel?: string;
@@ -139,10 +145,7 @@ export function useCreateDietPlan() {
 
     return useMutation({
         mutationFn: async (planData: CreateDietPlanInput) => {
-            // Map 'title' to 'name' as expected by backend
-            const { title, ...rest } = planData;
-            const payload = { ...rest, name: title };
-            const { data } = await api.post('/diet-plans', payload);
+            const { data } = await api.post('/diet-plans', planData);
             return data.data;
         },
         onSuccess: () => {

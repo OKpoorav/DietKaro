@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../types/auth.types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
 import { clerkClient, getAuth } from '@clerk/express';
+import logger from '../utils/logger';
 
 export const listTeamMembers = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
@@ -80,7 +81,7 @@ export const inviteMember = asyncHandler(async (req: AuthenticatedRequest, res: 
 
     const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/join?token=${token}`;
 
-    console.log(`[Team] Invitation created for ${email}. Link: ${inviteLink}`);
+    logger.info('Invitation created', { email, inviteLink });
 
     res.status(200).json({
         success: true,

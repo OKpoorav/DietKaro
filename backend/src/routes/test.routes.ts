@@ -4,6 +4,7 @@
  */
 import { Router } from 'express';
 import prisma from '../utils/prisma';
+import logger from '../utils/logger';
 
 const testRouter = Router();
 
@@ -62,7 +63,7 @@ testRouter.post('/setup', async (req: any, res: any) => {
             },
         });
     } catch (error) {
-        console.error('Test setup error:', error);
+        logger.error('Test setup error', { error: error instanceof Error ? error.message : error });
         res.status(500).json({ success: false, error: 'Setup failed' });
     }
 });

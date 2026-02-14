@@ -1,5 +1,19 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
+/**
+ * Soft-delete vs isActive semantics:
+ *
+ * - `deletedAt != null` → Record is soft-deleted. This extension automatically
+ *   adds `deletedAt: null` to all read queries and converts `delete()` to a
+ *   soft-delete (sets `deletedAt`). Soft-deleted records are invisible everywhere.
+ *
+ * - `isActive = false` → Record is deactivated but NOT deleted. It remains visible
+ *   to admin queries (e.g. listing inactive clients, paused plans). Services that
+ *   need "only active" records should explicitly filter `isActive: true`.
+ *
+ * Models with both fields: Organization, User, Client, DietPlan.
+ * All other soft-delete models use only `deletedAt`.
+ */
 const SOFT_DELETE_MODELS: Prisma.ModelName[] = [
     'Organization',
     'User',
@@ -27,6 +41,11 @@ function modelToProperty(model: string): string {
 function createExtendedClient() {
     const base = new PrismaClient({
         log: ['error', 'warn'],
+        datasources: {
+            db: {
+                url: process.env.DATABASE_URL,
+            },
+        },
     });
 
     return base.$extends({
@@ -107,3 +126,10 @@ export default prisma;
 if (process.env.NODE_ENV !== 'production') {
     globalForPrisma.prisma = prisma;
 }
+
+// Graceful shutdown: disconnect Prisma on process termination
+const shutdown = async () => {
+    await (prisma as any).$disconnect();
+};
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

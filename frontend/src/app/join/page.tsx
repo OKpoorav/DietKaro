@@ -42,7 +42,7 @@ function JoinContent() {
     if (isLoading || !isLoaded) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh]">
-                <Loader2 className="w-8 h-8 animate-spin text-[#17cf54] mb-4" />
+                <Loader2 className="w-8 h-8 animate-spin text-brand mb-4" />
                 <p className="text-gray-500">Verifying invitation...</p>
             </div>
         );
@@ -61,8 +61,8 @@ function JoinContent() {
     return (
         <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded-2xl shadow-xl border border-gray-100">
             <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-[#17cf54]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Building2 className="w-8 h-8 text-[#17cf54]" />
+                <div className="w-16 h-16 bg-brand/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="w-8 h-8 text-brand" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900">Join Team</h1>
                 <p className="text-gray-500 mt-2">
@@ -77,7 +77,7 @@ function JoinContent() {
                             You need to be logged in to accept this invitation.
                         </div>
                         <SignInButton mode="modal" forceRedirectUrl={`/join?token=${token}`}>
-                            <button className="w-full py-3 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-500/20">
+                            <button className="w-full py-3 px-4 bg-brand hover:bg-brand/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-500/20">
                                 Sign In / Sign Up to Join
                             </button>
                         </SignInButton>
@@ -101,7 +101,7 @@ function JoinContent() {
                         <button
                             onClick={handleJoin}
                             disabled={acceptMutation.isPending}
-                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-500/20 disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-brand hover:bg-brand/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-green-500/20 disabled:opacity-50"
                         >
                             {acceptMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                             Join Organization

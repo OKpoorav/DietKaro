@@ -41,7 +41,7 @@ export default function TeamPage() {
                 </div>
                 <button
                     onClick={() => setShowInviteModal(true)}
-                    className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
+                    className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Invite Team Member
@@ -51,7 +51,7 @@ export default function TeamPage() {
             {/* Loading */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                    <Loader2 className="w-8 h-8 animate-spin text-brand" />
                 </div>
             )}
 
@@ -67,7 +67,7 @@ export default function TeamPage() {
                 <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                     <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500">No team members yet.</p>
-                    <button className="mt-4 text-[#17cf54] font-medium hover:underline">
+                    <button className="mt-4 text-brand font-medium hover:underline">
                         Invite your first team member
                     </button>
                 </div>
@@ -83,7 +83,7 @@ export default function TeamPage() {
                         >
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold text-lg">
+                                    <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold text-lg">
                                         {member.avatar}
                                     </div>
                                     <div>
@@ -120,7 +120,7 @@ export default function TeamPage() {
                             </div>
 
                             <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
-                                <button className="flex-1 py-2 text-sm font-medium text-[#17cf54] hover:bg-[#17cf54]/10 rounded-lg transition-colors">
+                                <button className="flex-1 py-2 text-sm font-medium text-brand hover:bg-brand/10 rounded-lg transition-colors">
                                     View Profile
                                 </button>
                                 <button className="flex-1 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">

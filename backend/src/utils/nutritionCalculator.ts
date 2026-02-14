@@ -3,13 +3,17 @@
  * Eliminates duplication across controllers
  */
 
+import { Prisma } from '@prisma/client';
+
+type DecimalLike = Prisma.Decimal | number | null;
+
 interface FoodNutrition {
     calories: number;
-    proteinG: number | null | any;
-    carbsG: number | null | any;
-    fatsG: number | null | any;
-    fiberG: number | null | any;
-    servingSizeG: number | any;
+    proteinG: DecimalLike;
+    carbsG: DecimalLike;
+    fatsG: DecimalLike;
+    fiberG: DecimalLike;
+    servingSizeG: Prisma.Decimal | number;
 }
 
 export interface ScaledNutrition {

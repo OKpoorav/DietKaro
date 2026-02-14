@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { createDietPlan, getDietPlan, listDietPlans, updateDietPlan, publishDietPlan, assignTemplateToClient } from '../controllers/dietPlan.controller';
 import { requireAuth } from '../middleware/auth.middleware';
+import { requireActiveSubscription } from '../middleware/subscription.middleware';
 
 const router = Router();
 
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
 router.post('/', createDietPlan);
 router.get('/', listDietPlans);

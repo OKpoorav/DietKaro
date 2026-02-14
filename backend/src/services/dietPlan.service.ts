@@ -1,8 +1,9 @@
 import prisma from '../utils/prisma';
+import { Prisma, MealLogStatus } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta } from '../utils/queryFilters';
-import { CreateDietPlanInput, UpdateDietPlanInput } from '../schemas/dietPlan.schema';
+import type { CreateDietPlanInput, UpdateDietPlanInput, DietPlanListQuery, AssignTemplateInput } from '../schemas/dietPlan.schema';
 
 export class DietPlanService {
     async createPlan(data: CreateDietPlanInput, orgId: string, userId: string) {
@@ -17,6 +18,21 @@ export class DietPlanService {
             if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
         }
 
+        // Auto-compute endDate when not explicitly provided
+        let endDate: Date | null = data.endDate ? new Date(data.endDate) : null;
+        if (!endDate && data.meals?.length) {
+            const mealDates = data.meals.filter(m => m.mealDate).map(m => new Date(m.mealDate!));
+            if (mealDates.length > 0) {
+                endDate = new Date(Math.max(...mealDates.map(d => d.getTime())));
+            } else {
+                const maxDow = data.meals.reduce((max, m) => Math.max(max, m.dayOfWeek ?? 0), 0);
+                if (maxDow > 0) {
+                    endDate = new Date(data.startDate);
+                    endDate.setDate(endDate.getDate() + maxDow);
+                }
+            }
+        }
+
         const dietPlan = await prisma.dietPlan.create({
             data: {
                 organization: { connect: { id: orgId } },
@@ -25,7 +41,7 @@ export class DietPlanService {
                 name: data.name,
                 description: data.description,
                 startDate: new Date(data.startDate),
-                endDate: data.endDate ? new Date(data.endDate) : null,
+                endDate,
                 targetCalories: data.targetCalories,
                 targetProteinG: data.targetProteinG,
                 targetCarbsG: data.targetCarbsG,
@@ -38,20 +54,20 @@ export class DietPlanService {
                 templateCategory: data.options?.templateCategory,
                 meals: data.meals?.length
                     ? {
-                          create: data.meals.map((meal: any, index: number) => ({
-                              dayOfWeek: meal.dayIndex,
+                          create: data.meals.map((meal, index) => ({
+                              dayOfWeek: meal.dayOfWeek,
                               mealDate: meal.mealDate ? new Date(meal.mealDate) : null,
                               sequenceNumber: index,
                               mealType: meal.mealType,
                               timeOfDay: meal.timeOfDay,
-                              name: meal.title,
+                              name: meal.name,
                               description: meal.description,
                               instructions: meal.instructions,
                               foodItems: meal.foodItems?.length
                                   ? {
-                                        create: meal.foodItems.map((item: any, sortOrder: number) => ({
+                                        create: meal.foodItems.map((item, sortOrder) => ({
                                             foodId: item.foodId,
-                                            quantityG: item.quantity,
+                                            quantityG: item.quantityG,
                                             notes: item.notes,
                                             sortOrder,
                                             optionGroup: item.optionGroup ?? 0,
@@ -91,13 +107,13 @@ export class DietPlanService {
         return dietPlan;
     }
 
-    async listPlans(orgId: string, query: any) {
+    async listPlans(orgId: string, query: DietPlanListQuery) {
         const { clientId, status, isTemplate } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
 
-        const where: any = { orgId, isActive: true };
-        if (clientId) where.clientId = String(clientId);
-        if (status) where.status = String(status);
+        const where: Prisma.DietPlanWhereInput = { orgId, isActive: true };
+        if (clientId) where.clientId = clientId;
+        if (status) where.status = status as Prisma.EnumDietPlanStatusFilter;
         if (isTemplate !== undefined) where.isTemplate = isTemplate === 'true';
 
         const [plans, total] = await prisma.$transaction([
@@ -122,24 +138,34 @@ export class DietPlanService {
     }
 
     async updatePlan(planId: string, data: UpdateDietPlanInput, orgId: string) {
-        const existing = await prisma.dietPlan.findFirst({ where: { id: planId, orgId } });
+        const existing = await prisma.dietPlan.findFirst({ where: { id: planId, orgId, isActive: true } });
         if (!existing) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
+
+        // Explicit validation for required fields
+        if (data.name !== undefined && data.name.trim() === '') {
+            throw AppError.badRequest('Plan name cannot be empty', 'INVALID_PLAN_NAME');
+        }
+        if (data.startDate !== undefined && !data.startDate) {
+            throw AppError.badRequest('Start date cannot be empty', 'INVALID_START_DATE');
+        }
+
+        // Consistent !== undefined guard for all fields
+        const updateData: Record<string, unknown> = {};
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.description !== undefined) updateData.description = data.description;
+        if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
+        if (data.endDate !== undefined) updateData.endDate = data.endDate ? new Date(data.endDate) : null;
+        if (data.targetCalories !== undefined) updateData.targetCalories = data.targetCalories;
+        if (data.targetProteinG !== undefined) updateData.targetProteinG = data.targetProteinG;
+        if (data.targetCarbsG !== undefined) updateData.targetCarbsG = data.targetCarbsG;
+        if (data.targetFatsG !== undefined) updateData.targetFatsG = data.targetFatsG;
+        if (data.targetFiberG !== undefined) updateData.targetFiberG = data.targetFiberG;
+        if (data.notesForClient !== undefined) updateData.notesForClient = data.notesForClient;
+        if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
 
         const updated = await prisma.dietPlan.update({
             where: { id: planId },
-            data: {
-                ...(data.name && { name: data.name }),
-                ...(data.description !== undefined && { description: data.description }),
-                ...(data.startDate && { startDate: new Date(data.startDate) }),
-                ...(data.endDate !== undefined && { endDate: data.endDate ? new Date(data.endDate) : null }),
-                ...(data.targetCalories !== undefined && { targetCalories: data.targetCalories }),
-                ...(data.targetProteinG !== undefined && { targetProteinG: data.targetProteinG }),
-                ...(data.targetCarbsG !== undefined && { targetCarbsG: data.targetCarbsG }),
-                ...(data.targetFatsG !== undefined && { targetFatsG: data.targetFatsG }),
-                ...(data.targetFiberG !== undefined && { targetFiberG: data.targetFiberG }),
-                ...(data.notesForClient !== undefined && { notesForClient: data.notesForClient }),
-                ...(data.internalNotes !== undefined && { internalNotes: data.internalNotes }),
-            },
+            data: updateData,
         });
 
         logger.info('Diet plan updated', { planId: updated.id });
@@ -149,30 +175,108 @@ export class DietPlanService {
     async publishPlan(planId: string, orgId: string) {
         const plan = await prisma.dietPlan.findFirst({
             where: { id: planId, orgId },
-            include: { meals: true },
+            include: {
+                meals: true,
+                client: { select: { id: true } },
+            },
         });
 
         if (!plan) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
+        if (!plan.clientId) throw AppError.badRequest('Cannot publish a template');
 
-        const updated = await prisma.dietPlan.update({
-            where: { id: planId },
-            data: { status: 'active', publishedAt: new Date() },
+        // Build meal logs
+        const mealLogsToCreate: {
+            orgId: string;
+            clientId: string;
+            mealId: string;
+            scheduledDate: Date;
+            scheduledTime: string | null;
+            status: MealLogStatus;
+        }[] = [];
+
+        // Check if meals use mealDate (date-based plan) vs dayOfWeek (legacy)
+        const hasDateBasedMeals = plan.meals.some((m) => m.mealDate !== null);
+
+        if (hasDateBasedMeals) {
+            // Date-based path: each meal has a specific mealDate
+            for (const meal of plan.meals) {
+                if (!meal.mealDate) continue;
+                mealLogsToCreate.push({
+                    orgId: plan.orgId,
+                    clientId: plan.clientId!,
+                    mealId: meal.id,
+                    scheduledDate: new Date(meal.mealDate),
+                    scheduledTime: meal.timeOfDay,
+                    status: MealLogStatus.pending,
+                });
+            }
+        } else {
+            // Legacy dayOfWeek path: iterate date range and match meals by dayOfWeek
+            const startDate = new Date(plan.startDate);
+            const endDate = plan.endDate ? new Date(plan.endDate) : new Date(startDate);
+            if (!plan.endDate) {
+                endDate.setDate(endDate.getDate() + 6); // Default to 7 days
+            }
+
+            const currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+                const dayOfWeek = (currentDate.getDay() + 6) % 7; // Monday = 0
+
+                const todaysMeals = plan.meals.filter(
+                    (m) => m.dayOfWeek === dayOfWeek || m.dayOfWeek === null
+                );
+
+                for (const meal of todaysMeals) {
+                    mealLogsToCreate.push({
+                        orgId: plan.orgId,
+                        clientId: plan.clientId!,
+                        mealId: meal.id,
+                        scheduledDate: new Date(currentDate),
+                        scheduledTime: meal.timeOfDay,
+                        status: MealLogStatus.pending,
+                    });
+                }
+
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        }
+
+        // Batch create with conflict handling
+        await prisma.$transaction([
+            prisma.dietPlan.update({
+                where: { id: planId },
+                data: { status: 'active', publishedAt: new Date() },
+            }),
+            ...mealLogsToCreate.map((log) =>
+                prisma.mealLog.upsert({
+                    where: {
+                        clientId_mealId_scheduledDate: {
+                            clientId: log.clientId,
+                            mealId: log.mealId,
+                            scheduledDate: log.scheduledDate,
+                        },
+                    },
+                    create: log,
+                    update: {},
+                })
+            ),
+        ]);
+
+        logger.info('Diet plan published with meal logs', {
+            planId,
+            mealLogsCreated: mealLogsToCreate.length,
         });
 
-        logger.info('Diet plan published', { planId: updated.id });
         return {
-            planId: updated.id,
-            status: updated.status,
-            publishedAt: updated.publishedAt,
-            mealLogsCreated: plan.meals.length,
+            planId,
+            status: 'active',
+            publishedAt: new Date(),
+            mealLogsCreated: mealLogsToCreate.length,
         };
     }
 
-    async assignTemplateToClient(templateId: string, body: any, orgId: string, userId: string) {
+    async assignTemplateToClient(templateId: string, body: AssignTemplateInput, orgId: string, userId: string) {
         const { clientId, startDate, name } = body;
-
-        if (!clientId) throw AppError.badRequest('clientId is required', 'CLIENT_ID_REQUIRED');
-        if (!startDate) throw AppError.badRequest('startDate is required', 'START_DATE_REQUIRED');
 
         const template = await prisma.dietPlan.findFirst({
             where: { id: templateId, orgId, isTemplate: true, isActive: true },
@@ -184,6 +288,12 @@ export class DietPlanService {
         const client = await prisma.client.findFirst({ where: { id: clientId, orgId } });
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
 
+        // Map template's relative dayOfWeek to actual mealDate values
+        const planStartDate = new Date(startDate);
+        const maxDayOfWeek = template.meals.reduce((max, m) => Math.max(max, m.dayOfWeek ?? 0), 0);
+        const planEndDate = new Date(planStartDate);
+        planEndDate.setDate(planEndDate.getDate() + maxDayOfWeek);
+
         const newPlan = await prisma.dietPlan.create({
             data: {
                 organization: { connect: { id: orgId } },
@@ -191,7 +301,8 @@ export class DietPlanService {
                 creator: { connect: { id: userId } },
                 name: name || `${template.name} - ${client.fullName}`,
                 description: template.description,
-                startDate: new Date(startDate),
+                startDate: planStartDate,
+                endDate: planEndDate,
                 targetCalories: template.targetCalories,
                 targetProteinG: template.targetProteinG,
                 targetCarbsG: template.targetCarbsG,
@@ -202,29 +313,34 @@ export class DietPlanService {
                 status: 'draft',
                 isTemplate: false,
                 meals: {
-                    create: template.meals.map((meal, index) => ({
-                        dayOfWeek: meal.dayOfWeek,
-                        mealDate: null,
-                        sequenceNumber: meal.sequenceNumber ?? index,
-                        mealType: meal.mealType,
-                        timeOfDay: meal.timeOfDay,
-                        name: meal.name,
-                        description: meal.description,
-                        instructions: meal.instructions,
-                        servingSizeNotes: meal.servingSizeNotes,
-                        foodItems: meal.foodItems.length
-                            ? {
-                                  create: meal.foodItems.map((item, sortOrder) => ({
-                                      foodId: item.foodId,
-                                      quantityG: item.quantityG,
-                                      notes: item.notes,
-                                      sortOrder: item.sortOrder ?? sortOrder,
-                                      optionGroup: item.optionGroup,
-                                      optionLabel: item.optionLabel,
-                                  })),
-                              }
-                            : undefined,
-                    })),
+                    create: template.meals.map((meal, index) => {
+                        // Convert relative dayOfWeek to specific mealDate
+                        const mealDate = new Date(planStartDate);
+                        mealDate.setDate(mealDate.getDate() + (meal.dayOfWeek ?? 0));
+                        return {
+                            dayOfWeek: null,
+                            mealDate,
+                            sequenceNumber: meal.sequenceNumber ?? index,
+                            mealType: meal.mealType,
+                            timeOfDay: meal.timeOfDay,
+                            name: meal.name,
+                            description: meal.description,
+                            instructions: meal.instructions,
+                            servingSizeNotes: meal.servingSizeNotes,
+                            foodItems: meal.foodItems.length
+                                ? {
+                                      create: meal.foodItems.map((item, sortOrder) => ({
+                                          foodId: item.foodId,
+                                          quantityG: item.quantityG,
+                                          notes: item.notes,
+                                          sortOrder: item.sortOrder ?? sortOrder,
+                                          optionGroup: item.optionGroup,
+                                          optionLabel: item.optionLabel,
+                                      })),
+                                  }
+                                : undefined,
+                        };
+                    }),
                 },
             },
             include: {

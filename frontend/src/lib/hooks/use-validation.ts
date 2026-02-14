@@ -154,7 +154,7 @@ export function useValidation(clientId: string | null) {
             case 'GREEN':
                 return 'border-green-500 bg-green-50';
             default:
-                return 'border-gray-200 hover:border-[#17cf54]';
+                return 'border-gray-200 hover:border-brand';
         }
     }, []);
 

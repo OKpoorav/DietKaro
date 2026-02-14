@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.get('/:prefix/:orgId/:entityId/:filename', async (req: Request, res: Resp
         if (error.name === 'NoSuchKey') {
             return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Image not found' } });
         }
-        console.error('Error fetching image:', error);
+        logger.error('Error fetching image', { error: error.message, key: req.params });
         res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch image' } });
     }
 });

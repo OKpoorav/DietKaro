@@ -1,10 +1,13 @@
+import crypto from 'crypto';
 import prisma from '../utils/prisma';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
 import { validationEngine } from './validationEngine.service';
 import { labService } from './lab.service';
 import type { MedicalSummary } from '../types/medical.types';
+import type { CreateClientInput, UpdateClientInput, ClientListQuery, ClientProgressQuery } from '../schemas/client.schema';
 
 const REFERRAL_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const REFERRAL_CODE_LENGTH = 6;
@@ -14,7 +17,7 @@ const REFERRALS_PER_FREE_MONTH = 3;
 function generateReferralCode(): string {
     let code = '';
     for (let i = 0; i < REFERRAL_CODE_LENGTH; i++) {
-        code += REFERRAL_CHARS.charAt(Math.floor(Math.random() * REFERRAL_CHARS.length));
+        code += REFERRAL_CHARS.charAt(crypto.randomInt(REFERRAL_CHARS.length));
     }
     return code;
 }
@@ -31,7 +34,7 @@ export class ClientService {
         return generateReferralCode() + Date.now().toString(36).slice(-2).toUpperCase();
     }
 
-    async createClient(data: any, orgId: string, userId: string) {
+    async createClient(data: CreateClientInput, orgId: string, userId: string) {
         const existingClient = await prisma.client.findFirst({
             where: { orgId, email: data.email },
         });
@@ -94,8 +97,8 @@ export class ClientService {
                 update: { referralCount: { increment: 1 } },
             });
 
-            const newReferralCount = benefit.referralCount + 1;
-            const newFreeMonths = Math.floor(newReferralCount / REFERRALS_PER_FREE_MONTH);
+            // benefit.referralCount is already the post-increment value from upsert
+            const newFreeMonths = Math.floor(benefit.referralCount / REFERRALS_PER_FREE_MONTH);
 
             if (newFreeMonths > benefit.freeMonthsEarned) {
                 await tx.referralBenefit.update({
@@ -118,11 +121,11 @@ export class ClientService {
         return client;
     }
 
-    async listClients(orgId: string, query: any, userRole: string, userId: string) {
+    async listClients(orgId: string, query: ClientListQuery, userRole: string, userId: string) {
         const { search, status, primaryDietitianId, sortBy = 'createdAt' } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
 
-        const where: any = { orgId, isActive: status !== 'inactive' };
+        const where: Prisma.ClientWhereInput = { orgId, isActive: status !== 'inactive' };
 
         if (search) {
             where.OR = [
@@ -149,12 +152,30 @@ export class ClientService {
         return { clients, meta: buildPaginationMeta(total, pagination) };
     }
 
-    async updateClient(clientId: string, updateData: any, orgId: string) {
+    async updateClient(clientId: string, rawData: UpdateClientInput, orgId: string) {
         const existing = await prisma.client.findFirst({ where: { id: clientId, orgId } });
         if (!existing) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
 
+        const ALLOWED_FIELDS = [
+            'fullName', 'email', 'phone', 'dateOfBirth', 'gender',
+            'heightCm', 'currentWeightKg', 'targetWeightKg',
+            'activityLevel', 'dietaryPreferences', 'allergies',
+            'medicalConditions', 'medications', 'healthNotes',
+            'targetCalories', 'targetProteinG', 'targetCarbsG', 'targetFatsG',
+            'intolerances', 'dietPattern', 'eggAllowed', 'eggAvoidDays',
+            'dislikes', 'avoidCategories', 'likedFoods', 'preferredCuisines',
+            'foodRestrictions',
+        ] as const;
+
+        const updateData: Record<string, unknown> = {};
+        for (const field of ALLOWED_FIELDS) {
+            if (rawData[field] !== undefined) {
+                updateData[field] = rawData[field];
+            }
+        }
+
         if (updateData.dateOfBirth) {
-            updateData.dateOfBirth = new Date(updateData.dateOfBirth);
+            updateData.dateOfBirth = new Date(updateData.dateOfBirth as string);
         }
 
         const client = await prisma.client.update({
@@ -180,7 +201,7 @@ export class ClientService {
         logger.info('Client deleted (soft)', { clientId });
     }
 
-    async getClientProgress(clientId: string, orgId: string, query: any) {
+    async getClientProgress(clientId: string, orgId: string, query: ClientProgressQuery) {
         const client = await prisma.client.findFirst({ where: { id: clientId, orgId } });
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
 

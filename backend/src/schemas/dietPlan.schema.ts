@@ -14,16 +14,16 @@ export const createDietPlanSchema = z.object({
     notesForClient: z.string().optional(),
     internalNotes: z.string().optional(),
     meals: z.array(z.object({
-        dayIndex: z.number().min(0).max(6).optional(),
+        dayOfWeek: z.number().min(0).max(6).optional(),
         mealDate: z.string().optional(),
-        mealType: z.string(),
+        mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
         timeOfDay: z.string().optional(),
-        title: z.string(),
+        name: z.string(),
         description: z.string().optional(),
         instructions: z.string().optional(),
         foodItems: z.array(z.object({
             foodId: z.string().uuid(),
-            quantity: z.number().min(0),
+            quantityG: z.number().min(0),
             notes: z.string().optional(),
             optionGroup: z.number().int().min(0).optional(),
             optionLabel: z.string().optional()
@@ -37,5 +37,21 @@ export const createDietPlanSchema = z.object({
 
 export const updateDietPlanSchema = createDietPlanSchema.partial().omit({ clientId: true });
 
+export const dietPlanListQuerySchema = z.object({
+    clientId: z.string().optional(),
+    status: z.string().optional(),
+    isTemplate: z.string().optional(),
+    page: z.string().optional(),
+    pageSize: z.string().optional(),
+});
+
+export const assignTemplateSchema = z.object({
+    clientId: z.string().uuid('Invalid client ID'),
+    startDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid start date'),
+    name: z.string().optional(),
+});
+
 export type CreateDietPlanInput = z.infer<typeof createDietPlanSchema>;
 export type UpdateDietPlanInput = z.infer<typeof updateDietPlanSchema>;
+export type DietPlanListQuery = z.infer<typeof dietPlanListQuerySchema>;
+export type AssignTemplateInput = z.infer<typeof assignTemplateSchema>;

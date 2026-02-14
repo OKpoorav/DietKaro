@@ -49,7 +49,7 @@ export default function FoodLibraryPage() {
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
+                    className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Add Food Item
@@ -79,13 +79,13 @@ export default function FoodLibraryPage() {
                 <div className="flex items-center gap-2 ml-auto">
                     <button
                         onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-[#17cf54]/10 text-[#17cf54]' : 'text-gray-500 hover:bg-gray-100'}`}
+                        className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-brand/10 text-brand' : 'text-gray-500 hover:bg-gray-100'}`}
                     >
                         <Grid className="w-5 h-5" />
                     </button>
                     <button
                         onClick={() => setViewMode('list')}
-                        className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-[#17cf54]/10 text-[#17cf54]' : 'text-gray-500 hover:bg-gray-100'}`}
+                        className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-brand/10 text-brand' : 'text-gray-500 hover:bg-gray-100'}`}
                     >
                         <List className="w-5 h-5" />
                     </button>
@@ -99,7 +99,7 @@ export default function FoodLibraryPage() {
                         key={cat}
                         onClick={() => setCategory(cat)}
                         className={`flex h-8 shrink-0 items-center justify-center px-4 rounded-lg text-sm font-medium transition-colors ${category === cat
-                            ? 'bg-[#17cf54] text-white'
+                            ? 'bg-brand text-white'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                             }`}
                     >
@@ -111,7 +111,7 @@ export default function FoodLibraryPage() {
             {/* Loading */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                    <Loader2 className="w-8 h-8 animate-spin text-brand" />
                 </div>
             )}
 
@@ -137,7 +137,7 @@ export default function FoodLibraryPage() {
                             key={item.id}
                             className="flex flex-col rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition-shadow group relative"
                         >
-                            <div className="h-32 bg-gradient-to-br from-[#17cf54]/20 to-[#17cf54]/5 flex items-center justify-center relative">
+                            <div className="h-32 bg-gradient-to-br from-brand/20 to-brand/5 flex items-center justify-center relative">
                                 <span className="text-4xl">🍽️</span>
                                 {/* Edit Button Overlay */}
                                 <button
@@ -145,7 +145,7 @@ export default function FoodLibraryPage() {
                                         e.stopPropagation();
                                         handleEdit(item);
                                     }}
-                                    className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-gray-600 hover:text-[#17cf54]"
+                                    className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-gray-600 hover:text-brand"
                                     title="Edit Food Item"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
@@ -184,7 +184,7 @@ export default function FoodLibraryPage() {
                                 {item.dietaryTags?.length > 0 && (
                                     <div className="mt-3 flex flex-wrap gap-1">
                                         {item.dietaryTags.slice(0, 3).map((tag) => (
-                                            <span key={tag} className="px-2 py-0.5 text-xs bg-[#17cf54]/10 text-[#17cf54] rounded-full">
+                                            <span key={tag} className="px-2 py-0.5 text-xs bg-brand/10 text-brand rounded-full">
                                                 {tag}
                                             </span>
                                         ))}
@@ -232,7 +232,7 @@ export default function FoodLibraryPage() {
                                     <td className="px-6 py-4 text-right">
                                         <button
                                             onClick={() => handleEdit(item)}
-                                            className="p-1 text-gray-400 hover:text-[#17cf54] opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="p-1 text-gray-400 hover:text-brand opacity-0 group-hover:opacity-100 transition-opacity"
                                             title="Edit"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>

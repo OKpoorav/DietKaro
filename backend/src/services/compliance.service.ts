@@ -104,7 +104,7 @@ export class ComplianceService {
             return { score: 0, color: 'RED', issues: ['Meal log not found'] };
         }
 
-        const { WEIGHTS, PENALTIES } = COMPLIANCE_CONFIG;
+        const { WEIGHTS, BONUS, PENALTIES } = COMPLIANCE_CONFIG;
         const issues: string[] = [];
         let score = 0;
 
@@ -180,11 +180,10 @@ export class ComplianceService {
             score += WEIGHTS.PORTION_ACCURACY;
         }
 
-        // Factor 5: Dietitian approved (+15)
+        // Factor 5: Dietitian review — bonus, not a deduction
+        // Client-controllable factors already sum to 100. Review adds extra, clamped at 100.
         if (mealLog.dietitianFeedback) {
-            score += WEIGHTS.DIETITIAN_APPROVED;
-        } else {
-            issues.push('Awaiting dietitian review');
+            score += BONUS.DIETITIAN_APPROVED;
         }
 
         // Factor 6: Substitution penalty (-10)
@@ -274,6 +273,7 @@ export class ComplianceService {
 
     /**
      * Calculate weekly adherence for a client
+     * Optimized: 3 queries (week logs + active plan + prev week) instead of 15
      */
     async calculateWeeklyAdherence(clientId: string, weekStartDate?: Date): Promise<WeeklyAdherence> {
         const weekStart = weekStartDate ? new Date(weekStartDate) : this.getWeekStart(new Date());
@@ -282,12 +282,48 @@ export class ComplianceService {
         weekEnd.setDate(weekEnd.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
 
-        // Calculate daily adherence for each day of the week
+        // Single query: all meal logs for the entire week
+        const allLogs = await prisma.mealLog.findMany({
+            where: {
+                clientId,
+                scheduledDate: { gte: weekStart, lte: weekEnd },
+            },
+            include: {
+                meal: { select: { name: true, mealType: true } },
+            },
+            orderBy: { scheduledTime: 'asc' },
+        });
+
+        // Single query: active diet plan (same for all 7 days)
+        const activePlan = await prisma.dietPlan.findFirst({
+            where: {
+                clientId,
+                status: 'active',
+                isActive: true,
+            },
+            include: {
+                meals: { select: { id: true } },
+            },
+        });
+
+        const mealsPlanned = activePlan?.meals.length || 0;
+
+        // Partition logs by date in memory
+        const logsByDate = new Map<string, typeof allLogs>();
+        allLogs.forEach(log => {
+            const dateKey = log.scheduledDate.toISOString().split('T')[0];
+            if (!logsByDate.has(dateKey)) logsByDate.set(dateKey, []);
+            logsByDate.get(dateKey)!.push(log);
+        });
+
+        // Build daily breakdown without additional queries
         const dailyBreakdown: DailyAdherence[] = [];
         for (let i = 0; i < 7; i++) {
             const day = new Date(weekStart);
             day.setDate(day.getDate() + i);
-            const daily = await this.calculateDailyAdherence(clientId, day);
+            const dateKey = day.toISOString().split('T')[0];
+            const dayLogs = logsByDate.get(dateKey) || [];
+            const daily = this.buildDailyAdherenceFromLogs(dateKey, dayLogs, mealsPlanned || dayLogs.length);
             dailyBreakdown.push(daily);
         }
 
@@ -296,7 +332,7 @@ export class ComplianceService {
             ? Math.round(daysWithScores.reduce((sum, d) => sum + d.score, 0) / daysWithScores.length)
             : 0;
 
-        // Trend: compare with previous week
+        // Single query: previous week trend
         const prevWeekStart = new Date(weekStart);
         prevWeekStart.setDate(prevWeekStart.getDate() - 7);
         const prevWeekEnd = new Date(prevWeekStart);
@@ -337,35 +373,26 @@ export class ComplianceService {
         startDate.setDate(startDate.getDate() - days);
         startDate.setHours(0, 0, 0, 0);
 
-        const logs = await prisma.mealLog.findMany({
+        // Use groupBy to aggregate in the database instead of fetching all rows
+        const grouped = await prisma.mealLog.groupBy({
+            by: ['scheduledDate'],
             where: {
                 clientId,
                 scheduledDate: { gte: startDate },
                 complianceScore: { not: null },
             },
-            select: {
-                scheduledDate: true,
-                complianceScore: true,
-                complianceColor: true,
-            },
+            _avg: { complianceScore: true },
             orderBy: { scheduledDate: 'asc' },
         });
 
-        // Group by date
-        const dateMap = new Map<string, number[]>();
-        logs.forEach(log => {
-            const dateKey = log.scheduledDate.toISOString().split('T')[0];
-            if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
-            dateMap.get(dateKey)!.push(log.complianceScore!);
+        const data: ComplianceHistoryEntry[] = grouped.map(row => {
+            const avg = Math.round(row._avg.complianceScore || 0);
+            return {
+                date: row.scheduledDate.toISOString().split('T')[0],
+                score: avg,
+                color: getColor(avg),
+            };
         });
-
-        const data: ComplianceHistoryEntry[] = [];
-        dateMap.forEach((scores, dateKey) => {
-            const avg = Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
-            data.push({ date: dateKey, score: avg, color: getColor(avg) });
-        });
-
-        data.sort((a, b) => a.date.localeCompare(b.date));
 
         const totalAvg = data.length > 0
             ? Math.round(data.reduce((s, d) => s + d.score, 0) / data.length)
@@ -383,6 +410,55 @@ export class ComplianceService {
     }
 
     // ============ PRIVATE HELPERS ============
+
+    /**
+     * Pure function: build a DailyAdherence from pre-fetched logs. No database calls.
+     */
+    private buildDailyAdherenceFromLogs(
+        dateKey: string,
+        logs: Array<{
+            id: string;
+            status: string;
+            complianceScore: number | null;
+            complianceColor: string | null;
+            complianceIssues: string[];
+            meal: { name: string; mealType: string };
+        }>,
+        mealsPlanned: number,
+    ): DailyAdherence {
+        const deriveScoreFromStatus = (status: string): number => {
+            if (status === 'eaten') return 85;
+            if (status === 'substituted') return 50;
+            if (status === 'skipped') return 0;
+            return 0;
+        };
+
+        const mealBreakdown: MealBreakdown[] = logs.map(log => {
+            const score = log.complianceScore ?? (log.status !== 'pending' ? deriveScoreFromStatus(log.status) : null);
+            return {
+                mealLogId: log.id,
+                mealName: log.meal.name,
+                mealType: log.meal.mealType,
+                score,
+                color: score !== null ? (log.complianceColor as ComplianceColor) || getColor(score) : null,
+                status: log.status,
+                issues: log.complianceIssues || [],
+            };
+        });
+
+        const scoredMeals = mealBreakdown.filter(m => m.score !== null);
+        const totalScore = scoredMeals.reduce((sum, m) => sum + (m.score || 0), 0);
+        const avgScore = scoredMeals.length > 0 ? Math.round(totalScore / scoredMeals.length) : 0;
+
+        return {
+            date: dateKey,
+            score: avgScore,
+            color: getColor(avgScore),
+            mealsLogged: logs.filter(l => l.status !== 'pending').length,
+            mealsPlanned,
+            mealBreakdown,
+        };
+    }
 
     private async persistScore(mealLogId: string, score: number, issues: string[]): Promise<void> {
         const color = getColor(score);

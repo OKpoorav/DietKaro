@@ -147,7 +147,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] transition-all outline-none text-gray-900 placeholder:text-gray-400"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 placeholder:text-gray-400"
                             placeholder="e.g., Brown Rice"
                         />
                     </div>
@@ -157,7 +157,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                             type="text"
                             value={formData.brand}
                             onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] transition-all outline-none text-gray-900 placeholder:text-gray-400"
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 placeholder:text-gray-400"
                             placeholder="e.g., Nature's Best"
                         />
                     </div>
@@ -170,7 +170,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                             <select
                                 value={formData.category}
                                 onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] transition-all outline-none text-gray-900 appearance-none cursor-pointer"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 appearance-none cursor-pointer"
                             >
                                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
@@ -188,7 +188,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                                 min="1"
                                 value={formData.servingSizeG}
                                 onChange={(e) => updateField('servingSizeG', e.target.value)}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] transition-all outline-none text-gray-900 placeholder:text-gray-400"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 placeholder:text-gray-400"
                                 placeholder="100"
                             />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">g</span>
@@ -209,7 +209,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                                         dietaryTags: val ? [val] : []
                                     }));
                                 }}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] transition-all outline-none text-gray-900 appearance-none cursor-pointer"
+                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 appearance-none cursor-pointer"
                             >
                                 {DIETARY_CATEGORIES.map(c => (
                                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -225,7 +225,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                 {/* Nutrition */}
                 <div className="border border-gray-100 p-5 rounded-xl bg-gray-50/50">
                     <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="w-1 h-4 bg-[#17cf54] rounded-full"></span>
+                        <span className="w-1 h-4 bg-brand rounded-full"></span>
                         Nutrition per serving
                     </h4>
                     <div className="grid grid-cols-4 sm:grid-cols-7 gap-3">
@@ -299,7 +299,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                     <button
                         type="submit"
                         disabled={createMutation.isPending || updateMutation.isPending}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#17cf54] hover:bg-[#17cf54]/90 rounded-xl shadow-lg shadow-green-500/20 transition-all disabled:opacity-50 disabled:shadow-none"
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-brand hover:bg-brand/90 rounded-xl shadow-lg shadow-green-500/20 transition-all disabled:opacity-50 disabled:shadow-none"
                     >
                         {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
                         {isEditing ? 'Update Food Item' : 'Create Food Item'}

@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
 import { generateDietPlanPDF, generateMealPlanPrintHtml } from '../utils/pdfGenerator';
 import { sendEmail, generateDietPlanEmailHtml } from '../utils/emailService';
+import { escapeHtml } from '../utils/htmlEscape';
 
 /**
  * Generate and download PDF for a diet plan
@@ -154,7 +155,7 @@ export const emailDietPlan = asyncHandler(async (req: AuthenticatedRequest, res:
         to: targetEmail,
         subject: `Your Diet Plan: ${plan.name}`,
         html: customMessage
-            ? `<p>${customMessage}</p>${html}`
+            ? `<p>${escapeHtml(customMessage)}</p>${html}`
             : html,
         attachments: [
             {
@@ -183,6 +184,34 @@ export const emailDietPlan = asyncHandler(async (req: AuthenticatedRequest, res:
 /**
  * Generate shareable WhatsApp link for diet plan
  */
+/**
+ * Format a phone number for the WhatsApp wa.me API.
+ * Strips non-digits, removes leading trunk prefix '0',
+ * prepends default country code for 10-digit numbers.
+ * Returns null if the number is invalid.
+ */
+function formatPhoneForWhatsApp(phone: string, defaultCountryCode: string = '91'): string | null {
+    let digits = phone.replace(/[^0-9]/g, '');
+    if (digits.length === 0) return null;
+
+    // Remove leading '0' trunk prefix
+    if (digits.startsWith('0')) {
+        digits = digits.substring(1);
+    }
+
+    // If 10 digits, assume local number — prepend default country code
+    if (digits.length === 10) {
+        digits = defaultCountryCode + digits;
+    }
+
+    // E.164: 10-15 total digits
+    if (digits.length < 10 || digits.length > 15) {
+        return null;
+    }
+
+    return digits;
+}
+
 export const getDietPlanShareLink = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
 
@@ -197,32 +226,49 @@ export const getDietPlanShareLink = asyncHandler(async (req: AuthenticatedReques
 
     if (!plan) throw AppError.notFound('Diet plan not found');
 
+    const rawPhone = plan.client?.phone;
+    if (!rawPhone) {
+        throw AppError.badRequest(
+            'Cannot generate WhatsApp link: client has no phone number on file',
+            'MISSING_PHONE'
+        );
+    }
+
+    const formattedPhone = formatPhoneForWhatsApp(rawPhone);
+    if (!formattedPhone) {
+        throw AppError.badRequest(
+            'Cannot generate WhatsApp link: client phone number is invalid',
+            'INVALID_PHONE'
+        );
+    }
+
     // Generate summary message for WhatsApp
-    const message = `🥗 *${plan.name}*
+    const message = `*${plan.name}*
 
 Hi ${plan.client?.fullName || 'there'}!
 
-Your personalized diet plan is ready. 
+Your personalized diet plan is ready.
 
-📊 Daily Targets:
-${plan.targetCalories ? `• Calories: ${plan.targetCalories} kcal` : ''}
-${plan.targetProteinG ? `• Protein: ${plan.targetProteinG}g` : ''}
-${plan.targetCarbsG ? `• Carbs: ${plan.targetCarbsG}g` : ''}
-${plan.targetFatsG ? `• Fats: ${plan.targetFatsG}g` : ''}
+Daily Targets:
+${plan.targetCalories ? `- Calories: ${plan.targetCalories} kcal` : ''}
+${plan.targetProteinG ? `- Protein: ${plan.targetProteinG}g` : ''}
+${plan.targetCarbsG ? `- Carbs: ${plan.targetCarbsG}g` : ''}
+${plan.targetFatsG ? `- Fats: ${plan.targetFatsG}g` : ''}
 
-📱 Open the DietKaro app to view your complete meal plan!
+Open the DietKaro app to view your complete meal plan!
 
 Best regards,
 Your Dietitian at DietKaro`;
 
-    const whatsappLink = `https://wa.me/${plan.client?.phone?.replace(/[^0-9]/g, '') || ''}?text=${encodeURIComponent(message)}`;
+    const whatsappLink = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 
     res.status(200).json({
         success: true,
         data: {
             message,
             whatsappLink,
-            clientPhone: plan.client?.phone
+            clientPhone: plan.client?.phone,
+            formattedPhone,
         }
     });
 });

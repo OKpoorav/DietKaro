@@ -27,11 +27,13 @@ export const mealLogQuerySchema = z.object({
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
     status: z.enum(['pending', 'eaten', 'substituted', 'skipped']).optional(),
-    page: z.string().optional().default('1'),
-    pageSize: z.string().optional().default('20'),
-    sortBy: z.string().optional().default('scheduledDate')
+    reviewStatus: z.enum(['pending', 'reviewed']).optional(),
+    page: z.string().optional(),
+    pageSize: z.string().optional(),
+    sortBy: z.string().optional()
 });
 
 export type CreateMealLogInput = z.infer<typeof createMealLogSchema>;
 export type UpdateMealLogInput = z.infer<typeof updateMealLogSchema>;
 export type ReviewMealLogInput = z.infer<typeof reviewMealLogSchema>;
+export type MealLogListQuery = z.infer<typeof mealLogQuerySchema>;

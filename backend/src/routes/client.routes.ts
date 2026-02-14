@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { createClient, getClient, listClients, updateClient, deleteClient, getClientProgress } from '../controllers/client.controller';
 import { createWeightLog, listWeightLogs } from '../controllers/weightLog.controller';
 import { requireAuth, requireRole } from '../middleware/auth.middleware';
+import { requireActiveSubscription, requireClientCapacity } from '../middleware/subscription.middleware';
 import { AuthenticatedRequest } from '../types/auth.types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
@@ -10,10 +11,11 @@ import { labService } from '../services/lab.service';
 
 const router = Router();
 
-// All client routes require authentication
+// All client routes require authentication + active subscription
 router.use(requireAuth);
+router.use(requireActiveSubscription);
 
-router.post('/', createClient);
+router.post('/', requireClientCapacity, createClient);
 router.get('/', listClients);
 router.get('/:id', getClient);
 router.patch('/:id', updateClient);

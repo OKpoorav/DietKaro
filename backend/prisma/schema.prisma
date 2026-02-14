@@ -89,6 +89,12 @@ enum DeliveryStatus {
   failed
 }
 
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+}
+
 enum InvoiceStatus {
   unpaid
   sent
@@ -110,6 +116,7 @@ enum ReferralSource {
 model Organization {
   id                    String             @id @default(uuid())
   name                  String             @unique
+  slug                  String             @unique @default("")
   description           String?
   logoUrl               String?
   phone                 String?
@@ -231,7 +238,7 @@ model Client {
   referralSource      ReferralSource?
   referralSourceName  String? // Doctor/Dietitian name if applicable
   referralSourcePhone String? // Contact phone for referrer
-  referralCode        String?         @unique
+  referralCode        String?
   referredByClientId  String?
 
   // Relations
@@ -253,14 +260,32 @@ model Client {
   referredClients  Client[] @relation("ClientReferrals")
 
   pushTokens String[] @default([]) // Expo push tokens
+  refreshTokens ClientRefreshToken[]
 
   @@unique([orgId, email])
+  @@unique([orgId, referralCode])
   @@index([orgId])
   @@index([primaryDietitianId])
   @@index([isActive])
   @@index([referralCode])
   @@index([referredByClientId])
   @@index([orgId, isActive, createdAt])
+  @@index([dietPattern])
+}
+
+model ClientRefreshToken {
+  id        String   @id @default(uuid())
+  clientId  String
+  tokenHash String   @unique
+  familyId  String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([familyId])
 }
 
 model MedicalProfile {
@@ -357,6 +382,7 @@ model Meal {
 
   @@index([planId])
   @@index([mealDate])
+  @@index([createdByUserId])
 }
 
 model FoodItem {
@@ -428,6 +454,7 @@ model MealFoodItem {
   @@index([mealId])
   @@index([foodId])
   @@index([mealId, optionGroup])
+  @@index([createdByUserId])
 }
 
 model MealLog {
@@ -644,7 +671,7 @@ model Invitation {
   token     String   @unique
   orgId     String
   expiresAt DateTime
-  status    String   @default("pending") // pending, accepted, expired
+  status    InvitationStatus @default(pending)
   createdAt DateTime @default(now())
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)

@@ -1,7 +1,8 @@
 import { Response, NextFunction } from 'express';
-import { clerkClient, getAuth } from '@clerk/express';
+import { getAuth } from '@clerk/express';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth.types';
+import logger from '../utils/logger';
 
 /**
  * Middleware to require authentication.
@@ -65,7 +66,7 @@ export const requireAuth = async (
 
         next();
     } catch (error) {
-        console.error('Auth middleware error:', error);
+        logger.error('Auth middleware error', { error: error instanceof Error ? error.message : error, path: req.path });
         return res.status(401).json({
             success: false,
             error: {

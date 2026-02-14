@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import { DietPlan, Meal, MealFoodItem, FoodItem, Client } from '@prisma/client';
+import { escapeHtml } from './htmlEscape';
 
 type MealWithFoodItems = Meal & {
     foodItems: (MealFoodItem & { foodItem: FoodItem })[];
@@ -279,13 +280,13 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
                     sortedGroups.forEach(([groupNum, items], groupIdx) => {
                         if (hasAlts) {
                             const label = (items[0] as any).optionLabel || `Option ${String.fromCharCode(65 + groupNum)}`;
-                            foodItemsHtml += `<div class="option-label">${label}</div>`;
+                            foodItemsHtml += `<div class="option-label">${escapeHtml(label)}</div>`;
                         }
                         const listItems = items
                             .map((item) => {
                                 const foodName = item.foodItem?.name || 'Unknown';
                                 const qty = item.quantityG ? `${item.quantityG}g` : '';
-                                return `<li>${foodName} ${qty}</li>`;
+                                return `<li>${escapeHtml(foodName)} ${qty}</li>`;
                             })
                             .join('');
                         foodItemsHtml += `<ul class="food-items">${listItems}</ul>`;
@@ -297,11 +298,11 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
 
                     mealsHtml += `
                     <div class="meal">
-                        <div class="meal-type">${MEAL_TYPE_LABELS[meal.mealType] || meal.mealType}</div>
-                        <div class="meal-name">${meal.name}</div>
-                        ${meal.description ? `<p class="description">${meal.description}</p>` : ''}
+                        <div class="meal-type">${MEAL_TYPE_LABELS[meal.mealType] || escapeHtml(meal.mealType)}</div>
+                        <div class="meal-name">${escapeHtml(meal.name)}</div>
+                        ${meal.description ? `<p class="description">${escapeHtml(meal.description)}</p>` : ''}
                         ${foodItemsHtml}
-                        ${meal.instructions ? `<p class="instructions">📝 ${meal.instructions}</p>` : ''}
+                        ${meal.instructions ? `<p class="instructions">${escapeHtml(meal.instructions)}</p>` : ''}
                     </div>
                 `;
                 });
@@ -319,7 +320,7 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diet Plan - ${plan.name}</title>
+    <title>Diet Plan - ${escapeHtml(plan.name)}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; line-height: 1.5; padding: 40px; max-width: 800px; margin: 0 auto; }
@@ -347,8 +348,8 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
     </style>
 </head>
 <body>
-    <h1>${plan.name}</h1>
-    ${plan.client?.fullName ? `<p class="subtitle">Prepared for: ${plan.client.fullName}</p>` : ''}
+    <h1>${escapeHtml(plan.name)}</h1>
+    ${plan.client?.fullName ? `<p class="subtitle">Prepared for: ${escapeHtml(plan.client.fullName)}</p>` : ''}
     
     ${plan.targetCalories ? `
     <div class="targets">
@@ -361,7 +362,7 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
     
     ${daysHtml}
     
-    ${plan.notesForClient ? `<div class="notes"><h3>Notes & Guidelines</h3><p>${plan.notesForClient}</p></div>` : ''}
+    ${plan.notesForClient ? `<div class="notes"><h3>Notes & Guidelines</h3><p>${escapeHtml(plan.notesForClient)}</p></div>` : ''}
 </body>
 </html>`;
 }

@@ -113,7 +113,7 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                                     max={max}
                                     value={draft[key]}
                                     onChange={e => setDraft(prev => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
-                                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-[#17cf54] focus:border-[#17cf54] outline-none"
+                                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                                 />
                             </div>
                         ))}
@@ -136,7 +136,7 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
-                                            className={`h-2 rounded-full transition-all ${isOver ? 'bg-red-500' : 'bg-[#17cf54]'}`}
+                                            className={`h-2 rounded-full transition-all ${isOver ? 'bg-red-500' : 'bg-brand'}`}
                                             style={{ width: `${barWidth}%` }}
                                         />
                                     </div>

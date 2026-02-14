@@ -16,11 +16,11 @@ export const errorHandler: ErrorRequestHandler = (
 ) => {
     // Log the error
     logger.error('Error caught by global handler', {
+        requestId: req.requestId,
         error: err.message,
         stack: err.stack,
         path: req.path,
         method: req.method,
-        body: req.body
     });
 
     // Handle Zod validation errors

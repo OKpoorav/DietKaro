@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../types/auth.types';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { dietPlanService } from '../services/dietPlan.service';
+import type { DietPlanListQuery } from '../schemas/dietPlan.schema';
 
 export const createDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
@@ -18,7 +19,7 @@ export const getDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: R
 
 export const listDietPlans = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const { plans, meta } = await dietPlanService.listPlans(req.user.organizationId, req.query);
+    const { plans, meta } = await dietPlanService.listPlans(req.user.organizationId, req.query as unknown as DietPlanListQuery);
     res.status(200).json({ success: true, data: plans, meta });
 });
 

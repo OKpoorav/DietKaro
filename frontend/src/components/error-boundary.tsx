@@ -5,6 +5,7 @@ import { Component, ReactNode } from 'react';
 interface Props {
     children: ReactNode;
     fallback?: ReactNode;
+    resetKey?: string | number;
 }
 
 interface State {
@@ -26,6 +27,12 @@ export class ErrorBoundary extends Component<Props, State> {
         console.error('ErrorBoundary caught:', error, errorInfo);
     }
 
+    componentDidUpdate(prevProps: Props) {
+        if (this.props.resetKey !== prevProps.resetKey && this.state.hasError) {
+            this.setState({ hasError: false, error: null });
+        }
+    }
+
     render() {
         if (this.state.hasError) {
             if (this.props.fallback) {
@@ -45,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     </p>
                     <button
                         onClick={() => this.setState({ hasError: false, error: null })}
-                        className="px-4 py-2 bg-[#17cf54] text-white rounded-lg font-medium hover:bg-[#17cf54]/90 transition-colors"
+                        className="px-4 py-2 bg-brand text-white rounded-lg font-medium hover:bg-brand/90 transition-colors"
                     >
                         Try Again
                     </button>

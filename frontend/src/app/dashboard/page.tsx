@@ -53,7 +53,7 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-3">
                     <Link
                         href="/dashboard/clients"
-                        className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-[#0e1b12] rounded-lg text-sm font-bold transition-colors"
+                        className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-[#0e1b12] rounded-lg text-sm font-bold transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         Add New Client
@@ -71,7 +71,7 @@ export default function DashboardPage() {
             {/* Loading State */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                    <Loader2 className="w-8 h-8 animate-spin text-brand" />
                 </div>
             )}
 
@@ -90,12 +90,12 @@ export default function DashboardPage() {
                         className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-6"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-[#17cf54]/10">
-                                <stat.icon className="w-5 h-5 text-[#17cf54]" />
+                            <div className="p-2 rounded-lg bg-brand/10">
+                                <stat.icon className="w-5 h-5 text-brand" />
                             </div>
                             <p className="text-sm font-medium text-gray-600">{stat.label}</p>
                         </div>
-                        <p className={`text-3xl font-bold ${stat.highlight ? 'text-[#17cf54]' : 'text-gray-900'}`}>
+                        <p className={`text-3xl font-bold ${stat.highlight ? 'text-brand' : 'text-gray-900'}`}>
                             {stat.value}
                         </p>
                     </div>
@@ -111,9 +111,9 @@ export default function DashboardPage() {
                         {weeklyAdherence.map((day, i) => (
                             <div key={i} className="flex h-full flex-1 flex-col-reverse items-center gap-2">
                                 <p className="text-xs text-gray-500">{day.day}</p>
-                                <div className="w-full rounded bg-[#17cf54]/20" style={{ height: `${Math.max(day.value, 5)}%` }}>
+                                <div className="w-full rounded bg-brand/20" style={{ height: `${Math.max(day.value, 5)}%` }}>
                                     <div
-                                        className="h-full w-full rounded bg-[#17cf54] transition-all duration-300 hover:opacity-80"
+                                        className="h-full w-full rounded bg-brand transition-all duration-300 hover:opacity-80"
                                     />
                                 </div>
                             </div>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
                 <div className="rounded-xl border border-gray-200 bg-white">
                     <div className="flex items-center justify-between p-4 border-b border-gray-100">
                         <h3 className="font-semibold text-gray-900">Pending Reviews</h3>
-                        <Link href="/dashboard/reviews" className="text-sm text-[#17cf54] hover:underline font-medium">
+                        <Link href="/dashboard/reviews" className="text-sm text-brand hover:underline font-medium">
                             View all
                         </Link>
                     </div>
@@ -162,7 +162,7 @@ export default function DashboardPage() {
             <div className="rounded-xl border border-gray-200 bg-white">
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
                     <h3 className="font-semibold text-gray-900">Recent Clients</h3>
-                    <Link href="/dashboard/clients" className="text-sm text-[#17cf54] hover:underline font-medium">
+                    <Link href="/dashboard/clients" className="text-sm text-brand hover:underline font-medium">
                         View all
                     </Link>
                 </div>
@@ -179,7 +179,7 @@ export default function DashboardPage() {
                                 className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold">
+                                    <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
                                         {client.avatar}
                                     </div>
                                     <div className="flex items-center gap-2">

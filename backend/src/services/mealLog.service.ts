@@ -1,22 +1,23 @@
 import prisma from '../utils/prisma';
+import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
 import { scaleNutrition, sumNutrition } from '../utils/nutritionCalculator';
 import { complianceService } from './compliance.service';
-import { CreateMealLogInput, UpdateMealLogInput, ReviewMealLogInput } from '../schemas/mealLog.schema';
+import type { CreateMealLogInput, UpdateMealLogInput, ReviewMealLogInput, MealLogListQuery } from '../schemas/mealLog.schema';
 
 export class MealLogService {
     async createMealLog(data: CreateMealLogInput, orgId: string) {
         const client = await prisma.client.findFirst({ where: { id: data.clientId, orgId } });
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
 
-        const meal = await prisma.meal.findUnique({
+        const meal = await prisma.meal.findFirst({
             where: { id: data.mealId },
             include: { dietPlan: true },
         });
 
-        if (!meal || meal.dietPlan.orgId !== orgId) {
+        if (!meal || meal.dietPlan.orgId !== orgId || !meal.dietPlan.isActive) {
             throw AppError.notFound('Meal not found', 'MEAL_NOT_FOUND');
         }
 
@@ -39,13 +40,13 @@ export class MealLogService {
         return mealLog;
     }
 
-    async listMealLogs(orgId: string, query: any, userRole: string, userId: string) {
+    async listMealLogs(orgId: string, query: MealLogListQuery, userRole: string, userId: string) {
         const { clientId, status, reviewStatus, sortBy = 'scheduledDate' } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
         const dateFilter = buildDateFilter(query.dateFrom, query.dateTo);
 
-        const where: any = { orgId };
-        if (clientId) where.clientId = String(clientId);
+        const where: Prisma.MealLogWhereInput = { orgId };
+        if (clientId) where.clientId = clientId;
 
         // reviewStatus takes precedence: filters by dietitian review state
         if (reviewStatus === 'pending') {
@@ -55,7 +56,7 @@ export class MealLogService {
         } else if (reviewStatus === 'reviewed') {
             where.reviewedByUserId = { not: null };
         } else if (status) {
-            where.status = String(status);
+            where.status = status;
         }
 
         if (dateFilter) where.scheduledDate = dateFilter;
@@ -196,7 +197,7 @@ export class MealLogService {
 
         if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
 
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         if (data.status) updateData.status = data.status;
         if (data.clientNotes !== undefined) updateData.clientNotes = data.clientNotes;
         if (data.substituteDescription !== undefined) updateData.substituteDescription = data.substituteDescription;
@@ -210,22 +211,26 @@ export class MealLogService {
 
         const updated = await prisma.mealLog.update({ where: { id: mealLogId }, data: updateData });
 
-        // Recalculate compliance when status changes from pending
+        // Use the returned ComplianceResult directly — no re-fetch needed
+        let complianceScore: number | null = updated.complianceScore;
+        let complianceColor: string | null = updated.complianceColor;
+
         if (data.status && data.status !== 'pending' && data.status !== mealLog.status) {
-            await complianceService.calculateMealCompliance(updated.id);
+            const result = await complianceService.calculateMealCompliance(updated.id);
+            complianceScore = result.score;
+            complianceColor = result.color;
         }
 
-        const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
         logger.info('Meal log updated', { mealLogId: updated.id });
 
         return {
-            id: finalLog!.id,
-            status: finalLog!.status,
-            photoUrl: finalLog!.mealPhotoUrl,
-            clientNotes: finalLog!.clientNotes,
-            loggedAt: finalLog!.loggedAt,
-            complianceScore: finalLog!.complianceScore,
-            complianceColor: finalLog!.complianceColor,
+            id: updated.id,
+            status: updated.status,
+            photoUrl: updated.mealPhotoUrl,
+            clientNotes: updated.clientNotes,
+            loggedAt: updated.loggedAt,
+            complianceScore,
+            complianceColor,
         };
     }
 
@@ -233,7 +238,7 @@ export class MealLogService {
         const mealLog = await prisma.mealLog.findFirst({ where: { id: mealLogId, orgId } });
         if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
 
-        const updateData: any = { reviewedByUserId: userId, dietitianFeedbackAt: new Date() };
+        const updateData: Record<string, unknown> = { reviewedByUserId: userId, dietitianFeedbackAt: new Date() };
         if (data.dietitianFeedback !== undefined) updateData.dietitianFeedback = data.dietitianFeedback;
         if (data.status) updateData.status = data.status;
         if (data.overrideCalories !== undefined) updateData.substituteCaloriesEst = data.overrideCalories;
@@ -244,20 +249,19 @@ export class MealLogService {
             include: { reviewer: { select: { id: true, fullName: true } } },
         });
 
-        // Recalculate compliance after dietitian review (adds dietitian_approved factor)
-        await complianceService.calculateMealCompliance(updated.id);
+        // Use returned result directly instead of re-fetching
+        const result = await complianceService.calculateMealCompliance(updated.id);
 
         logger.info('Meal log reviewed', { mealLogId: updated.id, reviewerId: userId });
 
-        const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
         return {
             id: updated.id,
             status: updated.status,
             dietitianFeedback: updated.dietitianFeedback,
             reviewedByUser: updated.reviewer,
             dietitianReviewedAt: updated.dietitianFeedbackAt,
-            complianceScore: finalLog?.complianceScore,
-            complianceColor: finalLog?.complianceColor,
+            complianceScore: result.score,
+            complianceColor: result.color,
         };
     }
 
@@ -279,20 +283,19 @@ export class MealLogService {
             },
         });
 
-        // Recalculate compliance after photo upload (adds photo factor)
-        await complianceService.calculateMealCompliance(updated.id);
+        // Use returned result directly instead of re-fetching
+        const result = await complianceService.calculateMealCompliance(updated.id);
 
         logger.info('Meal photo uploaded', { mealLogId, fullUrl, thumbUrl, originalSize: fileSize });
 
-        const finalLog = await prisma.mealLog.findUnique({ where: { id: updated.id } });
         return {
             id: updated.id,
             mealPhotoUrl: updated.mealPhotoUrl,
             mealPhotoSmallUrl: updated.mealPhotoSmallUrl,
             photoUploadedAt: updated.photoUploadedAt,
             status: updated.status,
-            complianceScore: finalLog?.complianceScore,
-            complianceColor: finalLog?.complianceColor,
+            complianceScore: result.score,
+            complianceColor: result.color,
         };
     }
 }

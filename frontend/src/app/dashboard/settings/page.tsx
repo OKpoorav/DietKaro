@@ -73,7 +73,7 @@ export default function SettingsPage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                <Loader2 className="w-8 h-8 animate-spin text-brand" />
             </div>
         );
     }
@@ -95,7 +95,7 @@ export default function SettingsPage() {
                                 key={section.id}
                                 onClick={() => setActiveSection(section.id)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${activeSection === section.id
-                                    ? 'bg-[#17cf54]/10 text-[#17cf54] border-r-2 border-[#17cf54]'
+                                    ? 'bg-brand/10 text-brand border-r-2 border-brand'
                                     : 'text-gray-600 hover:bg-gray-50'
                                     }`}
                             >
@@ -123,7 +123,7 @@ export default function SettingsPage() {
 
                                 {/* Avatar */}
                                 <div className="flex items-center gap-4">
-                                    <div className="w-20 h-20 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] text-2xl font-bold overflow-hidden">
+                                    <div className="w-20 h-20 rounded-full bg-brand/20 flex items-center justify-center text-brand text-2xl font-bold overflow-hidden">
                                         {profile.profilePhotoUrl ? (
                                             <img src={profile.profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
@@ -146,7 +146,7 @@ export default function SettingsPage() {
                                             type="text"
                                             value={formData.fullName}
                                             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                         />
                                     </div>
                                     <div>
@@ -164,7 +164,7 @@ export default function SettingsPage() {
                                             type="tel"
                                             value={formData.phone}
                                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                             placeholder="+1 234 567 8900"
                                         />
                                     </div>
@@ -174,7 +174,7 @@ export default function SettingsPage() {
                                             type="text"
                                             value={formData.specialization}
                                             onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                             placeholder="e.g. Sports Nutrition, Weight Loss"
                                         />
                                     </div>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
                                             value={formData.bio}
                                             onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                                             placeholder="Tell use about yourself..."
-                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-[#17cf54] focus:border-[#17cf54] text-gray-900"
+                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                         />
                                     </div>
 
@@ -193,7 +193,7 @@ export default function SettingsPage() {
                                         <button
                                             type="submit"
                                             disabled={updateProfile.isPending}
-                                            className="px-4 py-2.5 text-sm font-bold text-white bg-[#17cf54] rounded-lg hover:bg-[#17cf54]/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                            className="px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50 flex items-center gap-2"
                                         >
                                             {updateProfile.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                                             Save Changes
@@ -222,7 +222,7 @@ export default function SettingsPage() {
                                             </div>
                                             <button
                                                 onClick={() => setNotifications({ ...notifications, [item.key]: !notifications[item.key as keyof typeof notifications] })}
-                                                className={`w-12 h-6 rounded-full transition-colors ${notifications[item.key as keyof typeof notifications] ? 'bg-[#17cf54]' : 'bg-gray-300'
+                                                className={`w-12 h-6 rounded-full transition-colors ${notifications[item.key as keyof typeof notifications] ? 'bg-brand' : 'bg-gray-300'
                                                     }`}
                                             >
                                                 <div
@@ -247,14 +247,14 @@ export default function SettingsPage() {
                                         {['Light', 'Dark', 'System'].map((theme) => (
                                             <button
                                                 key={theme}
-                                                className={`p-4 rounded-lg border-2 transition-colors ${theme === 'Light' ? 'border-[#17cf54] bg-[#17cf54]/5' : 'border-gray-200 hover:border-gray-300'
+                                                className={`p-4 rounded-lg border-2 transition-colors ${theme === 'Light' ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-gray-300'
                                                     }`}
                                             >
                                                 <div className={`w-8 h-8 rounded-full mx-auto mb-2 ${theme === 'Light' ? 'bg-white border border-gray-200' :
                                                     theme === 'Dark' ? 'bg-gray-800' : 'bg-gradient-to-r from-white to-gray-800'
                                                     }`} />
                                                 <p className="text-sm font-medium text-gray-900">{theme}</p>
-                                                {theme === 'Light' && <Check className="w-4 h-4 text-[#17cf54] mx-auto mt-1" />}
+                                                {theme === 'Light' && <Check className="w-4 h-4 text-brand mx-auto mt-1" />}
                                             </button>
                                         ))}
                                     </div>

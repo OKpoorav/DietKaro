@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth.types';
+import logger from '../utils/logger';
 
 /**
  * TEST-ONLY middleware that bypasses Clerk auth for development testing.
@@ -53,7 +54,7 @@ export const testAuthBypass = async (
 
         next();
     } catch (error) {
-        console.error('Test auth error:', error);
+        logger.error('Test auth error', { error: error instanceof Error ? error.message : error });
         return res.status(500).json({
             success: false,
             error: { code: 'INTERNAL_ERROR', message: 'Test auth failed' }

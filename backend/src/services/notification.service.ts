@@ -1,8 +1,8 @@
 import prisma from '../utils/prisma';
 import logger from '../utils/logger';
-// import { Expo } from 'expo-server-sdk'; // TODO: Install expo-server-sdk
+import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 
-// const expo = new Expo();
+const expo = new Expo();
 
 export class NotificationService {
 
@@ -35,7 +35,7 @@ export class NotificationService {
 
     /**
      * sendNotification
-     * Sends a push notification and saves to DB
+     * Sends a push notification via Expo and saves to DB
      */
     async sendNotification(
         recipientId: string,
@@ -43,7 +43,7 @@ export class NotificationService {
         orgId: string,
         title: string,
         message: string,
-        data: any = {},
+        data: Record<string, unknown> = {},
         category?: string
     ) {
         // 1. Save to DB
@@ -56,13 +56,13 @@ export class NotificationService {
                 category,
                 title,
                 message,
-                relatedEntityType: data.entityType,
-                relatedEntityId: data.entityId,
+                relatedEntityType: data.entityType as string | undefined,
+                relatedEntityId: data.entityId as string | undefined,
                 deliveryStatus: 'pending'
             }
         });
 
-        // 2. Get tokens
+        // 2. Get push tokens
         let tokens: string[] = [];
         if (recipientType === 'client') {
             const client = await prisma.client.findUnique({ where: { id: recipientId } });
@@ -73,30 +73,87 @@ export class NotificationService {
         }
 
         if (tokens.length === 0) {
-            logger.warn('No tokens found for recipient', { recipientId });
+            logger.warn('No push tokens for recipient', { recipientId });
             return notification;
         }
 
-        // 3. Send via Expo (Placeholder)
-        // const messages = tokens.map(token => ({
-        //     to: token,
-        //     sound: 'default',
-        //     title,
-        //     body: message,
-        //     data: { ...data, notificationId: notification.id },
-        // }));
+        // 3. Filter valid Expo push tokens
+        const validTokens = tokens.filter(t => Expo.isExpoPushToken(t));
+        if (validTokens.length === 0) {
+            logger.warn('No valid Expo push tokens', { recipientId, tokenCount: tokens.length });
+            return notification;
+        }
 
-        // await expo.sendPushNotificationsAsync(messages);
+        // 4. Build messages
+        const messages: ExpoPushMessage[] = validTokens.map(token => ({
+            to: token,
+            sound: 'default' as const,
+            title,
+            body: message,
+            data: { ...data, notificationId: notification.id },
+            categoryId: category,
+        }));
 
-        logger.info('Notification sent (simulated)', { recipientId, title });
+        // 5. Send in chunks (Expo recommends max 100 per request)
+        const chunks = expo.chunkPushNotifications(messages);
+        const tickets: ExpoPushTicket[] = [];
 
-        // Update status
+        for (const chunk of chunks) {
+            try {
+                const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+                tickets.push(...ticketChunk);
+            } catch (err) {
+                logger.error('Push notification send failed', { error: err, recipientId });
+            }
+        }
+
+        // 6. Update delivery status
+        const allDelivered = tickets.length > 0 && tickets.every(t => t.status === 'ok');
         await prisma.notification.update({
             where: { id: notification.id },
-            data: { deliveryStatus: 'delivered', sentViaChannels: ['push_simulated'] }
+            data: {
+                deliveryStatus: allDelivered ? 'delivered' : 'failed',
+                sentViaChannels: ['push'],
+            },
+        });
+
+        // 7. Handle invalid tokens (remove from profile)
+        for (let i = 0; i < tickets.length; i++) {
+            const ticket = tickets[i];
+            if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+                await this.removeInvalidToken(recipientId, recipientType, validTokens[i]);
+            }
+        }
+
+        logger.info('Push notification sent', {
+            recipientId,
+            title,
+            ticketCount: tickets.length,
+            delivered: allDelivered,
         });
 
         return notification;
+    }
+
+    private async removeInvalidToken(entityId: string, entityType: 'client' | 'user', token: string) {
+        if (entityType === 'client') {
+            const entity = await prisma.client.findUnique({ where: { id: entityId } });
+            if (!entity) return;
+            const updatedTokens = entity.pushTokens.filter((t: string) => t !== token);
+            await prisma.client.update({
+                where: { id: entityId },
+                data: { pushTokens: updatedTokens },
+            });
+        } else {
+            const entity = await prisma.user.findUnique({ where: { id: entityId } });
+            if (!entity) return;
+            const updatedTokens = entity.pushTokens.filter((t: string) => t !== token);
+            await prisma.user.update({
+                where: { id: entityId },
+                data: { pushTokens: updatedTokens },
+            });
+        }
+        logger.info('Removed invalid push token', { entityId, token });
     }
 }
 

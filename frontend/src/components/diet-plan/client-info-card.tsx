@@ -47,7 +47,7 @@ export function ClientInfoCard({ client, isTemplateMode }: ClientInfoCardProps) 
             {/* Client Card */}
             <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold">
+                    <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
                         {initials}
                     </div>
                     <div>

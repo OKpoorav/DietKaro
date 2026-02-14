@@ -54,7 +54,7 @@ const STATUS_STYLES: Record<string, { bg: string; icon: typeof CheckCircle }> = 
 };
 
 const COMPLIANCE_BAR_COLOR: Record<string, string> = {
-    GREEN: 'bg-[#17cf54]',
+    GREEN: 'bg-brand',
     YELLOW: 'bg-yellow-400',
     RED: 'bg-red-400',
 };
@@ -117,7 +117,7 @@ export default function ClientProfilePage() {
     if (clientLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                <Loader2 className="w-8 h-8 animate-spin text-brand" />
             </div>
         );
     }
@@ -126,7 +126,7 @@ export default function ClientProfilePage() {
         return (
             <div className="text-center py-12">
                 <p className="text-red-600">Failed to load client.</p>
-                <Link href="/dashboard/clients" className="text-[#17cf54] hover:underline mt-2 inline-block">
+                <Link href="/dashboard/clients" className="text-brand hover:underline mt-2 inline-block">
                     Back to Clients
                 </Link>
             </div>
@@ -158,7 +158,7 @@ export default function ClientProfilePage() {
                             <Flag className="w-4 h-4" />
                             Create Diet Plan
                         </Link>
-                        <button className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors">
+                        <button className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors">
                             <Send className="w-4 h-4" />
                             Send Message
                         </button>
@@ -167,7 +167,7 @@ export default function ClientProfilePage() {
 
                 {/* Profile Header */}
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] text-3xl md:text-4xl font-bold">
+                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-brand/20 flex items-center justify-center text-brand text-3xl md:text-4xl font-bold">
                         {getInitials(client.fullName)}
                     </div>
                     <div className="flex flex-col justify-center">
@@ -199,7 +199,7 @@ export default function ClientProfilePage() {
                     {weightChange !== null && weightChange !== undefined && (
                         <div className="flex gap-1 items-center">
                             <span className="text-sm text-[#4e9767]">Last 30 Days</span>
-                            <span className={`text-sm font-medium flex items-center gap-1 ${weightChange < 0 ? 'text-[#17cf54]' : 'text-orange-500'}`}>
+                            <span className={`text-sm font-medium flex items-center gap-1 ${weightChange < 0 ? 'text-brand' : 'text-orange-500'}`}>
                                 {weightChange < 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
                                 {weightChange > 0 ? '+' : ''}{weightChange} kg
                             </span>
@@ -215,7 +215,7 @@ export default function ClientProfilePage() {
                                 </div>
                                 <div className="h-3 rounded-full bg-gray-100">
                                     <div
-                                        className="h-3 rounded-full bg-[#17cf54] transition-all"
+                                        className="h-3 rounded-full bg-brand transition-all"
                                         style={{ width: `${progress.weight.progressToGoal ?? 0}%` }}
                                     />
                                 </div>
@@ -239,24 +239,24 @@ export default function ClientProfilePage() {
                         <p className="text-gray-900 font-medium">Adherence Score</p>
                         <div className="flex items-center gap-2">
                             {weeklyAdherence?.trend && weeklyAdherence.trend !== 'stable' && (
-                                <span className={`text-xs font-medium flex items-center gap-1 ${weeklyAdherence.trend === 'improving' ? 'text-[#17cf54]' : 'text-orange-500'}`}>
+                                <span className={`text-xs font-medium flex items-center gap-1 ${weeklyAdherence.trend === 'improving' ? 'text-brand' : 'text-orange-500'}`}>
                                     {weeklyAdherence.trend === 'improving' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                     {weeklyAdherence.trend === 'improving' ? 'Improving' : 'Declining'}
                                 </span>
                             )}
                             <p className={`text-2xl font-bold ${
-                                weeklyAdherence?.color === 'GREEN' ? 'text-[#17cf54]' :
+                                weeklyAdherence?.color === 'GREEN' ? 'text-brand' :
                                 weeklyAdherence?.color === 'YELLOW' ? 'text-yellow-500' :
                                 weeklyAdherence?.color === 'RED' ? 'text-red-500' :
-                                'text-[#17cf54]'
+                                'text-brand'
                             }`}>
                                 {weeklyAdherence ? `${weeklyAdherence.averageScore}%` : (progressLoading ? '...' : `${adherencePercent}%`)}
                             </p>
                         </div>
                     </div>
-                    <div className="h-2 rounded-full bg-[#17cf54]/20">
+                    <div className="h-2 rounded-full bg-brand/20">
                         <div
-                            className="h-2 rounded-full bg-[#17cf54] transition-all"
+                            className="h-2 rounded-full bg-brand transition-all"
                             style={{ width: `${weeklyAdherence?.averageScore ?? adherencePercent}%` }}
                         />
                     </div>
@@ -315,7 +315,7 @@ export default function ClientProfilePage() {
                                 onClick={() => setActiveTab(tab.key)}
                                 className={`whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
                                     activeTab === tab.key
-                                        ? 'border-[#17cf54] text-[#17cf54] font-semibold'
+                                        ? 'border-brand text-brand font-semibold'
                                         : 'border-transparent text-[#4e9767] hover:border-gray-300 hover:text-gray-900'
                                 }`}
                             >
@@ -332,7 +332,7 @@ export default function ClientProfilePage() {
                             {/* Current Diet Plan */}
                             <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#17cf54]/10 flex items-center justify-center text-[#17cf54]">
+                                    <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand">
                                         <Flag className="w-5 h-5" />
                                     </div>
                                     <h3 className="font-semibold text-gray-900">Current Diet Plan</h3>
@@ -340,7 +340,7 @@ export default function ClientProfilePage() {
                                 {activePlan ? (
                                     <>
                                         <p className="text-[#4e9767]">Active since {new Date(activePlan.startDate).toLocaleDateString()}</p>
-                                        <p className="text-lg font-medium text-gray-900">{activePlan.name || activePlan.title}</p>
+                                        <p className="text-lg font-medium text-gray-900">{activePlan.name}</p>
                                         <p className="text-sm text-[#4e9767]">{activePlan.description || 'No description'}</p>
                                     </>
                                 ) : (
@@ -352,7 +352,7 @@ export default function ClientProfilePage() {
                             <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-[#17cf54]/10 flex items-center justify-center text-[#17cf54]">
+                                        <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand">
                                             <Utensils className="w-5 h-5" />
                                         </div>
                                         <h3 className="font-semibold text-gray-900">Nutrition Targets</h3>
@@ -382,7 +382,7 @@ export default function ClientProfilePage() {
                                                     max={max}
                                                     value={targetDraft[key] || ''}
                                                     onChange={e => setTargetDraft(prev => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
-                                                    className="w-full font-bold text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-[#17cf54] focus:border-[#17cf54] outline-none"
+                                                    className="w-full font-bold text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                                                 />
                                                 <p className="text-gray-500 mt-1">{label}</p>
                                             </div>
@@ -426,7 +426,7 @@ export default function ClientProfilePage() {
                                 <p className="text-gray-500 mb-6">Create a diet plan to get started with meal scheduling.</p>
                                 <Link
                                     href={`/dashboard/diet-plans/new?clientId=${clientId}`}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#17cf54] text-white rounded-lg text-sm font-bold hover:bg-[#17cf54]/90 transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand/90 transition-colors"
                                 >
                                     <Flag className="w-4 h-4" />
                                     Create Diet Plan
@@ -439,7 +439,7 @@ export default function ClientProfilePage() {
                                     <div className="flex items-center justify-between mb-4">
                                         <div>
                                             <h3 className="text-lg font-semibold text-gray-900">
-                                                {fullPlan?.name || activePlan.name || activePlan.title || 'Diet Plan'}
+                                                {fullPlan?.name || activePlan.name || 'Diet Plan'}
                                             </h3>
                                             <p className="text-sm text-[#4e9767]">
                                                 Active since {new Date(activePlan.startDate).toLocaleDateString()}
@@ -452,7 +452,7 @@ export default function ClientProfilePage() {
                                         </div>
                                         <Link
                                             href={`/dashboard/diet-plans/${activePlan.id}`}
-                                            className="text-sm text-[#17cf54] hover:underline font-medium"
+                                            className="text-sm text-brand hover:underline font-medium"
                                         >
                                             View Full Plan
                                         </Link>
@@ -497,10 +497,10 @@ export default function ClientProfilePage() {
                                                                 <div key={meal.id} className="p-4 bg-gray-50 rounded-lg">
                                                                     <div className="flex items-center justify-between mb-1">
                                                                         <p className="font-medium text-gray-900">{meal.name}</p>
-                                                                        {meal.scheduledTime && (
+                                                                        {meal.timeOfDay && (
                                                                             <span className="text-xs text-gray-500 flex items-center gap-1">
                                                                                 <Clock className="w-3 h-3" />
-                                                                                {meal.scheduledTime}
+                                                                                {meal.timeOfDay}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -539,7 +539,7 @@ export default function ClientProfilePage() {
                         <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
                             {mealLogsLoading ? (
                                 <div className="flex items-center justify-center py-12">
-                                    <Loader2 className="w-6 h-6 animate-spin text-[#17cf54]" />
+                                    <Loader2 className="w-6 h-6 animate-spin text-brand" />
                                 </div>
                             ) : !mealLogsData?.data?.length ? (
                                 <div className="text-center py-12">
@@ -585,7 +585,7 @@ export default function ClientProfilePage() {
                                                     </td>
                                                     <td className="px-6 py-3">
                                                         {log.mealPhotoUrl ? (
-                                                            <Camera className="w-4 h-4 text-[#17cf54]" />
+                                                            <Camera className="w-4 h-4 text-brand" />
                                                         ) : (
                                                             <span className="text-gray-300">-</span>
                                                         )}
@@ -609,7 +609,7 @@ export default function ClientProfilePage() {
                         {/* Weight Progress Card */}
                         <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
                             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                <Target className="w-5 h-5 text-[#17cf54]" />
+                                <Target className="w-5 h-5 text-brand" />
                                 Weight Progress
                             </h3>
                             {progress?.weight ? (
@@ -635,7 +635,7 @@ export default function ClientProfilePage() {
                                         </div>
                                         <div className="bg-gray-50 p-3 rounded text-center">
                                             <p className={`text-2xl font-bold ${
-                                                (progress.weight.totalChange ?? 0) < 0 ? 'text-[#17cf54]' : 'text-orange-500'
+                                                (progress.weight.totalChange ?? 0) < 0 ? 'text-brand' : 'text-orange-500'
                                             }`}>
                                                 {progress.weight.totalChange != null
                                                     ? `${progress.weight.totalChange > 0 ? '+' : ''}${progress.weight.totalChange}`
@@ -654,7 +654,7 @@ export default function ClientProfilePage() {
                                             </div>
                                             <div className="h-3 rounded-full bg-gray-100">
                                                 <div
-                                                    className="h-3 rounded-full bg-[#17cf54] transition-all"
+                                                    className="h-3 rounded-full bg-brand transition-all"
                                                     style={{ width: `${progress.weight.progressToGoal}%` }}
                                                 />
                                             </div>
@@ -689,7 +689,7 @@ export default function ClientProfilePage() {
                                             <p className="text-gray-500">Avg Score</p>
                                         </div>
                                         <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="text-xl font-bold text-[#17cf54]">
+                                            <p className="text-xl font-bold text-brand">
                                                 {complianceHistory.bestDay
                                                     ? `${complianceHistory.bestDay.score}%`
                                                     : '-'}

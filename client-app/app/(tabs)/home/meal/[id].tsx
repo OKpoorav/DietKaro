@@ -20,7 +20,7 @@ import { normalizeError } from '../../../../utils/errorHandler';
 import { LoadingScreen } from '../../../../components/LoadingScreen';
 import { MealOption } from '../../../../types';
 
-const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Substituted'] as const;
+const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'] as const;
 
 export default function MealDetailScreen() {
     const { id, status: paramStatus, mealName, mealType, scheduledTime, feedback } = useLocalSearchParams<{
@@ -104,14 +104,23 @@ export default function MealDetailScreen() {
 
         setIsSubmitting(true);
         try {
-            await logMutation.mutateAsync({
+            const result = await logMutation.mutateAsync({
                 mealLogId: id,
                 status: 'eaten',
                 notes: notes || undefined,
                 photoUri: photoUri || undefined,
                 chosenOptionGroup: hasAlternatives ? selectedOption : undefined,
             });
-            showToast({ title: 'Success', message: 'Meal logged successfully!', variant: 'success' });
+
+            if (result.photoUploadFailed) {
+                showToast({
+                    title: 'Meal Saved, Photo Failed',
+                    message: 'Your meal was logged but the photo could not be uploaded. You can retry from the meal details.',
+                    variant: 'warning',
+                });
+            } else {
+                showToast({ title: 'Success', message: 'Meal logged successfully!', variant: 'success' });
+            }
             router.back();
         } catch (error) {
             console.error('Log meal error:', error);

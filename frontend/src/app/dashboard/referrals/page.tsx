@@ -12,6 +12,7 @@ import {
     RefreshCw,
     CheckCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ReferralStats {
     overview: {
@@ -85,7 +86,7 @@ export default function ReferralsPage() {
             setStats(statsRes.data.data);
             setClients(clientsRes.data.data);
         } catch (error) {
-            console.error('Failed to fetch referral data:', error);
+            toast.error('Failed to fetch referral data');
         } finally {
             setLoading(false);
         }
@@ -97,7 +98,7 @@ export default function ReferralsPage() {
             await api.post(`/referrals/clients/${clientId}/redeem`);
             fetchData();
         } catch (error) {
-            console.error('Failed to redeem:', error);
+            toast.error('Failed to redeem');
         } finally {
             setRedeeming(null);
         }

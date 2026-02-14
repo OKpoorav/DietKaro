@@ -19,8 +19,33 @@ import {
     ProgressSummary,
 } from '../types';
 
-// Use the local IP for development - change this for production
-const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'http://localhost:3000/api/v1';
+function getApiBaseUrl(): string {
+    const configuredUrl = Constants.expoConfig?.extra?.apiUrl;
+
+    if (configuredUrl) {
+        return configuredUrl;
+    }
+
+    // In development, allow fallback to localhost for simulator convenience
+    if (__DEV__) {
+        console.warn(
+            '[API] No apiUrl configured in app.json extra field. ' +
+            'Falling back to http://localhost:3000/api/v1. ' +
+            'This will NOT work on physical devices. ' +
+            'Set expo.extra.apiUrl in app.json or app.config.ts.'
+        );
+        return 'http://localhost:3000/api/v1';
+    }
+
+    // In production, refuse to start with a broken URL
+    throw new Error(
+        'FATAL: API URL is not configured. ' +
+        'Set expo.extra.apiUrl in app.json or use an app.config.ts with EAS environment variables. ' +
+        'The app cannot function without a valid API endpoint.'
+    );
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,

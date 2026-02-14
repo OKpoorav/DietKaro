@@ -44,7 +44,7 @@ export default function DietPlansPage() {
     const plans = plansData?.data || [];
 
     const filteredPlans = plans.filter(p => {
-        const planName = (p.name || p.title || '').toLowerCase();
+        const planName = (p.name || '').toLowerCase();
         const clientName = (p.client?.fullName || '').toLowerCase();
         const searchLower = search.toLowerCase();
         return planName.includes(searchLower) || clientName.includes(searchLower);
@@ -68,7 +68,6 @@ export default function DietPlansPage() {
             setOpenMenuId(null);
             toast.success('Diet plan published successfully');
         } catch (err) {
-            console.error('Failed to publish:', err);
             toast.error('Failed to publish diet plan');
         }
     };
@@ -91,7 +90,6 @@ export default function DietPlansPage() {
             // Navigate to the newly created plan
             router.push(`/dashboard/diet-plans/${newPlan.id}`);
         } catch (error) {
-            console.error(error);
             toast.error('Failed to assign template');
         }
     };
@@ -104,7 +102,7 @@ export default function DietPlansPage() {
                     {isTemplateView ? (
                         <Link
                             href="/dashboard/diet-plans/new?template=true"
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#17cf54] text-white font-medium rounded-lg hover:bg-[#17cf54]/90 transition-colors"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand/90 transition-colors"
                         >
                             <LayoutTemplate className="w-5 h-5" />
                             Create Template
@@ -112,7 +110,7 @@ export default function DietPlansPage() {
                     ) : (
                         <Link
                             href="/dashboard/diet-plans/new"
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#17cf54] text-white font-medium rounded-lg hover:bg-[#17cf54]/90 transition-colors"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand/90 transition-colors"
                         >
                             <Plus className="w-5 h-5" />
                             Create New Plan
@@ -127,7 +125,7 @@ export default function DietPlansPage() {
                     <button
                         onClick={() => setActiveTab('plans')}
                         className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'plans'
-                            ? 'border-[#17cf54] text-[#17cf54]'
+                            ? 'border-brand text-brand'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
@@ -136,7 +134,7 @@ export default function DietPlansPage() {
                     <button
                         onClick={() => setActiveTab('templates')}
                         className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${activeTab === 'templates'
-                            ? 'border-[#17cf54] text-[#17cf54]'
+                            ? 'border-brand text-brand'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                     >
@@ -155,7 +153,7 @@ export default function DietPlansPage() {
                         placeholder={isTemplateView ? "Search templates..." : "Search plans or clients..."}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54]"
+                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand"
                     />
                 </div>
             </div>
@@ -163,7 +161,7 @@ export default function DietPlansPage() {
             {/* Plans List */}
             {isLoading ? (
                 <div className="flex justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                    <Loader2 className="w-8 h-8 animate-spin text-brand" />
                 </div>
             ) : filteredPlans.length === 0 ? (
                 <div className="text-center py-12 bg-white rounded-xl border border-gray-200 border-dashed">
@@ -181,12 +179,12 @@ export default function DietPlansPage() {
                             <div key={plan.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow group">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-[#17cf54]">
+                                        <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-brand">
                                             {isTemplateView ? <LayoutTemplate className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-gray-900 group-hover:text-[#17cf54] transition-colors line-clamp-1">
-                                                {plan.name || plan.title || 'Untitled Plan'}
+                                            <h3 className="font-semibold text-gray-900 group-hover:text-brand transition-colors line-clamp-1">
+                                                {plan.name || 'Untitled Plan'}
                                             </h3>
                                             <p className="text-sm text-gray-500">
                                                 {plan.isTemplate ? (
@@ -264,7 +262,7 @@ export default function DietPlansPage() {
                                                 setAssigningTemplateId(plan.id);
                                                 setShowAssignModal(true);
                                             }}
-                                            className="flex-1 px-3 py-2 text-sm font-medium text-white bg-[#17cf54] rounded-lg hover:bg-[#17cf54]/90 text-center transition-colors flex items-center justify-center gap-2"
+                                            className="flex-1 px-3 py-2 text-sm font-medium text-white bg-brand rounded-lg hover:bg-brand/90 text-center transition-colors flex items-center justify-center gap-2"
                                         >
                                             <Users className="w-4 h-4" />
                                             Assign to Client
@@ -312,7 +310,7 @@ export default function DietPlansPage() {
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
                                 />
                             </div>
 
@@ -328,7 +326,7 @@ export default function DietPlansPage() {
                                         placeholder="Search clients..."
                                         value={clientSearch}
                                         onChange={(e) => setClientSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#17cf54]/20 focus:border-[#17cf54] outline-none"
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
                                     />
                                 </div>
                                 <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
@@ -342,7 +340,7 @@ export default function DietPlansPage() {
                                                 <button
                                                     key={client.id}
                                                     onClick={() => setSelectedClientId(client.id)}
-                                                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedClientId === client.id ? 'bg-[#17cf54]/5 ring-1 ring-inset ring-[#17cf54]' : ''
+                                                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedClientId === client.id ? 'bg-brand/5 ring-1 ring-inset ring-brand' : ''
                                                         }`}
                                                 >
                                                     <div className="flex items-center gap-3">
@@ -355,7 +353,7 @@ export default function DietPlansPage() {
                                                         </div>
                                                     </div>
                                                     {selectedClientId === client.id && (
-                                                        <div className="w-2 h-2 rounded-full bg-[#17cf54]" />
+                                                        <div className="w-2 h-2 rounded-full bg-brand" />
                                                     )}
                                                 </button>
                                             ))}
@@ -379,7 +377,7 @@ export default function DietPlansPage() {
                             <button
                                 onClick={handleAssign}
                                 disabled={!selectedClientId || !startDate || assignMutation.isPending}
-                                className="px-4 py-2 bg-[#17cf54] text-white text-sm font-medium rounded-lg hover:bg-[#17cf54]/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 {assignMutation.isPending ? (
                                     <>

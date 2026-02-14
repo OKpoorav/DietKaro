@@ -75,7 +75,7 @@ export default function AnalyticsPage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                <Loader2 className="w-8 h-8 animate-spin text-brand" />
             </div>
         );
     }
@@ -96,8 +96,8 @@ export default function AnalyticsPage() {
                         className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-6"
                     >
                         <div className="flex items-center justify-between">
-                            <div className="p-2 rounded-lg bg-[#17cf54]/10">
-                                <stat.icon className="w-5 h-5 text-[#17cf54]" />
+                            <div className="p-2 rounded-lg bg-brand/10">
+                                <stat.icon className="w-5 h-5 text-brand" />
                             </div>
                             <span
                                 className={`text-sm font-medium flex items-center gap-1 ${stat.trend === 'up' ? 'text-green-600' : 'text-red-500'
@@ -126,7 +126,7 @@ export default function AnalyticsPage() {
                         {weeklyData.map((day, i) => (
                             <div key={i} className="flex-1 flex flex-col items-center gap-2">
                                 <div
-                                    className="w-full bg-[#17cf54] rounded-t transition-all hover:bg-[#17cf54]/80"
+                                    className="w-full bg-brand rounded-t transition-all hover:bg-brand/80"
                                     style={{ height: `${Math.max(day.value, 5)}%` }}
                                 />
                                 <div className="text-center">
@@ -217,7 +217,7 @@ export default function AnalyticsPage() {
                                             <div className="flex items-center gap-2">
                                                 <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                                                     <div
-                                                        className="h-full bg-[#17cf54] rounded-full"
+                                                        className="h-full bg-brand rounded-full"
                                                         style={{ width: `${client.adherence}%` }}
                                                     />
                                                 </div>
@@ -225,7 +225,7 @@ export default function AnalyticsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-[#17cf54] font-medium">{client.weightLoss} kg</span>
+                                            <span className="text-brand font-medium">{client.weightLoss} kg</span>
                                         </td>
                                     </tr>
                                 ))}

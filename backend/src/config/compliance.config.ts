@@ -4,13 +4,17 @@
  */
 
 export const COMPLIANCE_CONFIG = {
-    // Scoring weights (must sum to 100)
+    // Client-controllable weights (sum to 100)
     WEIGHTS: {
-        ON_TIME: Number(process.env.COMPLIANCE_WEIGHT_ON_TIME) || 20,
+        ON_TIME: Number(process.env.COMPLIANCE_WEIGHT_ON_TIME) || 25,
         PHOTO: Number(process.env.COMPLIANCE_WEIGHT_PHOTO) || 15,
         CORRECT_FOODS: Number(process.env.COMPLIANCE_WEIGHT_CORRECT_FOODS) || 30,
-        PORTION_ACCURACY: Number(process.env.COMPLIANCE_WEIGHT_PORTION) || 20,
-        DIETITIAN_APPROVED: Number(process.env.COMPLIANCE_WEIGHT_DIETITIAN) || 15,
+        PORTION_ACCURACY: Number(process.env.COMPLIANCE_WEIGHT_PORTION) || 30,
+    },
+
+    // Bonus: dietitian review is additive, not deductive
+    BONUS: {
+        DIETITIAN_APPROVED: Number(process.env.COMPLIANCE_BONUS_DIETITIAN) || 10,
     },
 
     // Penalties
@@ -21,7 +25,7 @@ export const COMPLIANCE_CONFIG = {
 
     // Color thresholds
     THRESHOLDS: {
-        GREEN_MIN: Number(process.env.COMPLIANCE_THRESHOLD_GREEN) || 85,
+        GREEN_MIN: Number(process.env.COMPLIANCE_THRESHOLD_GREEN) || 80,
         YELLOW_MIN: Number(process.env.COMPLIANCE_THRESHOLD_YELLOW) || 60,
         // Below YELLOW_MIN = RED
     },

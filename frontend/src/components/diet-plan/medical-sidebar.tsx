@@ -147,7 +147,7 @@ export function MedicalSidebar({ clientId, className = '' }: MedicalSidebarProps
     return (
         <div className={`bg-white p-4 rounded-lg border border-gray-200 ${className}`}>
             <h3 className="text-gray-900 font-medium mb-3 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-[#17cf54]" />
+                <Shield className="w-4 h-4 text-brand" />
                 Medical Summary
             </h3>
 

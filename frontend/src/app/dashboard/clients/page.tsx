@@ -15,6 +15,7 @@ import {
 import { AddClientModal } from '@/components/modals/add-client-modal';
 import { useClients, useCreateClient, Client } from '@/lib/hooks/use-clients';
 import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
+import { toast } from 'sonner';
 
 type FilterType = 'all' | 'active' | 'at-risk' | 'completed';
 
@@ -50,7 +51,7 @@ export default function ClientsPage() {
             });
             setShowAddClientModal(false);
         } catch (err) {
-            console.error('Failed to create client:', err);
+            toast.error('Failed to create client');
         }
     };
 
@@ -62,7 +63,7 @@ export default function ClientsPage() {
                 <h1 className="text-3xl font-bold tracking-tight text-gray-900">Clients</h1>
                 <button
                     onClick={() => setShowAddClientModal(true)}
-                    className="flex items-center gap-2 h-10 px-4 bg-[#17cf54] hover:bg-[#17cf54]/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
+                    className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Add New Client
@@ -75,7 +76,7 @@ export default function ClientsPage() {
                 <div className="flex-grow">
                     <label className="flex h-12 w-full">
                         <div className="flex w-full flex-1 items-stretch rounded-lg h-full bg-gray-100">
-                            <div className="flex items-center justify-center pl-4 text-[#17cf54]">
+                            <div className="flex items-center justify-center pl-4 text-brand">
                                 <Search className="w-5 h-5" />
                             </div>
                             <input
@@ -101,7 +102,7 @@ export default function ClientsPage() {
                                 setPage(1);
                             }}
                             className={`flex h-8 shrink-0 items-center justify-center px-4 rounded-lg text-sm font-medium capitalize transition-colors ${filter === f
-                                ? 'bg-[#17cf54] text-white'
+                                ? 'bg-brand text-white'
                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                 }`}
                         >
@@ -114,7 +115,7 @@ export default function ClientsPage() {
             {/* Loading State */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#17cf54]" />
+                    <Loader2 className="w-8 h-8 animate-spin text-brand" />
                 </div>
             )}
 
@@ -131,7 +132,7 @@ export default function ClientsPage() {
                     <p className="text-gray-500">No clients found.</p>
                     <button
                         onClick={() => setShowAddClientModal(true)}
-                        className="mt-4 text-[#17cf54] font-medium hover:underline"
+                        className="mt-4 text-brand font-medium hover:underline"
                     >
                         Add your first client
                     </button>
@@ -170,7 +171,7 @@ export default function ClientsPage() {
                                     <tr key={client.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold">
+                                                <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
                                                     {getInitials(client.fullName)}
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -197,12 +198,12 @@ export default function ClientsPage() {
                                             <div className="flex items-center gap-2">
                                                 <Link
                                                     href={`/dashboard/clients/${client.id}`}
-                                                    className="text-[#17cf54] hover:underline text-sm font-medium flex items-center gap-1"
+                                                    className="text-brand hover:underline text-sm font-medium flex items-center gap-1"
                                                 >
                                                     <Eye className="w-4 h-4" />
                                                     View
                                                 </Link>
-                                                <button className="text-[#17cf54] hover:underline text-sm font-medium flex items-center gap-1">
+                                                <button className="text-brand hover:underline text-sm font-medium flex items-center gap-1">
                                                     <MessageSquare className="w-4 h-4" />
                                                     Message
                                                 </button>

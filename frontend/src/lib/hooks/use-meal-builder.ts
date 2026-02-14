@@ -50,8 +50,9 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
     const [activeMealId, setActiveMealId] = useState<string | null>(null);
     const [activeOptionGroup, setActiveOptionGroup] = useState<number>(0);
     const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
+    const [numDays, setNumDays] = useState(isTemplateMode ? 7 : 1);
 
-    const planDates = getDates(startDate, 7);
+    const planDates = getDates(startDate, numDays);
     const currentMeals = useMemo(() => weeklyMeals[selectedDayIndex] || [], [weeklyMeals, selectedDayIndex]);
 
     // Handlers
@@ -138,6 +139,32 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         }));
     }, [selectedDayIndex]);
 
+    const updateFoodQuantityValue = useCallback((mealId: string, tempId: string, newGrams: number) => {
+        setWeeklyMeals(prev => ({
+            ...prev,
+            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+                if (m.id !== mealId) return m;
+                return {
+                    ...m,
+                    foods: m.foods.map(f => {
+                        if (f.tempId !== tempId) return f;
+                        const oldGrams = f.quantityValue || 100;
+                        if (oldGrams === 0 || newGrams === oldGrams) return f;
+                        const ratio = newGrams / oldGrams;
+                        return {
+                            ...f,
+                            quantityValue: newGrams,
+                            calories: Math.round(f.calories * ratio),
+                            protein: Math.round(f.protein * ratio * 10) / 10,
+                            carbs: Math.round(f.carbs * ratio * 10) / 10,
+                            fat: Math.round(f.fat * ratio * 10) / 10,
+                        };
+                    })
+                };
+            })
+        }));
+    }, [selectedDayIndex]);
+
     const updateMealField = useCallback((mealId: string, field: 'name' | 'time', value: string) => {
         setWeeklyMeals(prev => ({
             ...prev,
@@ -212,6 +239,29 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         }));
     }, [selectedDayIndex]);
 
+    // Day management
+    const addDay = useCallback(() => {
+        if (numDays >= 7) return;
+        const newIndex = numDays;
+        setNumDays(prev => prev + 1);
+        setWeeklyMeals(prev => ({ ...prev, [newIndex]: [] }));
+        setSelectedDayIndex(newIndex);
+    }, [numDays]);
+
+    const removeDay = useCallback(() => {
+        if (numDays <= 1) return;
+        const lastIndex = numDays - 1;
+        setWeeklyMeals(prev => {
+            const next = { ...prev };
+            delete next[lastIndex];
+            return next;
+        });
+        if (selectedDayIndex >= lastIndex) {
+            setSelectedDayIndex(lastIndex - 1);
+        }
+        setNumDays(prev => prev - 1);
+    }, [numDays, selectedDayIndex]);
+
     // Nutrition calculation — only count option 0 for day totals (client eats one option)
     const dayNutrition = useMemo<DayNutrition>(() => {
         let calories = 0, protein = 0, carbs = 0, fat = 0;
@@ -277,6 +327,10 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const localFoods: LocalFoodItem[] = tm.foodItems?.map((f: any) => {
                         const ratio = (f.quantityG || 100) / 100;
+                        // Map backend field names (proteinG, carbsG, fatsG) to frontend names
+                        const proteinPer100 = Number(f.foodItem.proteinG) || 0;
+                        const carbsPer100 = Number(f.foodItem.carbsG) || 0;
+                        const fatPer100 = Number(f.foodItem.fatsG) || 0;
                         return {
                             id: f.foodItem.id,
                             tempId: Math.random().toString(36).substr(2, 9),
@@ -284,9 +338,9 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
                             quantity: f.notes || `${f.quantityG}g`,
                             quantityValue: f.quantityG || 100,
                             calories: f.foodItem.calories * ratio,
-                            protein: f.foodItem.protein * ratio,
-                            carbs: f.foodItem.carbs * ratio,
-                            fat: f.foodItem.fat * ratio,
+                            protein: proteinPer100 * ratio,
+                            carbs: carbsPer100 * ratio,
+                            fat: fatPer100 * ratio,
                             hasWarning: client?.medicalProfile?.allergies?.some((a: string) => f.foodItem.name.toLowerCase().includes(a.toLowerCase())) || false,
                             optionGroup: f.optionGroup ?? 0,
                             optionLabel: f.optionLabel ?? undefined,
@@ -305,8 +359,13 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
 
             setWeeklyMeals(newWeeklyMeals);
 
+            // Sync numDays to match template's day count
+            const dayKeys = Object.keys(newWeeklyMeals).map(Number);
+            const templateDayCount = dayKeys.length > 0 ? Math.max(...dayKeys) + 1 : 1;
+            setNumDays(Math.min(templateDayCount, 7));
+
             if (!newWeeklyMeals[selectedDayIndex]) {
-                const firstDay = Object.keys(newWeeklyMeals).map(Number).sort((a, b) => a - b)[0];
+                const firstDay = dayKeys.sort((a, b) => a - b)[0];
                 if (firstDay !== undefined && firstDay !== selectedDayIndex) {
                     setSelectedDayIndex(firstDay);
                 }
@@ -314,7 +373,6 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
 
             toast.success('Template applied successfully');
         } catch (error) {
-            console.error(error);
             toast.error('Failed to apply template');
         } finally {
             setApplyingTemplateId(null);
@@ -327,19 +385,39 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
 
         Object.entries(weeklyMeals).forEach(([dayIdx, dayMeals]) => {
             dayMeals.forEach(m => {
-                apiMeals.push({
-                    dayIndex: parseInt(dayIdx),
-                    mealType: m.type,
-                    timeOfDay: m.time,
-                    title: m.name,
-                    foodItems: m.foods.map(f => ({
-                        foodId: f.id,
-                        quantity: f.quantityValue,
-                        notes: f.quantity,
-                        optionGroup: f.optionGroup,
-                        optionLabel: f.optionLabel,
-                    }))
-                });
+                if (isTemplateMode) {
+                    // Templates: use relative dayOfWeek index
+                    apiMeals.push({
+                        dayOfWeek: parseInt(dayIdx),
+                        mealType: m.type,
+                        timeOfDay: m.time,
+                        name: m.name,
+                        foodItems: m.foods.map(f => ({
+                            foodId: f.id,
+                            quantityG: f.quantityValue,
+                            notes: f.quantity,
+                            optionGroup: f.optionGroup,
+                            optionLabel: f.optionLabel,
+                        }))
+                    });
+                } else {
+                    // Individual plans: use specific mealDate
+                    const mealDate = new Date(startDate);
+                    mealDate.setDate(mealDate.getDate() + parseInt(dayIdx));
+                    apiMeals.push({
+                        mealDate: mealDate.toISOString().split('T')[0],
+                        mealType: m.type,
+                        timeOfDay: m.time,
+                        name: m.name,
+                        foodItems: m.foods.map(f => ({
+                            foodId: f.id,
+                            quantityG: f.quantityValue,
+                            notes: f.quantity,
+                            optionGroup: f.optionGroup,
+                            optionLabel: f.optionLabel,
+                        }))
+                    });
+                }
             });
         });
 
@@ -359,12 +437,17 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
             }
         }
 
+        // Compute endDate
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + numDays - 1);
+
         try {
             const createdPlan = await createMutation.mutateAsync({
                 clientId: clientId || undefined,
-                title: planName,
+                name: planName,
                 description: planDescription,
                 startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
                 targetCalories: targets.calories,
                 targetProteinG: targets.protein,
                 targetCarbsG: targets.carbs,
@@ -386,9 +469,8 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
             onSaved(isTemplateMode, publish);
         } catch (error) {
             toast.error('Failed to save plan');
-            console.error(error);
         }
-    }, [weeklyMeals, clientId, planName, planDescription, startDate, isTemplateMode, createMutation, publishMutation, onSaved]);
+    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets]);
 
     const hasAllergyWarning = currentMeals.some(m => m.foods.some(f => f.hasWarning));
 
@@ -403,6 +485,7 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         activeMealId,
         activeOptionGroup,
         applyingTemplateId,
+        numDays,
         planDates,
         currentMeals,
 
@@ -419,10 +502,13 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         addFood,
         removeFood,
         updateFoodQuantity,
+        updateFoodQuantityValue,
         updateMealField,
         addMealOption,
         removeOption,
         updateOptionLabel,
+        addDay,
+        removeDay,
         applyTemplate,
         save,
 

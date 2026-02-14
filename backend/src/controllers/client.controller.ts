@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from '../types/auth.types';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { clientService } from '../services/client.service';
+import type { ClientListQuery, ClientProgressQuery } from '../schemas/client.schema';
 
 export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
@@ -18,7 +19,7 @@ export const getClient = asyncHandler(async (req: AuthenticatedRequest, res: Res
 
 export const listClients = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const { clients, meta } = await clientService.listClients(req.user.organizationId, req.query, req.user.role, req.user.id);
+    const { clients, meta } = await clientService.listClients(req.user.organizationId, req.query as unknown as ClientListQuery, req.user.role, req.user.id);
     res.status(200).json({ success: true, data: clients, meta });
 });
 
@@ -36,6 +37,6 @@ export const deleteClient = asyncHandler(async (req: AuthenticatedRequest, res: 
 
 export const getClientProgress = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const data = await clientService.getClientProgress(req.params.id, req.user.organizationId, req.query);
+    const data = await clientService.getClientProgress(req.params.id, req.user.organizationId, req.query as unknown as ClientProgressQuery);
     res.status(200).json({ success: true, data });
 });

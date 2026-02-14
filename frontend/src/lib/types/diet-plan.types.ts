@@ -1,34 +1,16 @@
-import type { FoodRestriction } from '@/lib/hooks/use-validation';
+import type { Client } from '@/lib/hooks/use-clients';
 
 /**
- * Shared types for diet plan builder and related components
+ * Shared types for diet plan builder and related components.
+ * ClientData is derived from the canonical Client type to stay in sync.
  */
-
-export interface ClientData {
-    fullName?: string;
-    targetWeightKg?: number;
-    dateOfBirth?: string;
-    heightCm?: number;
-    currentWeightKg?: number;
-    email?: string;
-    phone?: string;
-    gender?: string;
-    medicalProfile?: {
-        allergies?: string[];
-        conditions?: string[];
-    };
-    allergies?: string[];
-    intolerances?: string[];
-    dietPattern?: string;
-    medicalConditions?: string[];
-    foodRestrictions?: FoodRestriction[];
-    dislikes?: string[];
-    likedFoods?: string[];
-    targetCalories?: number | null;
-    targetProteinG?: number | null;
-    targetCarbsG?: number | null;
-    targetFatsG?: number | null;
-}
+export type ClientData = Partial<Pick<Client,
+    | 'fullName' | 'targetWeightKg' | 'dateOfBirth' | 'heightCm'
+    | 'currentWeightKg' | 'email' | 'phone' | 'gender'
+    | 'medicalProfile' | 'allergies' | 'intolerances' | 'dietPattern'
+    | 'medicalConditions' | 'foodRestrictions' | 'dislikes' | 'likedFoods'
+    | 'targetCalories' | 'targetProteinG' | 'targetCarbsG' | 'targetFatsG'
+>>;
 
 export interface FoodItemData {
     id: string;

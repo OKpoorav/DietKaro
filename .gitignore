@@ -38,6 +38,9 @@ out/
 
 # Generated files
 repomix-output.xml
+**/backend.xml
+*.repomix.xml
+diet.xml
 
 # Claude/AI tool artifacts
 .claude/

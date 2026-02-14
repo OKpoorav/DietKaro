@@ -10,6 +10,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { useMealLogs, useReviewMealLog, MealLog } from '@/lib/hooks/use-meal-logs';
+import { toast } from 'sonner';
 
 type FilterType = 'all' | 'pending' | 'reviewed';
 type MealStatus = 'eaten' | 'skipped' | 'substituted';
@@ -48,7 +49,7 @@ export default function MealReviewPage() {
             setMealStatus(null);
             setFeedback('');
         } catch (err) {
-            console.error('Failed to review meal:', err);
+            toast.error('Failed to review meal');
         }
     };
 
@@ -81,7 +82,7 @@ export default function MealReviewPage() {
 
                 {/* Filters */}
                 <div className="px-6 py-4 border-b border-gray-200">
-                    <div className="flex h-10 w-full items-center justify-center rounded-lg bg-[#17cf54]/10 p-1">
+                    <div className="flex h-10 w-full items-center justify-center rounded-lg bg-brand/10 p-1">
                         {(['all', 'pending', 'reviewed'] as FilterType[]).map((f) => (
                             <button
                                 key={f}
@@ -100,7 +101,7 @@ export default function MealReviewPage() {
                 {/* Loading */}
                 {isLoading && (
                     <div className="flex-1 flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-[#17cf54]" />
+                        <Loader2 className="w-6 h-6 animate-spin text-brand" />
                     </div>
                 )}
 
@@ -129,11 +130,11 @@ export default function MealReviewPage() {
                                 setFeedback('');
                             }}
                             className={`w-full flex items-center gap-4 px-6 py-4 text-left transition-colors ${selectedMeal?.id === meal.id
-                                ? 'bg-[#17cf54]/10'
+                                ? 'bg-brand/10'
                                 : 'hover:bg-gray-50'
                                 }`}
                         >
-                            <div className="w-12 h-12 rounded-full bg-[#17cf54]/20 flex items-center justify-center text-[#17cf54] font-bold flex-shrink-0">
+                            <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold flex-shrink-0">
                                 {getInitials(meal.client?.fullName)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -158,7 +159,7 @@ export default function MealReviewPage() {
                 {selectedMeal ? (
                     <div className="max-w-2xl mx-auto space-y-6">
                         {/* Image */}
-                        <div className="w-full aspect-[4/3] bg-gradient-to-br from-[#17cf54]/20 to-[#17cf54]/5 rounded-xl flex items-center justify-center border border-gray-200 overflow-hidden">
+                        <div className="w-full aspect-[4/3] bg-gradient-to-br from-brand/20 to-brand/5 rounded-xl flex items-center justify-center border border-gray-200 overflow-hidden">
                             {selectedMeal.mealPhotoUrl ? (
                                 <img
                                     src={selectedMeal.mealPhotoUrl}
@@ -167,7 +168,7 @@ export default function MealReviewPage() {
                                 />
                             ) : (
                                 <div className="text-center">
-                                    <Camera className="w-16 h-16 text-[#17cf54]/50 mx-auto mb-2" />
+                                    <Camera className="w-16 h-16 text-brand/50 mx-auto mb-2" />
                                     <p className="text-[#4e9767]">No photo uploaded</p>
                                 </div>
                             )}
@@ -197,8 +198,8 @@ export default function MealReviewPage() {
                                         key={status}
                                         onClick={() => setMealStatus(status)}
                                         className={`flex items-center justify-center gap-2 rounded-lg p-3 text-center border transition-colors capitalize ${mealStatus === status
-                                            ? 'bg-[#17cf54]/20 border-[#17cf54] text-gray-900'
-                                            : 'border-gray-200 hover:border-[#17cf54] text-gray-700 bg-white'
+                                            ? 'bg-brand/20 border-brand text-gray-900'
+                                            : 'border-gray-200 hover:border-brand text-gray-700 bg-white'
                                             }`}
                                     >
                                         {status === 'eaten' && <Check className="w-4 h-4" />}
@@ -219,7 +220,7 @@ export default function MealReviewPage() {
                                 id="feedback"
                                 value={feedback}
                                 onChange={(e) => setFeedback(e.target.value)}
-                                className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-[#17cf54] focus:border-[#17cf54] placeholder-gray-400"
+                                className="w-full p-3 border border-gray-200 rounded-lg bg-white text-gray-900 focus:ring-brand focus:border-brand placeholder-gray-400"
                                 placeholder="Provide feedback or suggestions..."
                                 rows={5}
                             />
@@ -229,7 +230,7 @@ export default function MealReviewPage() {
                         <button
                             onClick={handleReviewSubmit}
                             disabled={!mealStatus || reviewMutation.isPending}
-                            className="flex w-full items-center justify-center gap-2 h-12 px-4 bg-[#17cf54] text-white rounded-lg text-base font-bold transition-colors hover:bg-[#17cf54]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex w-full items-center justify-center gap-2 h-12 px-4 bg-brand text-white rounded-lg text-base font-bold transition-colors hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {reviewMutation.isPending ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />

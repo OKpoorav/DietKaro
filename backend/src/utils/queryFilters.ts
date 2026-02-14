@@ -3,6 +3,8 @@
  * Eliminates duplication across controllers
  */
 
+import { MAX_PAGE_SIZE } from '../schemas/pagination.schema';
+
 export interface PaginationParams {
     skip: number;
     take: number;
@@ -22,9 +24,13 @@ export interface PaginationMeta {
 /**
  * Parse page/pageSize from query params
  */
-export function buildPaginationParams(page?: string | any, pageSize?: string | any): PaginationParams {
+export function buildPaginationParams(
+    page?: string | number,
+    pageSize?: string | number,
+    maxPageSize: number = MAX_PAGE_SIZE,
+): PaginationParams {
     const p = Math.max(1, Number(page) || 1);
-    const ps = Math.min(100, Math.max(1, Number(pageSize) || 20));
+    const ps = Math.min(maxPageSize, Math.max(1, Number(pageSize) || 20));
     return {
         page: p,
         pageSize: ps,
