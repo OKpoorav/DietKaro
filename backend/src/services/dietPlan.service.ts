@@ -54,6 +54,8 @@ export class DietPlanService {
                                             quantityG: item.quantity,
                                             notes: item.notes,
                                             sortOrder,
+                                            optionGroup: item.optionGroup ?? 0,
+                                            optionLabel: item.optionLabel ?? null,
                                         })),
                                     }
                                   : undefined,
@@ -64,7 +66,7 @@ export class DietPlanService {
             include: {
                 client: { select: { id: true, fullName: true } },
                 creator: { select: { id: true, fullName: true } },
-                meals: { include: { foodItems: { include: { foodItem: true } } } },
+                meals: { include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } } },
             },
         });
 
@@ -80,7 +82,7 @@ export class DietPlanService {
                 creator: { select: { id: true, fullName: true } },
                 meals: {
                     orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
-                    include: { foodItems: { orderBy: { sortOrder: 'asc' }, include: { foodItem: true } } },
+                    include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } },
                 },
             },
         });
@@ -217,6 +219,8 @@ export class DietPlanService {
                                       quantityG: item.quantityG,
                                       notes: item.notes,
                                       sortOrder: item.sortOrder ?? sortOrder,
+                                      optionGroup: item.optionGroup,
+                                      optionLabel: item.optionLabel,
                                   })),
                               }
                             : undefined,
@@ -226,7 +230,7 @@ export class DietPlanService {
             include: {
                 client: { select: { id: true, fullName: true } },
                 creator: { select: { id: true, fullName: true } },
-                meals: { include: { foodItems: { include: { foodItem: true } } } },
+                meals: { include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } } },
             },
         });
 

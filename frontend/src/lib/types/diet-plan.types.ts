@@ -68,6 +68,8 @@ export interface LocalFoodItem {
     hasWarning: boolean;
     validationSeverity?: 'RED' | 'YELLOW' | 'GREEN';
     validationAlerts?: Array<{ type: string; severity: string; message: string; recommendation?: string }>;
+    optionGroup: number; // 0 = default, 1+ = alternatives
+    optionLabel?: string; // e.g. "Oatmeal Bowl", "Egg Plate"
 }
 
 export interface LocalMeal {

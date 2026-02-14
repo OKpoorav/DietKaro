@@ -2,15 +2,17 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useDietPlan, usePublishDietPlan, useUpdateDietPlan } from '@/lib/hooks/use-diet-plans';
-import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useApiClient } from '@/lib/api/use-api-client';
 
 export default function DietPlanDetailPage() {
     const params = useParams();
     const router = useRouter();
     const planId = params.id as string;
 
+    const api = useApiClient();
     const { data: plan, isLoading, error, refetch } = useDietPlan(planId);
     const publishMutation = usePublishDietPlan();
     const updateMutation = useUpdateDietPlan();
@@ -36,6 +38,37 @@ export default function DietPlanDetailPage() {
             await refetch();
         } catch (err) {
             console.error('Failed to update name:', err);
+        }
+    };
+
+    const handleDownloadPdf = async () => {
+        try {
+            const response = await api.get(`/share/diet-plans/${planId}/pdf`, {
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${plan?.name || 'diet-plan'}.pdf`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to download PDF:', err);
+        }
+    };
+
+    const handlePrint = async () => {
+        try {
+            const response = await api.get(`/share/diet-plans/${planId}/print`);
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(response.data);
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+            }
+        } catch (err) {
+            console.error('Failed to get print view:', err);
         }
     };
 
@@ -124,6 +157,20 @@ export default function DietPlanDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleDownloadPdf}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Download PDF"
+                    >
+                        <Download className="w-5 h-5 text-gray-600" />
+                    </button>
+                    <button
+                        onClick={handlePrint}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Print"
+                    >
+                        <Printer className="w-5 h-5 text-gray-600" />
+                    </button>
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
                         {plan.status === 'active' ? 'Active' : 'Draft'}
                     </span>
@@ -198,30 +245,67 @@ export default function DietPlanDetailPage() {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Meals</h2>
                 {plan.meals && plan.meals.length > 0 ? (
                     <div className="space-y-4">
-                        {plan.meals.map((meal, index) => (
-                            <div key={meal.id || index} className="p-4 bg-gray-50 rounded-lg">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="font-medium text-gray-900">{meal.name}</h3>
-                                    <span className="text-sm text-gray-500 capitalize">{meal.mealType}</span>
-                                </div>
-                                {meal.scheduledTime && (
-                                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                                        <Clock className="w-4 h-4" />
-                                        {meal.scheduledTime}
-                                    </p>
-                                )}
-                                {meal.foodItems && meal.foodItems.length > 0 && (
-                                    <div className="mt-3 space-y-1">
-                                        {meal.foodItems.map((food, fi) => (
-                                            <div key={fi} className="text-sm text-gray-600 flex justify-between">
-                                                <span>{food.foodItem?.name || 'Unknown'}</span>
-                                                <span>{food.quantityG}g</span>
-                                            </div>
-                                        ))}
+                        {plan.meals.map((meal, index) => {
+                            // Group food items by optionGroup
+                            const optionGroups = new Map<number, typeof meal.foodItems>();
+                            (meal.foodItems || []).forEach((fi: any) => {
+                                const g = fi.optionGroup ?? 0;
+                                if (!optionGroups.has(g)) optionGroups.set(g, []);
+                                optionGroups.get(g)!.push(fi);
+                            });
+                            const sortedGroups = Array.from(optionGroups.entries()).sort(([a], [b]) => a - b);
+                            const hasAlts = sortedGroups.length > 1;
+
+                            return (
+                                <div key={meal.id || index} className="p-4 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="font-medium text-gray-900">{meal.name}</h3>
+                                        <div className="flex items-center gap-2">
+                                            {hasAlts && (
+                                                <span className="text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded">
+                                                    {sortedGroups.length} options
+                                                </span>
+                                            )}
+                                            <span className="text-sm text-gray-500 capitalize">{meal.mealType}</span>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        ))}
+                                    {meal.scheduledTime && (
+                                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                                            <Clock className="w-4 h-4" />
+                                            {meal.scheduledTime}
+                                        </p>
+                                    )}
+                                    {sortedGroups.length > 0 && (
+                                        <div className="mt-3">
+                                            {sortedGroups.map(([groupNum, foods], gIdx) => (
+                                                <div key={groupNum}>
+                                                    {hasAlts && gIdx > 0 && (
+                                                        <div className="flex items-center gap-2 my-2">
+                                                            <div className="flex-grow border-t border-dashed border-gray-300" />
+                                                            <span className="text-xs font-bold text-gray-400 tracking-wider">OR</span>
+                                                            <div className="flex-grow border-t border-dashed border-gray-300" />
+                                                        </div>
+                                                    )}
+                                                    {hasAlts && (
+                                                        <p className="text-xs font-semibold text-[#17cf54] mb-1">
+                                                            {(foods as any)[0]?.optionLabel || `Option ${String.fromCharCode(65 + gIdx)}`}
+                                                        </p>
+                                                    )}
+                                                    <div className="space-y-1">
+                                                        {(foods as any[]).map((food: any, fi: number) => (
+                                                            <div key={fi} className="text-sm text-gray-600 flex justify-between">
+                                                                <span>{food.foodItem?.name || 'Unknown'}</span>
+                                                                <span>{food.quantityG}g</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-gray-500">

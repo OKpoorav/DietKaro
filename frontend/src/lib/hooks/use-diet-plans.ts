@@ -94,6 +94,8 @@ export interface CreateDietPlanInput {
             foodId: string;
             quantity: number;
             notes?: string;
+            optionGroup?: number;
+            optionLabel?: string;
         }[];
     }[];
     options?: {

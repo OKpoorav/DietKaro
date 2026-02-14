@@ -12,12 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { X, Camera, Image as ImageIcon, Clock, MessageSquare, CheckCircle, User } from 'lucide-react-native';
+import { X, Camera, Image as ImageIcon, Clock, MessageSquare, CheckCircle, User, Circle, CheckCircle2 } from 'lucide-react-native';
 import { useMealLog, useLogMeal } from '../../../../hooks/useMealLog';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../../../constants/theme';
 import { useToast } from '../../../../components/Toast';
 import { normalizeError } from '../../../../utils/errorHandler';
 import { LoadingScreen } from '../../../../components/LoadingScreen';
+import { MealOption } from '../../../../types';
 
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Substituted'] as const;
 
@@ -43,6 +44,10 @@ export default function MealDetailScreen() {
     const [notes, setNotes] = useState('');
     const [photoUri, setPhotoUri] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedOption, setSelectedOption] = useState<number>(0);
+
+    const hasAlternatives = mealLog?.meal?.hasAlternatives ?? false;
+    const mealOptions: MealOption[] = mealLog?.meal?.options ?? [];
 
     useEffect(() => {
         if (mealLog?.meal?.mealType) {
@@ -104,6 +109,7 @@ export default function MealDetailScreen() {
                 status: 'eaten',
                 notes: notes || undefined,
                 photoUri: photoUri || undefined,
+                chosenOptionGroup: hasAlternatives ? selectedOption : undefined,
             });
             showToast({ title: 'Success', message: 'Meal logged successfully!', variant: 'success' });
             router.back();
@@ -170,6 +176,20 @@ export default function MealDetailScreen() {
                                 Logged on {new Date(currentMealLog?.loggedAt || Date.now()).toLocaleDateString()}
                             </Text>
                         </View>
+
+                        {/* Chosen Option Badge */}
+                        {hasAlternatives && currentMealLog?.chosenOptionGroup != null && (
+                            <View style={styles.chosenOptionBadge}>
+                                <CheckCircle size={16} color={Colors.primary} />
+                                <Text style={styles.chosenOptionText}>
+                                    You chose: {mealOptions.find(o => o.optionGroup === currentMealLog.chosenOptionGroup)?.label
+                                        || `Option ${String.fromCharCode(65 + (currentMealLog.chosenOptionGroup ?? 0))}`}
+                                </Text>
+                                <Text style={styles.chosenOptionCalories}>
+                                    {mealOptions.find(o => o.optionGroup === currentMealLog.chosenOptionGroup)?.totalCalories ?? 0} kcal
+                                </Text>
+                            </View>
+                        )}
                     </View>
 
                     {/* Client Notes */}
@@ -249,6 +269,62 @@ export default function MealDetailScreen() {
                         </View>
                     )}
                 </View>
+
+                {/* Option Selector — shown when meal has alternatives */}
+                {hasAlternatives && mealOptions.length > 1 && (
+                    <View style={styles.optionSection}>
+                        <Text style={styles.sectionTitle}>What did you have?</Text>
+                        {mealOptions.map((option) => {
+                            const isSelected = selectedOption === option.optionGroup;
+                            return (
+                                <TouchableOpacity
+                                    key={option.optionGroup}
+                                    style={[
+                                        styles.optionCard,
+                                        isSelected && styles.optionCardSelected,
+                                    ]}
+                                    onPress={() => setSelectedOption(option.optionGroup)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View style={styles.optionHeader}>
+                                        <View style={styles.optionRadio}>
+                                            {isSelected ? (
+                                                <CheckCircle2 size={22} color={Colors.primary} />
+                                            ) : (
+                                                <Circle size={22} color={Colors.border} />
+                                            )}
+                                        </View>
+                                        <View style={styles.optionLabelRow}>
+                                            <Text style={[
+                                                styles.optionLabel,
+                                                isSelected && styles.optionLabelSelected,
+                                            ]}>
+                                                {option.label || `Option ${String.fromCharCode(65 + option.optionGroup)}`}
+                                            </Text>
+                                            <Text style={styles.optionCalories}>
+                                                {option.totalCalories} kcal
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.optionFoods}>
+                                        {option.foodItems.map((fi, idx) => (
+                                            <Text key={fi.id || idx} style={styles.optionFoodItem}>
+                                                {fi.foodName} {fi.quantityG}g
+                                            </Text>
+                                        ))}
+                                    </View>
+                                    <View style={styles.optionMacros}>
+                                        <Text style={styles.optionMacroText}>{option.totalProteinG}g P</Text>
+                                        <View style={styles.optionMacroDot} />
+                                        <Text style={styles.optionMacroText}>{option.totalCarbsG}g C</Text>
+                                        <View style={styles.optionMacroDot} />
+                                        <Text style={styles.optionMacroText}>{option.totalFatsG}g F</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                )}
 
                 {/* Meal Type Selection */}
                 <Text style={styles.sectionTitle}>Meal Type</Text>
@@ -601,5 +677,97 @@ const styles = StyleSheet.create({
     },
     submitButtonDisabled: {
         opacity: 0.6,
+    },
+    // Option Selector styles
+    optionSection: {
+        paddingBottom: Spacing.md,
+    },
+    optionCard: {
+        backgroundColor: Colors.surface,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.md,
+        padding: Spacing.lg,
+        borderRadius: BorderRadius.md,
+        borderWidth: 1.5,
+        borderColor: Colors.border,
+    },
+    optionCardSelected: {
+        borderColor: Colors.primary,
+        backgroundColor: '#f0fdf4',
+    },
+    optionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: Spacing.sm,
+    },
+    optionRadio: {
+        marginRight: Spacing.md,
+    },
+    optionLabelRow: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    optionLabel: {
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+    },
+    optionLabelSelected: {
+        color: Colors.primary,
+    },
+    optionCalories: {
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.textSecondary,
+    },
+    optionFoods: {
+        marginLeft: 38,
+        marginBottom: Spacing.sm,
+    },
+    optionFoodItem: {
+        fontSize: FontSizes.sm,
+        color: Colors.textSecondary,
+        lineHeight: 20,
+    },
+    optionMacros: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 38,
+        gap: 6,
+    },
+    optionMacroText: {
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+    },
+    optionMacroDot: {
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: Colors.border,
+    },
+    // Chosen option badge in logged view
+    chosenOptionBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        backgroundColor: '#f0fdf4',
+        paddingHorizontal: Spacing.md,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.sm,
+        marginTop: Spacing.sm,
+        borderWidth: 1,
+        borderColor: Colors.primary,
+    },
+    chosenOptionText: {
+        fontSize: FontSizes.sm,
+        fontWeight: FontWeights.semibold,
+        color: Colors.primary,
+        flex: 1,
+    },
+    chosenOptionCalories: {
+        fontSize: FontSizes.sm,
+        color: Colors.textSecondary,
     },
 });

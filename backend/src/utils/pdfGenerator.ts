@@ -144,24 +144,54 @@ export function generateDietPlanPDF(plan: DietPlanWithRelations): PDFKit.PDFDocu
                             .text(meal.description);
                     }
 
-                    // Food Items
+                    // Food Items — grouped by optionGroup
                     if (meal.foodItems.length > 0) {
                         doc.moveDown(0.3);
+
+                        // Group food items by optionGroup
+                        const optionGroups = new Map<number, typeof meal.foodItems>();
                         meal.foodItems.forEach((item) => {
-                            const foodName = item.foodItem?.name || 'Unknown food';
-                            const quantity = item.quantityG ? `${item.quantityG}g` : '';
-                            const calories = item.foodItem?.calories
-                                ? `${Math.round((item.foodItem.calories * (Number(item.quantityG) || 100)) / 100)} kcal`
-                                : '';
+                            const group = (item as any).optionGroup ?? 0;
+                            if (!optionGroups.has(group)) optionGroups.set(group, []);
+                            optionGroups.get(group)!.push(item);
+                        });
 
-                            doc.fontSize(10)
-                                .fillColor(COLORS.dark)
-                                .text(`  • ${foodName} ${quantity}`, {
-                                    continued: !!calories,
-                                });
+                        const sortedGroups = Array.from(optionGroups.entries()).sort(([a], [b]) => a - b);
+                        const hasAlternatives = sortedGroups.length > 1;
 
-                            if (calories) {
-                                doc.fillColor(COLORS.gray).text(` — ${calories}`);
+                        sortedGroups.forEach(([groupNum, items], groupIndex) => {
+                            if (hasAlternatives) {
+                                const label = (items[0] as any).optionLabel || `Option ${String.fromCharCode(65 + groupNum)}`;
+                                doc.fontSize(10)
+                                    .fillColor(COLORS.primary)
+                                    .text(`  ${label}:`);
+                            }
+
+                            items.forEach((item) => {
+                                const foodName = item.foodItem?.name || 'Unknown food';
+                                const quantity = item.quantityG ? `${item.quantityG}g` : '';
+                                const calories = item.foodItem?.calories
+                                    ? `${Math.round((item.foodItem.calories * (Number(item.quantityG) || 100)) / 100)} kcal`
+                                    : '';
+
+                                doc.fontSize(10)
+                                    .fillColor(COLORS.dark)
+                                    .text(`    • ${foodName} ${quantity}`, {
+                                        continued: !!calories,
+                                    });
+
+                                if (calories) {
+                                    doc.fillColor(COLORS.gray).text(` — ${calories}`);
+                                }
+                            });
+
+                            // OR divider between option groups
+                            if (hasAlternatives && groupIndex < sortedGroups.length - 1) {
+                                doc.moveDown(0.2)
+                                    .fontSize(9)
+                                    .fillColor(COLORS.gray)
+                                    .text('                         — OR —', { align: 'left' })
+                                    .moveDown(0.2);
                             }
                         });
                     }
@@ -234,20 +264,43 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
             meals
                 .sort((a, b) => mealOrder.indexOf(a.mealType) - mealOrder.indexOf(b.mealType))
                 .forEach((meal) => {
-                    const foodItemsHtml = meal.foodItems
-                        .map((item) => {
-                            const foodName = item.foodItem?.name || 'Unknown';
-                            const qty = item.quantityG ? `${item.quantityG}g` : '';
-                            return `<li>${foodName} ${qty}</li>`;
-                        })
-                        .join('');
+                    // Group food items by optionGroup
+                    const optionGroups = new Map<number, typeof meal.foodItems>();
+                    meal.foodItems.forEach((item) => {
+                        const group = (item as any).optionGroup ?? 0;
+                        if (!optionGroups.has(group)) optionGroups.set(group, []);
+                        optionGroups.get(group)!.push(item);
+                    });
+
+                    const sortedGroups = Array.from(optionGroups.entries()).sort(([a], [b]) => a - b);
+                    const hasAlts = sortedGroups.length > 1;
+
+                    let foodItemsHtml = '';
+                    sortedGroups.forEach(([groupNum, items], groupIdx) => {
+                        if (hasAlts) {
+                            const label = (items[0] as any).optionLabel || `Option ${String.fromCharCode(65 + groupNum)}`;
+                            foodItemsHtml += `<div class="option-label">${label}</div>`;
+                        }
+                        const listItems = items
+                            .map((item) => {
+                                const foodName = item.foodItem?.name || 'Unknown';
+                                const qty = item.quantityG ? `${item.quantityG}g` : '';
+                                return `<li>${foodName} ${qty}</li>`;
+                            })
+                            .join('');
+                        foodItemsHtml += `<ul class="food-items">${listItems}</ul>`;
+
+                        if (hasAlts && groupIdx < sortedGroups.length - 1) {
+                            foodItemsHtml += `<div class="or-divider">— OR —</div>`;
+                        }
+                    });
 
                     mealsHtml += `
                     <div class="meal">
                         <div class="meal-type">${MEAL_TYPE_LABELS[meal.mealType] || meal.mealType}</div>
                         <div class="meal-name">${meal.name}</div>
                         ${meal.description ? `<p class="description">${meal.description}</p>` : ''}
-                        ${foodItemsHtml ? `<ul class="food-items">${foodItemsHtml}</ul>` : ''}
+                        ${foodItemsHtml}
                         ${meal.instructions ? `<p class="instructions">📝 ${meal.instructions}</p>` : ''}
                     </div>
                 `;
@@ -285,6 +338,8 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
         .food-items { margin: 12px 0; padding-left: 20px; }
         .food-items li { font-size: 14px; margin: 4px 0; }
         .instructions { font-size: 13px; color: #6b7280; font-style: italic; }
+        .option-label { font-size: 13px; font-weight: 600; color: #17cf54; margin: 8px 0 4px 0; }
+        .or-divider { text-align: center; color: #9ca3af; font-size: 12px; margin: 8px 0; font-weight: 500; }
         .notes { background: #f9fafb; padding: 20px; border-radius: 12px; margin-top: 32px; }
         .notes h3 { font-size: 16px; margin-bottom: 12px; }
         .notes p { font-size: 14px; color: #374151; }

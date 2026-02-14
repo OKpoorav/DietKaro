@@ -77,7 +77,7 @@ export const mealLogsApi = {
     getMealLog: (mealLogId: string) =>
         api.get<ApiResponse<MealLog>>(`/client/meals/${mealLogId}`),
 
-    logMeal: (mealId: string, data: { status: string; photoUrl?: string; notes?: string }) =>
+    logMeal: (mealId: string, data: { status: string; photoUrl?: string; notes?: string; chosenOptionGroup?: number }) =>
         api.patch<ApiResponse<MealLog>>(`/client/meals/${mealId}/log`, data),
 
     uploadPhoto: (mealId: string, formData: FormData) =>

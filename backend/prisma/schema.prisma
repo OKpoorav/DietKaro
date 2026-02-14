@@ -415,6 +415,8 @@ model MealFoodItem {
   fiberG    Decimal? @db.Decimal(5, 1)
   sortOrder Int      @default(0)
   notes           String?
+  optionGroup     Int      @default(0) // 0 = default, 1+ = alternative meal options
+  optionLabel     String?              // e.g. "Oatmeal Bowl", "Egg Plate"
   createdAt       DateTime @default(now())
   deletedAt       DateTime?
   createdByUserId String?
@@ -425,6 +427,7 @@ model MealFoodItem {
 
   @@index([mealId])
   @@index([foodId])
+  @@index([mealId, optionGroup])
 }
 
 model MealLog {
@@ -446,6 +449,9 @@ model MealLog {
   substituteDescription String?
   substituteCaloriesEst Int?
   loggedAt              DateTime?
+
+  // Option tracking (for meals with alternatives)
+  chosenOptionGroup Int? // which option the client chose (null = default option 0)
 
   // Compliance Tracking
   complianceScore  Int? // 0-100

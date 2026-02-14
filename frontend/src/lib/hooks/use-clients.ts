@@ -51,6 +51,7 @@ export interface ClientProgress {
         currentWeight: number | null;
         targetWeight: number | null;
         totalChange: number | null;
+        last30DaysChange: number | null;
         weeklyAvgChange: number | null;
         progressToGoal: number | null;
     };
@@ -130,6 +131,7 @@ export function useClientProgress(clientId: string, params?: { dateFrom?: string
                     currentWeight: raw.weightTrend?.currentWeight ?? null,
                     targetWeight: raw.weightTrend?.targetWeight ?? null,
                     totalChange: raw.weightTrend?.totalWeightChange ?? null,
+                    last30DaysChange: raw.weightTrend?.last30DaysChange ?? null,
                     weeklyAvgChange: raw.weightTrend?.weeklyAverageChange ?? null,
                     progressToGoal: raw.weightTrend?.progressToGoalPercentage ?? null,
                 },

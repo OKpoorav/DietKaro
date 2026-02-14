@@ -60,7 +60,16 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
                     </View>
                 </View>
 
-                <Text style={styles.mealName} numberOfLines={1}>{meal?.name || 'Meal'}</Text>
+                <View style={styles.mealNameRow}>
+                    <Text style={styles.mealName} numberOfLines={1}>{meal?.name || 'Meal'}</Text>
+                    {meal?.hasAlternatives && (
+                        <View style={styles.optionsBadge}>
+                            <Text style={styles.optionsBadgeText}>
+                                {(meal.options?.length || 2)} options
+                            </Text>
+                        </View>
+                    )}
+                </View>
 
                 {scheduledTime && (
                     <View style={styles.timeRow}>
@@ -309,11 +318,28 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: FontWeights.semibold,
     },
+    mealNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        marginBottom: Spacing.xs,
+    },
     mealName: {
         fontSize: FontSizes.lg,
         fontWeight: FontWeights.bold,
         color: Colors.text,
-        marginBottom: Spacing.xs,
+        flexShrink: 1,
+    },
+    optionsBadge: {
+        backgroundColor: '#EFF6FF',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    optionsBadgeText: {
+        fontSize: 10,
+        fontWeight: FontWeights.semibold,
+        color: '#3B82F6',
     },
     timeRow: {
         flexDirection: 'row',

@@ -11,6 +11,7 @@ interface AddFoodModalProps {
     isOpen: boolean;
     onClose: () => void;
     mealType?: string;
+    optionLabel?: string;
     clientId?: string | null;
     currentDay?: string;
     onAddFood?: (food: LocalFoodItem) => void;
@@ -57,6 +58,7 @@ export function AddFoodModal({
     isOpen,
     onClose,
     mealType = 'Breakfast',
+    optionLabel,
     clientId = null,
     currentDay,
     onAddFood
@@ -157,7 +159,7 @@ export function AddFoodModal({
 
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} title={`Add to ${mealType}`} size="xl">
+            <Modal isOpen={isOpen} onClose={onClose} title={optionLabel ? `Add to ${mealType} > ${optionLabel}` : `Add to ${mealType}`} size="xl">
                 {/* Search and Actions */}
                 <div className="p-4 border-b border-gray-100 flex gap-4">
                     <div className="relative flex-grow">

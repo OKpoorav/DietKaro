@@ -27,6 +27,16 @@ export interface Client {
     onboardingCompleted?: boolean;
 }
 
+export interface MealOption {
+    optionGroup: number;
+    label: string;
+    totalCalories: number;
+    totalProteinG: number;
+    totalCarbsG: number;
+    totalFatsG: number;
+    foodItems: MealFoodItem[];
+}
+
 export interface Meal {
     id: string;
     planId: string;
@@ -39,6 +49,8 @@ export interface Meal {
     totalProteinG?: number;
     totalCarbsG?: number;
     totalFatsG?: number;
+    hasAlternatives?: boolean;
+    options?: MealOption[];
     foodItems: MealFoodItem[];
 }
 
@@ -48,6 +60,8 @@ export interface MealFoodItem {
     foodName: string;
     quantityG: number;
     calories?: number;
+    optionGroup?: number;
+    optionLabel?: string;
 }
 
 export interface MealLog {
@@ -56,6 +70,7 @@ export interface MealLog {
     scheduledDate: string;
     scheduledTime?: string;
     status: 'pending' | 'eaten' | 'skipped' | 'substituted';
+    chosenOptionGroup?: number;
     mealPhotoUrl?: string;
     clientNotes?: string;
     dietitianFeedback?: string;

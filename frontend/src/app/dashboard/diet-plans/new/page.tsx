@@ -159,6 +159,9 @@ function BuilderContent() {
                         onRemoveFood={builder.removeFood}
                         onUpdateFoodQuantity={builder.updateFoodQuantity}
                         onUpdateMealField={builder.updateMealField}
+                        onAddAlternative={builder.addMealOption}
+                        onRemoveOption={builder.removeOption}
+                        onUpdateOptionLabel={builder.updateOptionLabel}
                     />
                 </section>
 
@@ -176,6 +179,13 @@ function BuilderContent() {
                 isOpen={builder.showAddFoodModal}
                 onClose={() => builder.setShowAddFoodModal(false)}
                 mealType={builder.currentMeals.find(m => m.id === builder.activeMealId)?.name || 'Meal'}
+                optionLabel={
+                    builder.activeOptionGroup > 0
+                        ? builder.currentMeals.find(m => m.id === builder.activeMealId)?.foods
+                            .find(f => f.optionGroup === builder.activeOptionGroup)?.optionLabel
+                            || `Option ${String.fromCharCode(65 + builder.activeOptionGroup)}`
+                        : undefined
+                }
                 clientId={clientId}
                 currentDay={builder.planDates[builder.selectedDayIndex]?.day.toLowerCase()}
                 onAddFood={builder.addFood}

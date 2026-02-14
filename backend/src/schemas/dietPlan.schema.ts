@@ -24,7 +24,9 @@ export const createDietPlanSchema = z.object({
         foodItems: z.array(z.object({
             foodId: z.string().uuid(),
             quantity: z.number().min(0),
-            notes: z.string().optional()
+            notes: z.string().optional(),
+            optionGroup: z.number().int().min(0).optional(),
+            optionLabel: z.string().optional()
         })).optional()
     })).optional(),
     options: z.object({

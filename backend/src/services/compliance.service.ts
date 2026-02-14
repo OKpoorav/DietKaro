@@ -156,7 +156,9 @@ export class ComplianceService {
 
         // Factor 4: Portion accuracy (+20)
         // Compare substituteCaloriesEst (if provided) vs planned calories
-        const plannedFoodItems = mealLog.meal.foodItems;
+        // Filter by chosen option group for meals with alternatives
+        const chosenGroup = mealLog.chosenOptionGroup ?? 0;
+        const plannedFoodItems = mealLog.meal.foodItems.filter(fi => fi.optionGroup === chosenGroup);
         let plannedCalories = 0;
         plannedFoodItems.forEach(fi => {
             const ratio = Number(fi.quantityG) / 100;
@@ -235,19 +237,30 @@ export class ComplianceService {
 
         const mealsPlanned = activePlan?.meals.length || logs.length;
 
-        const mealBreakdown: MealBreakdown[] = logs.map(log => ({
-            mealLogId: log.id,
-            mealName: log.meal.name,
-            mealType: log.meal.mealType,
-            score: log.complianceScore,
-            color: (log.complianceColor as ComplianceColor) || null,
-            status: log.status,
-            issues: log.complianceIssues || [],
-        }));
+        // Derive score from status when complianceScore hasn't been calculated yet
+        const deriveScoreFromStatus = (status: string): number => {
+            if (status === 'eaten') return 85;
+            if (status === 'substituted') return 50;
+            if (status === 'skipped') return 0;
+            return 0; // pending
+        };
 
-        const scoredLogs = logs.filter(l => l.complianceScore !== null);
-        const totalScore = scoredLogs.reduce((sum, l) => sum + (l.complianceScore || 0), 0);
-        const avgScore = scoredLogs.length > 0 ? Math.round(totalScore / scoredLogs.length) : 0;
+        const mealBreakdown: MealBreakdown[] = logs.map(log => {
+            const score = log.complianceScore ?? (log.status !== 'pending' ? deriveScoreFromStatus(log.status) : null);
+            return {
+                mealLogId: log.id,
+                mealName: log.meal.name,
+                mealType: log.meal.mealType,
+                score,
+                color: score !== null ? (log.complianceColor as ComplianceColor) || getColor(score) : null,
+                status: log.status,
+                issues: log.complianceIssues || [],
+            };
+        });
+
+        const scoredMeals = mealBreakdown.filter(m => m.score !== null);
+        const totalScore = scoredMeals.reduce((sum, m) => sum + (m.score || 0), 0);
+        const avgScore = scoredMeals.length > 0 ? Math.round(totalScore / scoredMeals.length) : 0;
 
         return {
             date: start.toISOString().split('T')[0],

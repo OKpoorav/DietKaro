@@ -112,7 +112,40 @@ export class MealLogService {
 
         if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
 
-        const items = mealLog.meal.foodItems.map((mfi) => {
+        // Group food items by optionGroup
+        const optionGroupsMap = new Map<number, typeof mealLog.meal.foodItems>();
+        mealLog.meal.foodItems.forEach((mfi) => {
+            const group = mfi.optionGroup;
+            if (!optionGroupsMap.has(group)) optionGroupsMap.set(group, []);
+            optionGroupsMap.get(group)!.push(mfi);
+        });
+
+        const hasAlternatives = optionGroupsMap.size > 1;
+
+        const options = Array.from(optionGroupsMap.entries())
+            .sort(([a], [b]) => a - b)
+            .map(([group, groupItems]) => {
+                const items = groupItems.map((mfi) => {
+                    const nutrition = scaleNutrition(mfi.foodItem, Number(mfi.quantityG));
+                    return {
+                        foodId: mfi.foodItem.id,
+                        foodName: mfi.foodItem.name,
+                        quantity: Number(mfi.quantityG),
+                        unit: 'g',
+                        nutrition,
+                    };
+                });
+                const totals = sumNutrition(items.map((i) => i.nutrition));
+                return {
+                    optionGroup: group,
+                    label: groupItems[0]?.optionLabel || (group === 0 ? 'Default' : `Option ${group + 1}`),
+                    items,
+                    totals,
+                };
+            });
+
+        // Flat items list (all options combined) for backward compatibility
+        const allItems = mealLog.meal.foodItems.map((mfi) => {
             const nutrition = scaleNutrition(mfi.foodItem, Number(mfi.quantityG));
             return {
                 foodId: mfi.foodItem.id,
@@ -122,8 +155,7 @@ export class MealLogService {
                 nutrition,
             };
         });
-
-        const totals = sumNutrition(items.map((i) => i.nutrition));
+        const totals = sumNutrition(allItems.map((i) => i.nutrition));
 
         return {
             id: mealLog.id,
@@ -136,10 +168,13 @@ export class MealLogService {
                 title: mealLog.meal.name,
                 mealType: mealLog.meal.mealType,
                 instructions: mealLog.meal.instructions,
-                items,
+                items: allItems,
                 totals,
+                hasAlternatives,
+                options,
             },
             status: mealLog.status,
+            chosenOptionGroup: mealLog.chosenOptionGroup,
             photoUrl: mealLog.mealPhotoUrl,
             clientNotes: mealLog.clientNotes,
             dietitianFeedback: mealLog.dietitianFeedback,
@@ -166,6 +201,7 @@ export class MealLogService {
         if (data.clientNotes !== undefined) updateData.clientNotes = data.clientNotes;
         if (data.substituteDescription !== undefined) updateData.substituteDescription = data.substituteDescription;
         if (data.substituteCaloriesEst !== undefined) updateData.substituteCaloriesEst = data.substituteCaloriesEst;
+        if (data.chosenOptionGroup !== undefined) updateData.chosenOptionGroup = data.chosenOptionGroup;
         if (data.photoUrl) {
             updateData.mealPhotoUrl = data.photoUrl;
             updateData.photoUploadedAt = new Date();

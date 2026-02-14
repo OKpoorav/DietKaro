@@ -30,11 +30,13 @@ export class MealService {
                               quantityG: item.quantity,
                               notes: item.notes,
                               sortOrder,
+                              optionGroup: item.optionGroup ?? 0,
+                              optionLabel: item.optionLabel ?? null,
                           })),
                       }
                     : undefined,
             },
-            include: { foodItems: { include: { foodItem: true } } },
+            include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } },
         });
 
         logger.info('Meal added to plan', { mealId: meal.id, planId });

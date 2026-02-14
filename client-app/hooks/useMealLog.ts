@@ -20,16 +20,18 @@ interface LogMealInput {
     status: 'eaten' | 'skipped' | 'substituted';
     notes?: string;
     photoUri?: string;
+    chosenOptionGroup?: number;
 }
 
 export function useLogMeal() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ mealLogId, status, notes, photoUri }: LogMealInput) => {
+        mutationFn: async ({ mealLogId, status, notes, photoUri, chosenOptionGroup }: LogMealInput) => {
             const { data } = await mealLogsApi.logMeal(mealLogId, {
                 status,
                 notes,
+                chosenOptionGroup,
             });
             const result = data.data;
 

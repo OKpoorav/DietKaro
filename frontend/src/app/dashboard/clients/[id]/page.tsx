@@ -136,7 +136,7 @@ export default function ClientProfilePage() {
     // All values below come directly from backend — zero computation
     const age = calculateAge(client.dateOfBirth);
     const adherencePercent = progress?.meals?.adherencePercentage ?? 0;
-    const weightChange = progress?.weight?.totalChange;
+    const weightChange = progress?.weight?.last30DaysChange;
 
     return (
         <div className="space-y-6">

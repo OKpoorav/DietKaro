@@ -25,7 +25,7 @@ export const downloadDietPlanPdf = asyncHandler(async (req: AuthenticatedRequest
                 orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
                 include: {
                     foodItems: {
-                        orderBy: { sortOrder: 'asc' },
+                        orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
                         include: { foodItem: true }
                     }
                 }
@@ -68,7 +68,7 @@ export const getDietPlanPrintView = asyncHandler(async (req: AuthenticatedReques
                 orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
                 include: {
                     foodItems: {
-                        orderBy: { sortOrder: 'asc' },
+                        orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
                         include: { foodItem: true }
                     }
                 }
@@ -113,7 +113,7 @@ export const emailDietPlan = asyncHandler(async (req: AuthenticatedRequest, res:
                 orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
                 include: {
                     foodItems: {
-                        orderBy: { sortOrder: 'asc' },
+                        orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
                         include: { foodItem: true }
                     }
                 }

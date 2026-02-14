@@ -194,6 +194,7 @@ export class ClientService {
         let startWeight: number | null = null;
         let currentWeight: number | null = null;
         let totalWeightChange: number | null = null;
+        let last30DaysChange: number | null = null;
         let weeklyAvgChange: number | null = null;
         const targetWeight = client.targetWeightKg ? Number(client.targetWeightKg) : null;
         let progressToGoal: number | null = null;
@@ -208,10 +209,33 @@ export class ClientService {
             const weeksDiff = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
             weeklyAvgChange = Math.round((totalWeightChange / weeksDiff) * 100) / 100;
 
-            if (targetWeight && startWeight) {
-                const totalToLose = startWeight - targetWeight;
-                const lost = startWeight - currentWeight;
-                progressToGoal = totalToLose > 0 ? Math.round((lost / totalToLose) * 100) : 0;
+            // Last 30 days change — separate from all-time totalWeightChange
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const recentLogs = weightLogs.filter(w => new Date(w.logDate) >= thirtyDaysAgo);
+            if (recentLogs.length >= 2) {
+                const recentStart = Number(recentLogs[0].weightKg);
+                const recentEnd = Number(recentLogs[recentLogs.length - 1].weightKg);
+                last30DaysChange = Math.round((recentEnd - recentStart) * 100) / 100;
+            } else if (recentLogs.length === 1) {
+                last30DaysChange = 0;
+            }
+
+            // Progress to goal — handles both weight loss AND weight gain
+            if (targetWeight && startWeight && currentWeight) {
+                const totalToChange = Math.abs(startWeight - targetWeight);
+                if (totalToChange > 0) {
+                    // Check if moving in the right direction
+                    const isLossGoal = targetWeight < startWeight;
+                    const moved = isLossGoal
+                        ? startWeight - currentWeight   // positive = good for loss
+                        : currentWeight - startWeight;  // positive = good for gain
+                    progressToGoal = moved > 0
+                        ? Math.min(100, Math.round((moved / totalToChange) * 100))
+                        : 0;
+                } else {
+                    progressToGoal = 100; // Already at target
+                }
             }
         }
 
@@ -234,7 +258,7 @@ export class ClientService {
         return {
             client: { id: client.id, fullName: client.fullName },
             weightTrend: {
-                startWeight, currentWeight, targetWeight, totalWeightChange,
+                startWeight, currentWeight, targetWeight, totalWeightChange, last30DaysChange,
                 weeklyAverageChange: weeklyAvgChange, progressToGoalPercentage: progressToGoal,
                 dataPoints: weightLogs.map((w) => ({ date: w.logDate, weight: Number(w.weightKg) })),
             },

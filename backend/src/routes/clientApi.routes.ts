@@ -57,29 +57,53 @@ router.get('/meals/today', asyncHandler(async (req: ClientAuthRequest, res: Resp
     const todayMeals = activePlan.meals.map((meal) => {
         const log = mealLogs.find((l) => l.mealId === meal.id);
 
-        // Calculate macros from food items if not set on meal
+        // Group food items by optionGroup
         const foodItems = meal.foodItems || [];
-        const calculatedCalories = foodItems.reduce((sum, fi) => {
-            // Calculate from food item: (calories per 100g * quantity / 100)
-            const itemCalories = fi.calories ||
-                Math.round((fi.foodItem.calories * Number(fi.quantityG)) / 100);
-            return sum + itemCalories;
-        }, 0);
-        const calculatedProtein = foodItems.reduce((sum, fi) => {
-            const itemProtein = Number(fi.proteinG) ||
-                (Number(fi.foodItem.proteinG || 0) * Number(fi.quantityG)) / 100;
-            return sum + itemProtein;
-        }, 0);
-        const calculatedCarbs = foodItems.reduce((sum, fi) => {
-            const itemCarbs = Number(fi.carbsG) ||
-                (Number(fi.foodItem.carbsG || 0) * Number(fi.quantityG)) / 100;
-            return sum + itemCarbs;
-        }, 0);
-        const calculatedFats = foodItems.reduce((sum, fi) => {
-            const itemFats = Number(fi.fatsG) ||
-                (Number(fi.foodItem.fatsG || 0) * Number(fi.quantityG)) / 100;
-            return sum + itemFats;
-        }, 0);
+        const optionGroupsMap = new Map<number, typeof foodItems>();
+        foodItems.forEach((fi) => {
+            const group = fi.optionGroup ?? 0;
+            if (!optionGroupsMap.has(group)) optionGroupsMap.set(group, []);
+            optionGroupsMap.get(group)!.push(fi);
+        });
+
+        const hasAlternatives = optionGroupsMap.size > 1;
+
+        // Calculate macros per option group
+        const calcMacros = (items: typeof foodItems) => {
+            let calories = 0, protein = 0, carbs = 0, fats = 0;
+            items.forEach(fi => {
+                calories += fi.calories || Math.round((fi.foodItem.calories * Number(fi.quantityG)) / 100);
+                protein += Number(fi.proteinG) || (Number(fi.foodItem.proteinG || 0) * Number(fi.quantityG)) / 100;
+                carbs += Number(fi.carbsG) || (Number(fi.foodItem.carbsG || 0) * Number(fi.quantityG)) / 100;
+                fats += Number(fi.fatsG) || (Number(fi.foodItem.fatsG || 0) * Number(fi.quantityG)) / 100;
+            });
+            return { calories, protein: Math.round(protein), carbs: Math.round(carbs), fats: Math.round(fats) };
+        };
+
+        // Build options array
+        const options = Array.from(optionGroupsMap.entries())
+            .sort(([a], [b]) => a - b)
+            .map(([group, items]) => {
+                const macros = calcMacros(items);
+                return {
+                    optionGroup: group,
+                    label: items[0]?.optionLabel || (group === 0 ? 'Default' : `Option ${group + 1}`),
+                    totalCalories: macros.calories,
+                    totalProteinG: macros.protein,
+                    totalCarbsG: macros.carbs,
+                    totalFatsG: macros.fats,
+                    foodItems: items.map((fi) => ({
+                        id: fi.id,
+                        foodId: fi.foodId,
+                        foodName: fi.foodItem.name,
+                        quantityG: fi.quantityG,
+                        calories: fi.calories || Math.round((fi.foodItem.calories * Number(fi.quantityG)) / 100),
+                    })),
+                };
+            });
+
+        // Use option 0 macros as default display values
+        const defaultMacros = calcMacros(optionGroupsMap.get(0) || foodItems);
 
         return {
             id: log?.id || `pending-${meal.id}`,
@@ -87,6 +111,7 @@ router.get('/meals/today', asyncHandler(async (req: ClientAuthRequest, res: Resp
             scheduledDate: today.toISOString().split('T')[0],
             scheduledTime: meal.timeOfDay,
             status: log?.status || 'pending',
+            chosenOptionGroup: log?.chosenOptionGroup ?? null,
             mealPhotoUrl: log?.mealPhotoUrl,
             clientNotes: log?.clientNotes,
             dietitianFeedback: log?.dietitianFeedback,
@@ -100,16 +125,20 @@ router.get('/meals/today', asyncHandler(async (req: ClientAuthRequest, res: Resp
                 description: meal.description,
                 timeOfDay: meal.timeOfDay,
                 instructions: meal.instructions,
-                totalCalories: meal.totalCalories || calculatedCalories,
-                totalProteinG: Number(meal.totalProteinG) || Math.round(calculatedProtein),
-                totalCarbsG: Number(meal.totalCarbsG) || Math.round(calculatedCarbs),
-                totalFatsG: Number(meal.totalFatsG) || Math.round(calculatedFats),
+                totalCalories: meal.totalCalories || defaultMacros.calories,
+                totalProteinG: Number(meal.totalProteinG) || defaultMacros.protein,
+                totalCarbsG: Number(meal.totalCarbsG) || defaultMacros.carbs,
+                totalFatsG: Number(meal.totalFatsG) || defaultMacros.fats,
+                hasAlternatives,
+                options,
                 foodItems: foodItems.map((fi) => ({
                     id: fi.id,
                     foodId: fi.foodId,
                     foodName: fi.foodItem.name,
                     quantityG: fi.quantityG,
                     calories: fi.calories || Math.round((fi.foodItem.calories * Number(fi.quantityG)) / 100),
+                    optionGroup: fi.optionGroup ?? 0,
+                    optionLabel: fi.optionLabel,
                 })),
             },
         };
@@ -123,7 +152,7 @@ router.patch('/meals/:mealLogId/log', asyncHandler(async (req: ClientAuthRequest
     if (!req.client) throw AppError.unauthorized();
 
     const { mealLogId } = req.params;
-    const { status, photoUrl, notes } = req.body;
+    const { status, photoUrl, notes, chosenOptionGroup } = req.body;
 
     // Check if meal log exists, if not create it
     let mealLog = await prisma.mealLog.findUnique({ where: { id: mealLogId } });
@@ -161,6 +190,7 @@ router.patch('/meals/:mealLogId/log', asyncHandler(async (req: ClientAuthRequest
                         mealPhotoUrl: photoUrl || existingLog.mealPhotoUrl,
                         clientNotes: notes || existingLog.clientNotes,
                         loggedAt: new Date(),
+                        ...(chosenOptionGroup !== undefined && { chosenOptionGroup }),
                     },
                 });
             } else {
@@ -175,6 +205,7 @@ router.patch('/meals/:mealLogId/log', asyncHandler(async (req: ClientAuthRequest
                         mealPhotoUrl: photoUrl,
                         clientNotes: notes,
                         loggedAt: new Date(),
+                        ...(chosenOptionGroup !== undefined && { chosenOptionGroup }),
                     },
                 });
             }
@@ -194,6 +225,7 @@ router.patch('/meals/:mealLogId/log', asyncHandler(async (req: ClientAuthRequest
                 mealPhotoUrl: photoUrl || mealLog.mealPhotoUrl,
                 clientNotes: notes || mealLog.clientNotes,
                 loggedAt: new Date(),
+                ...(chosenOptionGroup !== undefined && { chosenOptionGroup }),
             },
         });
     }

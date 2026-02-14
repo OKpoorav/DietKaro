@@ -12,7 +12,8 @@ export const updateMealLogSchema = z.object({
     photoUrl: z.string().url().optional(),
     clientNotes: z.string().optional(),
     substituteDescription: z.string().optional(),
-    substituteCaloriesEst: z.number().optional()
+    substituteCaloriesEst: z.number().optional(),
+    chosenOptionGroup: z.number().int().min(0).optional()
 });
 
 export const reviewMealLogSchema = z.object({
