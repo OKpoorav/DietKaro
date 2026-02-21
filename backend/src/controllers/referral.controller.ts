@@ -32,10 +32,10 @@ export const getReferralCode = asyncHandler(async (req: ClientAuthRequest, res: 
         let code = generateReferralCode();
         let attempts = 0;
 
-        // Ensure uniqueness
+        // Ensure uniqueness within org
         while (attempts < 10) {
-            const existing = await prisma.client.findUnique({
-                where: { referralCode: code }
+            const existing = await prisma.client.findFirst({
+                where: { orgId: req.client.orgId, referralCode: code }
             });
             if (!existing) break;
             code = generateReferralCode();
@@ -138,8 +138,9 @@ export const validateReferralCode = asyncHandler(async (req: ClientAuthRequest, 
         throw AppError.badRequest('Invalid referral code format');
     }
 
-    const referrer = await prisma.client.findUnique({
-        where: { referralCode: code.toUpperCase() },
+    const orgId = req.client?.orgId;
+    const referrer = await prisma.client.findFirst({
+        where: { orgId, referralCode: code.toUpperCase() },
         select: { id: true, fullName: true }
     });
 

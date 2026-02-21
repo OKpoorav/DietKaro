@@ -2,7 +2,7 @@ import prisma from '../utils/prisma';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
-import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
+import { buildPaginationParams, buildPaginationMeta, buildDateFilter, safeSortBy } from '../utils/queryFilters';
 import { scaleNutrition, sumNutrition } from '../utils/nutritionCalculator';
 import { complianceService } from './compliance.service';
 import type { CreateMealLogInput, UpdateMealLogInput, ReviewMealLogInput, MealLogListQuery } from '../schemas/mealLog.schema';
@@ -40,10 +40,13 @@ export class MealLogService {
         return mealLog;
     }
 
+    private static MEALLOG_SORT_FIELDS = new Set(['scheduledDate', 'createdAt', 'status', 'updatedAt']);
+
     async listMealLogs(orgId: string, query: MealLogListQuery, userRole: string, userId: string) {
         const { clientId, status, reviewStatus, sortBy = 'scheduledDate' } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
         const dateFilter = buildDateFilter(query.dateFrom, query.dateTo);
+        const validSortBy = safeSortBy(sortBy, MealLogService.MEALLOG_SORT_FIELDS, 'scheduledDate');
 
         const where: Prisma.MealLogWhereInput = { orgId };
         if (clientId) where.clientId = clientId;
@@ -67,7 +70,7 @@ export class MealLogService {
                 where,
                 skip: pagination.skip,
                 take: pagination.take,
-                orderBy: { [String(sortBy)]: 'desc' },
+                orderBy: { [validSortBy]: 'desc' },
                 include: {
                     meal: { select: { name: true, mealType: true, timeOfDay: true } },
                     client: { select: { id: true, fullName: true } },
@@ -234,9 +237,17 @@ export class MealLogService {
         };
     }
 
-    async reviewMealLog(mealLogId: string, data: ReviewMealLogInput, orgId: string, userId: string) {
-        const mealLog = await prisma.mealLog.findFirst({ where: { id: mealLogId, orgId } });
+    async reviewMealLog(mealLogId: string, data: ReviewMealLogInput, orgId: string, userId: string, userRole: string) {
+        const mealLog = await prisma.mealLog.findFirst({
+            where: { id: mealLogId, orgId },
+            include: { client: { select: { primaryDietitianId: true } } },
+        });
         if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
+
+        // Dietitians can only review their assigned clients' meal logs
+        if (userRole === 'dietitian' && mealLog.client.primaryDietitianId !== userId) {
+            throw AppError.forbidden('You can only review meal logs for your assigned clients');
+        }
 
         const updateData: Record<string, unknown> = { reviewedByUserId: userId, dietitianFeedbackAt: new Date() };
         if (data.dietitianFeedback !== undefined) updateData.dietitianFeedback = data.dietitianFeedback;

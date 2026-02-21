@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.middleware';
+import { requireAuth, requireRole } from '../middleware/auth.middleware';
 import {
     getOrgReferralStats,
     getClientReferrals,
@@ -9,8 +9,9 @@ import {
 
 const router = Router();
 
-// All routes require authentication
+// All routes require authentication + admin/owner role
 router.use(requireAuth);
+router.use(requireRole('admin', 'owner'));
 
 // Get overall referral statistics for the org
 router.get('/stats', getOrgReferralStats);

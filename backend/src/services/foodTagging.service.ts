@@ -163,19 +163,58 @@ export class FoodTaggingService {
     }
 
     /**
-     * Auto-tag a single food item
+     * Auto-tag a single food item.
+     * - Foods WITH ingredients: allergenFlags and dietaryCategory are derived from ingredients (not keyword-guessed).
+     * - Foods WITHOUT ingredients: allergenFlags are NOT keyword-guessed (only manual flags kept).
+     *   dietaryCategory is still keyword-detected if not already set.
+     * - nutritionTags and healthFlags are always computed from nutrition values.
      */
     async autoTagFood(foodId: string): Promise<any> {
         const food = await prisma.foodItem.findUnique({
-            where: { id: foodId }
+            where: { id: foodId },
+            include: {
+                ingredients: {
+                    include: { ingredient: { select: { allergenFlags: true, dietaryCategory: true } } },
+                },
+            },
         });
 
         if (!food) {
             throw new Error('Food item not found');
         }
 
-        const dietaryCategory = this.detectDietaryCategory(food.name, food.dietaryCategory);
-        const allergenFlags = this.detectAllergens(food.name, food.allergenFlags);
+        const hasIngredients = food.ingredients.length > 0;
+
+        let allergenFlags: string[];
+        let dietaryCategory: string | null;
+
+        if (hasIngredients) {
+            // Derive from ingredients — deterministic, no guessing
+            const allFlags = new Set<string>(food.allergenFlags); // keep manual flags
+            let maxPriority = 0;
+            dietaryCategory = null;
+
+            const PRIORITY: Record<string, number> = { non_veg: 4, veg_with_egg: 3, vegetarian: 2, vegan: 1 };
+
+            for (const link of food.ingredients) {
+                for (const flag of link.ingredient.allergenFlags) {
+                    allFlags.add(flag);
+                }
+                const p = PRIORITY[link.ingredient.dietaryCategory || ''] || 0;
+                if (p > maxPriority) {
+                    maxPriority = p;
+                    dietaryCategory = link.ingredient.dietaryCategory;
+                }
+            }
+
+            allergenFlags = Array.from(allFlags);
+        } else {
+            // No ingredients: keep existing manual allergenFlags, no keyword guessing
+            allergenFlags = food.allergenFlags;
+            // Still detect dietary category from name if not already set
+            dietaryCategory = this.detectDietaryCategory(food.name, food.dietaryCategory);
+        }
+
         const nutritionTags = this.calculateNutritionTags({
             calories: food.calories,
             proteinG: food.proteinG ? Number(food.proteinG) : null,
@@ -210,7 +249,8 @@ export class FoodTaggingService {
             dietaryCategory,
             allergenFlags,
             nutritionTags: nutritionTags.length,
-            healthFlags: healthFlags.length
+            healthFlags: healthFlags.length,
+            ingredientDerived: hasIngredients,
         });
 
         return updated;

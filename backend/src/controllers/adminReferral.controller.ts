@@ -119,6 +119,7 @@ export const getClientReferrals = asyncHandler(async (req: AuthenticatedRequest,
         prisma.client.findMany({
             where: {
                 referredByClientId: clientId,
+                orgId: req.user.organizationId,
                 isActive: true
             },
             select: {
@@ -135,6 +136,7 @@ export const getClientReferrals = asyncHandler(async (req: AuthenticatedRequest,
         prisma.client.count({
             where: {
                 referredByClientId: clientId,
+                orgId: req.user.organizationId,
                 isActive: true
             }
         })

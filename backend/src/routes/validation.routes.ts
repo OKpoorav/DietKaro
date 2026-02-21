@@ -4,7 +4,7 @@
  */
 
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.middleware';
+import { requireAuth, requireRole } from '../middleware/auth.middleware';
 import {
     checkValidation,
     checkBatchValidation,
@@ -22,7 +22,7 @@ router.post('/check', checkValidation);
 // POST /api/v1/diet-validation/batch - Batch food validation
 router.post('/batch', checkBatchValidation);
 
-// POST /api/v1/diet-validation/invalidate-cache - Clear cache
-router.post('/invalidate-cache', invalidateCache);
+// POST /api/v1/diet-validation/invalidate-cache - Clear cache (admin/owner only)
+router.post('/invalidate-cache', requireRole('admin', 'owner'), invalidateCache);
 
 export default router;

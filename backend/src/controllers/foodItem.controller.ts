@@ -27,6 +27,7 @@ export const createFoodItem = asyncHandler(async (req: AuthenticatedRequest, res
             servingSize: `${foodItem.servingSizeG} g`,
             isGlobal: foodItem.orgId === null,
             isVerified: foodItem.isVerified,
+            isBaseIngredient: foodItem.isBaseIngredient,
             nutrition: {
                 calories: foodItem.calories,
                 proteinG: foodItem.proteinG ? Number(foodItem.proteinG) : null,
@@ -38,6 +39,12 @@ export const createFoodItem = asyncHandler(async (req: AuthenticatedRequest, res
             },
             allergenFlags: foodItem.allergenFlags,
             dietaryTags: foodItem.dietaryTags,
+            ingredients: foodItem.ingredients.map(link => ({
+                id: link.ingredient.id,
+                name: link.ingredient.name,
+                allergenFlags: link.ingredient.allergenFlags,
+                dietaryCategory: link.ingredient.dietaryCategory,
+            })),
             barcode: foodItem.barcode,
             createdByUserId: foodItem.createdByUserId,
             createdAt: foodItem.createdAt,
@@ -60,6 +67,7 @@ export const listFoodItems = asyncHandler(async (req: AuthenticatedRequest, res:
             servingSize: `${item.servingSizeG} g`,
             isGlobal: item.orgId === null,
             isVerified: item.isVerified,
+            isBaseIngredient: item.isBaseIngredient,
             nutrition: {
                 calories: item.calories,
                 proteinG: item.proteinG ? Number(item.proteinG) : null,
@@ -104,6 +112,13 @@ export const getFoodItem = asyncHandler(async (req: AuthenticatedRequest, res: R
             },
             allergenFlags: foodItem.allergenFlags,
             dietaryTags: foodItem.dietaryTags,
+            isBaseIngredient: foodItem.isBaseIngredient,
+            ingredients: foodItem.ingredients.map(link => ({
+                id: link.ingredient.id,
+                name: link.ingredient.name,
+                allergenFlags: link.ingredient.allergenFlags,
+                dietaryCategory: link.ingredient.dietaryCategory,
+            })),
             barcode: foodItem.barcode,
             source: foodItem.source,
             createdBy: foodItem.creator,
@@ -182,6 +197,19 @@ export const removeFoodFromMeal = asyncHandler(async (req: AuthenticatedRequest,
     if (!req.user) throw AppError.unauthorized();
     await foodItemService.removeFoodFromMeal(req.params.mealId, req.params.itemId, req.user.organizationId);
     res.status(204).send();
+});
+
+// ============ BASE INGREDIENTS ============
+
+export const listBaseIngredients = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+    const { items, meta } = await foodItemService.listBaseIngredients(req.user.organizationId, req.query);
+
+    res.status(200).json({
+        success: true,
+        data: items,
+        meta,
+    });
 });
 
 // ============ TAGGING ENDPOINTS ============

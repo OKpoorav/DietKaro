@@ -42,3 +42,14 @@ export const apiLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+export const writeOperationLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    message: {
+        success: false,
+        error: { code: 'RATE_LIMITED', message: 'Too many write requests. Please slow down.' },
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});

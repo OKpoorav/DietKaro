@@ -10,9 +10,9 @@ export class NotificationService {
      * registerDeviceToken
      * Adds a push token to the user or client profile
      */
-    async registerDeviceToken(entityId: string, entityType: 'client' | 'user', token: string) {
+    async registerDeviceToken(entityId: string, entityType: 'client' | 'user', token: string, orgId: string) {
         if (entityType === 'client') {
-            const client = await prisma.client.findUnique({ where: { id: entityId } });
+            const client = await prisma.client.findFirst({ where: { id: entityId, orgId } });
             if (!client) return;
             const tokens = new Set(client.pushTokens);
             tokens.add(token);
@@ -21,7 +21,7 @@ export class NotificationService {
                 data: { pushTokens: Array.from(tokens) }
             });
         } else {
-            const user = await prisma.user.findUnique({ where: { id: entityId } });
+            const user = await prisma.user.findFirst({ where: { id: entityId, orgId } });
             if (!user) return;
             const tokens = new Set(user.pushTokens);
             tokens.add(token);
@@ -30,7 +30,7 @@ export class NotificationService {
                 data: { pushTokens: Array.from(tokens) }
             });
         }
-        logger.info('Device token registered', { entityId, entityType });
+        logger.info('Device token registered', { entityId, entityType, orgId });
     }
 
     /**
@@ -62,13 +62,13 @@ export class NotificationService {
             }
         });
 
-        // 2. Get push tokens
+        // 2. Get push tokens (scoped to org)
         let tokens: string[] = [];
         if (recipientType === 'client') {
-            const client = await prisma.client.findUnique({ where: { id: recipientId } });
+            const client = await prisma.client.findFirst({ where: { id: recipientId, orgId } });
             tokens = client?.pushTokens || [];
         } else {
-            const user = await prisma.user.findUnique({ where: { id: recipientId } });
+            const user = await prisma.user.findFirst({ where: { id: recipientId, orgId } });
             tokens = user?.pushTokens || [];
         }
 

@@ -57,6 +57,16 @@ export const inviteMember = asyncHandler(async (req: AuthenticatedRequest, res: 
     if (!req.user) throw AppError.unauthorized();
     const orgId = req.user.organizationId;
 
+    // Validate invite role — prevent escalation
+    const ALLOWED_INVITE_ROLES = ['dietitian', 'admin'];
+    if (!role || !ALLOWED_INVITE_ROLES.includes(role)) {
+        throw AppError.badRequest('Invalid role. Allowed: dietitian, admin', 'INVALID_ROLE');
+    }
+    // Only owners can invite admins
+    if (role === 'admin' && req.user.role !== 'owner') {
+        throw AppError.forbidden('Only owners can invite admin users');
+    }
+
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({ where: { email } });
     if (existingUser) {

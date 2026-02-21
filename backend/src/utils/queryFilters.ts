@@ -75,3 +75,11 @@ export function buildSearchFilter(search: string | undefined, fields: string[]):
         [field]: { contains: String(search), mode: 'insensitive' },
     }));
 }
+
+/**
+ * Validate sortBy against an allow-list to prevent Prisma crashes / info leakage
+ */
+export function safeSortBy(sortBy: unknown, allowedFields: Set<string>, defaultField: string): string {
+    const field = String(sortBy || defaultField);
+    return allowedFields.has(field) ? field : defaultField;
+}

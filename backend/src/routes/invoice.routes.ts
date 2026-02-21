@@ -7,12 +7,13 @@ const router = Router();
 
 router.use(requireAuth);
 router.use(requireActiveSubscription);
+router.use(requireRole('admin', 'owner'));
 
 router.post('/', createInvoice);
 router.get('/', listInvoices);
 router.get('/:id', getInvoice);
 router.patch('/:id', updateInvoice);
 router.post('/:id/mark-paid', markInvoicePaid);
-router.delete('/:id', requireRole('admin', 'owner'), deleteInvoice);
+router.delete('/:id', deleteInvoice);
 
 export default router;

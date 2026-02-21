@@ -32,7 +32,7 @@ export const updateMealLog = asyncHandler(async (req: AuthenticatedRequest, res:
 
 export const reviewMealLog = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const data = await mealLogService.reviewMealLog(req.params.id, req.body, req.user.organizationId, req.user.id);
+    const data = await mealLogService.reviewMealLog(req.params.id, req.body, req.user.organizationId, req.user.id, req.user.role);
     res.status(200).json({ success: true, data });
 });
 

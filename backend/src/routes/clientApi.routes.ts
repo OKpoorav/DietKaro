@@ -208,14 +208,14 @@ router.post('/device-token', asyncHandler(async (req: ClientAuthRequest, res: Re
     if (!req.client) throw AppError.unauthorized();
     const { token } = req.body;
     if (!token || typeof token !== 'string') throw AppError.badRequest('Push token is required', 'MISSING_TOKEN');
-    await notificationService.registerDeviceToken(req.client.id, 'client', token);
+    await notificationService.registerDeviceToken(req.client.id, 'client', token, req.client.orgId);
     res.status(200).json({ success: true });
 }));
 
 router.get('/notifications', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const notifications = await prisma.notification.findMany({
-        where: { recipientId: req.client.id, recipientType: 'client' },
+        where: { recipientId: req.client.id, recipientType: 'client', orgId: req.client.orgId },
         orderBy: { createdAt: 'desc' },
         take: 50,
     });

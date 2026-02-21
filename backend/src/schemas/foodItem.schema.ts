@@ -16,7 +16,9 @@ export const createFoodItemSchema = z.object({
     sugarG: z.number().min(0).optional(),
     barcode: z.string().optional(),
     allergenFlags: z.array(z.string()).default([]),
-    dietaryTags: z.array(z.string()).default([])
+    dietaryTags: z.array(z.string()).default([]),
+    isBaseIngredient: z.boolean().default(false),
+    ingredientIds: z.array(z.string().uuid()).default([]),
 });
 
 export type CreateFoodItemInput = z.infer<typeof createFoodItemSchema>;

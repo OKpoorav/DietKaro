@@ -19,7 +19,7 @@ export const registerToken = asyncHandler(async (req: AuthenticatedRequest, res:
     if (!token) throw AppError.badRequest('Token required', 'TOKEN_REQUIRED');
 
     // For now, this endpoint assumes it's the logged-in User
-    await notificationService.registerDeviceToken(req.user.id, 'user', token);
+    await notificationService.registerDeviceToken(req.user.id, 'user', token, req.user.organizationId);
 
     res.status(200).json({ success: true, message: 'Token registered' });
 });
@@ -69,7 +69,7 @@ export const markRead = asyncHandler(async (req: AuthenticatedRequest, res: Resp
     const { id } = req.params;
 
     await prisma.notification.updateMany({
-        where: { id, recipientId: req.user.id },
+        where: { id, recipientId: req.user.id, orgId: req.user.organizationId },
         data: { isRead: true, readAt: new Date() }
     });
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { useCreateFoodItem, useUpdateFoodItem, CreateFoodItemInput, FoodItem } from '@/lib/hooks/use-food-items';
-import { Loader2, X } from 'lucide-react';
+import { useCreateFoodItem, useUpdateFoodItem, useBaseIngredients, CreateFoodItemInput, FoodItem, BaseIngredient } from '@/lib/hooks/use-food-items';
+import { Loader2, X, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CreateFoodItemModalProps {
@@ -59,8 +59,35 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
         sugarG: 0,
         sodiumMg: 0,
         dietaryTags: [],
-        allergenFlags: []
+        allergenFlags: [],
+        isBaseIngredient: false,
+        ingredientIds: [],
     });
+
+    // Ingredient search state
+    const [ingredientSearch, setIngredientSearch] = useState('');
+    const [selectedIngredients, setSelectedIngredients] = useState<BaseIngredient[]>([]);
+    const [showIngredientDropdown, setShowIngredientDropdown] = useState(false);
+
+    const { data: baseIngredients } = useBaseIngredients(ingredientSearch || undefined);
+
+    // Filter out already selected ingredients from dropdown
+    const availableIngredients = useMemo(() => {
+        if (!baseIngredients) return [];
+        const selectedIds = new Set(selectedIngredients.map(i => i.id));
+        return baseIngredients.filter(i => !selectedIds.has(i.id));
+    }, [baseIngredients, selectedIngredients]);
+
+    // Compute derived allergens from selected ingredients
+    const derivedAllergens = useMemo(() => {
+        const flags = new Set<string>();
+        for (const ing of selectedIngredients) {
+            for (const flag of ing.allergenFlags) {
+                flags.add(flag);
+            }
+        }
+        return Array.from(flags);
+    }, [selectedIngredients]);
 
     // Populate form when initialData changes
     useEffect(() => {
@@ -78,8 +105,19 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                 sugarG: 0,
                 sodiumMg: 0,
                 dietaryTags: initialData.dietaryTags,
-                allergenFlags: initialData.allergenFlags
+                allergenFlags: initialData.allergenFlags,
+                isBaseIngredient: initialData.isBaseIngredient,
+                ingredientIds: initialData.ingredients?.map(i => i.id) || [],
             });
+            setSelectedIngredients(
+                (initialData.ingredients || []).map(i => ({
+                    id: i.id,
+                    name: i.name,
+                    allergenFlags: i.allergenFlags,
+                    dietaryCategory: i.dietaryCategory,
+                    category: '',
+                }))
+            );
         } else {
             setFormData({
                 name: '',
@@ -94,19 +132,27 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                 sugarG: 0,
                 sodiumMg: 0,
                 dietaryTags: [],
-                allergenFlags: []
+                allergenFlags: [],
+                isBaseIngredient: false,
+                ingredientIds: [],
             });
+            setSelectedIngredients([]);
         }
+        setIngredientSearch('');
     }, [initialData, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const submitData = {
+                ...formData,
+                ingredientIds: formData.isBaseIngredient ? [] : selectedIngredients.map(i => i.id),
+            };
             if (isEditing && initialData) {
-                await updateMutation.mutateAsync({ id: initialData.id, ...formData });
+                await updateMutation.mutateAsync({ id: initialData.id, ...submitData });
                 toast.success('Food item updated successfully');
             } else {
-                await createMutation.mutateAsync(formData);
+                await createMutation.mutateAsync(submitData);
                 toast.success('Food item created successfully');
             }
             onClose();
@@ -134,6 +180,16 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                     : [...current, allergen]
             };
         });
+    };
+
+    const addIngredient = (ingredient: BaseIngredient) => {
+        setSelectedIngredients(prev => [...prev, ingredient]);
+        setIngredientSearch('');
+        setShowIngredientDropdown(false);
+    };
+
+    const removeIngredient = (id: string) => {
+        setSelectedIngredients(prev => prev.filter(i => i.id !== id));
     };
 
     return (
@@ -222,6 +278,109 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                     </div>
                 </div>
 
+                {/* Base Ingredient Toggle */}
+                <div className="flex items-center gap-3 px-4 py-3 bg-blue-50/50 border border-blue-100 rounded-xl">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={formData.isBaseIngredient || false}
+                            onChange={(e) => {
+                                setFormData(prev => ({ ...prev, isBaseIngredient: e.target.checked }));
+                                if (e.target.checked) {
+                                    setSelectedIngredients([]);
+                                }
+                            }}
+                            className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                    </label>
+                    <div>
+                        <span className="text-sm font-semibold text-gray-700">Base Ingredient</span>
+                        <p className="text-xs text-gray-500">Mark this as a base ingredient (e.g., Milk, Wheat, Egg) that can be linked to other food items for allergen tracking</p>
+                    </div>
+                </div>
+
+                {/* Ingredient Selector - only for composite (non-base) foods */}
+                {!formData.isBaseIngredient && (
+                    <div className="border border-gray-100 p-5 rounded-xl bg-amber-50/30">
+                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <span className="w-1 h-4 bg-amber-400 rounded-full"></span>
+                            Ingredients
+                            <span className="text-xs text-gray-400 font-normal ml-1">
+                                (link base ingredients for automatic allergen detection)
+                            </span>
+                        </h4>
+
+                        {/* Selected ingredients */}
+                        {selectedIngredients.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                {selectedIngredients.map(ing => (
+                                    <span
+                                        key={ing.id}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-full text-xs font-medium border border-amber-200"
+                                    >
+                                        {ing.name}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeIngredient(ing.id)}
+                                            className="hover:bg-amber-200 rounded-full p-0.5 transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Search input */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                value={ingredientSearch}
+                                onChange={(e) => {
+                                    setIngredientSearch(e.target.value);
+                                    setShowIngredientDropdown(true);
+                                }}
+                                onFocus={() => setShowIngredientDropdown(true)}
+                                placeholder="Search base ingredients (e.g., milk, wheat, egg)..."
+                                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all outline-none text-sm text-gray-900 placeholder:text-gray-400"
+                            />
+
+                            {/* Dropdown */}
+                            {showIngredientDropdown && availableIngredients.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                    {availableIngredients.map(ing => (
+                                        <button
+                                            key={ing.id}
+                                            type="button"
+                                            onClick={() => addIngredient(ing)}
+                                            className="w-full text-left px-4 py-2.5 hover:bg-amber-50 transition-colors flex items-center justify-between"
+                                        >
+                                            <span className="text-sm text-gray-900">{ing.name}</span>
+                                            {ing.allergenFlags.length > 0 && (
+                                                <span className="text-[10px] text-red-500 font-medium">
+                                                    {ing.allergenFlags.map(f => ALLERGEN_LABELS[f] || f).join(', ')}
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Derived allergens display */}
+                        {derivedAllergens.length > 0 && (
+                            <div className="mt-3 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+                                <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">Derived allergens: </span>
+                                <span className="text-xs text-red-700">
+                                    {derivedAllergens.map(f => ALLERGEN_LABELS[f] || f).join(', ')}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* Nutrition */}
                 <div className="border border-gray-100 p-5 rounded-xl bg-gray-50/50">
                     <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -263,25 +422,29 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                         <span className="w-1 h-4 bg-red-400 rounded-full"></span>
                         Allergens
                         <span className="text-xs text-gray-400 font-normal ml-1">
-                            (auto-detected from name + select manually)
+                            {selectedIngredients.length > 0
+                                ? '(auto-derived from ingredients + override manually)'
+                                : '(select manually)'}
                         </span>
                     </h4>
                     <div className="flex flex-wrap gap-2">
                         {COMMON_ALLERGENS.map(allergen => {
                             const isSelected = (formData.allergenFlags || []).includes(allergen);
+                            const isDerived = derivedAllergens.includes(allergen);
                             return (
                                 <button
                                     key={allergen}
                                     type="button"
                                     onClick={() => toggleAllergen(allergen)}
                                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                                        isSelected
+                                        isSelected || isDerived
                                             ? 'bg-red-100 text-red-700 border border-red-300'
                                             : 'bg-white text-gray-600 border border-gray-200 hover:border-red-200 hover:text-red-600'
-                                    }`}
+                                    } ${isDerived && !isSelected ? 'opacity-60' : ''}`}
                                 >
-                                    {isSelected && <X className="w-3 h-3 inline mr-1" />}
+                                    {(isSelected || isDerived) && <X className="w-3 h-3 inline mr-1" />}
                                     {ALLERGEN_LABELS[allergen] || allergen}
+                                    {isDerived && !isSelected && <span className="ml-1 text-[10px]">(auto)</span>}
                                 </button>
                             );
                         })}

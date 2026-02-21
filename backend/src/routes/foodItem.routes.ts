@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
     createFoodItem,
     listFoodItems,
+    listBaseIngredients,
     getFoodItem,
     updateFoodItem,
     deleteFoodItem,
@@ -18,6 +19,7 @@ router.use(requireAuth);
 // Food Items CRUD
 router.post('/', createFoodItem);
 router.get('/', listFoodItems);
+router.get('/base-ingredients', listBaseIngredients);
 router.get('/:id', getFoodItem);
 router.patch('/:id', updateFoodItem);
 router.delete('/:id', deleteFoodItem);

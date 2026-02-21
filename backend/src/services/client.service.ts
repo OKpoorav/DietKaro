@@ -3,7 +3,7 @@ import prisma from '../utils/prisma';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
-import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
+import { buildPaginationParams, buildPaginationMeta, buildDateFilter, safeSortBy } from '../utils/queryFilters';
 import { validationEngine } from './validationEngine.service';
 import { labService } from './lab.service';
 import type { MedicalSummary } from '../types/medical.types';
@@ -23,11 +23,11 @@ function generateReferralCode(): string {
 }
 
 export class ClientService {
-    async generateUniqueReferralCode(): Promise<string> {
+    async generateUniqueReferralCode(orgId: string): Promise<string> {
         let attempts = 0;
         while (attempts < MAX_REFERRAL_ATTEMPTS) {
             const code = generateReferralCode();
-            const existing = await prisma.client.findUnique({ where: { referralCode: code } });
+            const existing = await prisma.client.findFirst({ where: { orgId, referralCode: code } });
             if (!existing) return code;
             attempts++;
         }
@@ -44,8 +44,8 @@ export class ClientService {
 
         let referredByClientId: string | undefined;
         if (data.referralCode) {
-            const referrer = await prisma.client.findUnique({
-                where: { referralCode: data.referralCode.toUpperCase() },
+            const referrer = await prisma.client.findFirst({
+                where: { orgId, referralCode: data.referralCode.toUpperCase() },
                 select: { id: true },
             });
             if (referrer) referredByClientId = referrer.id;
@@ -74,7 +74,7 @@ export class ClientService {
                 referralSourceName: data.referralSourceName,
                 referralSourcePhone: data.referralSourcePhone,
                 referredByClientId,
-                referralCode: await this.generateUniqueReferralCode(),
+                referralCode: await this.generateUniqueReferralCode(orgId),
             },
             include: {
                 primaryDietitian: { select: { id: true, fullName: true } },
@@ -109,7 +109,13 @@ export class ClientService {
         });
     }
 
-    async getClient(clientId: string, orgId: string) {
+    private assertDietitianAccess(client: { primaryDietitianId: string | null }, userRole: string, userId: string) {
+        if (userRole === 'dietitian' && client.primaryDietitianId !== userId) {
+            throw AppError.forbidden('You can only access your assigned clients');
+        }
+    }
+
+    async getClient(clientId: string, orgId: string, userRole: string = 'owner', userId: string = '') {
         const client = await prisma.client.findFirst({
             where: { id: clientId, orgId, isActive: true },
             include: {
@@ -118,12 +124,16 @@ export class ClientService {
             },
         });
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+        this.assertDietitianAccess(client, userRole, userId);
         return client;
     }
+
+    private static CLIENT_SORT_FIELDS = new Set(['createdAt', 'fullName', 'email', 'currentWeightKg', 'updatedAt']);
 
     async listClients(orgId: string, query: ClientListQuery, userRole: string, userId: string) {
         const { search, status, primaryDietitianId, sortBy = 'createdAt' } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
+        const validSortBy = safeSortBy(sortBy, ClientService.CLIENT_SORT_FIELDS, 'createdAt');
 
         const where: Prisma.ClientWhereInput = { orgId, isActive: status !== 'inactive' };
 
@@ -143,7 +153,7 @@ export class ClientService {
                 where,
                 skip: pagination.skip,
                 take: pagination.take,
-                orderBy: { [String(sortBy)]: 'desc' },
+                orderBy: { [validSortBy]: 'desc' },
                 include: { primaryDietitian: { select: { id: true, fullName: true } } },
             }),
             prisma.client.count({ where }),
@@ -152,9 +162,10 @@ export class ClientService {
         return { clients, meta: buildPaginationMeta(total, pagination) };
     }
 
-    async updateClient(clientId: string, rawData: UpdateClientInput, orgId: string) {
+    async updateClient(clientId: string, rawData: UpdateClientInput, orgId: string, userRole: string = 'owner', userId: string = '') {
         const existing = await prisma.client.findFirst({ where: { id: clientId, orgId } });
         if (!existing) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+        this.assertDietitianAccess(existing, userRole, userId);
 
         const ALLOWED_FIELDS = [
             'fullName', 'email', 'phone', 'dateOfBirth', 'gender',
@@ -201,9 +212,10 @@ export class ClientService {
         logger.info('Client deleted (soft)', { clientId });
     }
 
-    async getClientProgress(clientId: string, orgId: string, query: ClientProgressQuery) {
+    async getClientProgress(clientId: string, orgId: string, query: ClientProgressQuery, userRole: string = 'owner', userId: string = '') {
         const client = await prisma.client.findFirst({ where: { id: clientId, orgId } });
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+        this.assertDietitianAccess(client, userRole, userId);
 
         const dateFilter = buildDateFilter(query.dateFrom, query.dateTo);
 

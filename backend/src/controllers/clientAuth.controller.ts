@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import prisma from '../utils/prisma';
+import redis from '../utils/redis';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
 import {
@@ -12,36 +13,34 @@ import {
 } from '../middleware/clientAuth.middleware';
 import logger from '../utils/logger';
 
-// In-memory OTP store (use Redis in production)
-const otpStore = new Map<string, { otp: string; expiresAt: Date }>();
+const OTP_TTL_SECONDS = 300; // 5 minutes
+const OTP_KEY_PREFIX = 'otp:';
 
 const generateOTP = (): string => {
     return crypto.randomInt(100000, 1000000).toString();
 };
 
 export const requestOTP = asyncHandler(async (req: Request, res: Response) => {
-    const { phone, orgSlug } = req.body;
+    const { phone } = req.body;
 
     if (!phone || phone.length < 10) {
         throw AppError.badRequest('Valid phone number required', 'INVALID_PHONE');
     }
 
-    if (!orgSlug) {
-        throw AppError.badRequest('Organization identifier required', 'MISSING_ORG');
+    // Auto-resolve org from phone — a client belongs to exactly one org
+    const clients = await prisma.client.findMany({
+        where: { phone, isActive: true },
+        take: 2, // Only need to know if there's more than 1
+    });
+
+    if (clients.length > 1) {
+        throw AppError.badRequest(
+            'Multiple accounts found. Please contact your dietitian for assistance.',
+            'AMBIGUOUS_ACCOUNT',
+        );
     }
 
-    // Resolve org
-    const org = await prisma.organization.findFirst({
-        where: { slug: orgSlug, isActive: true },
-    });
-    if (!org) {
-        throw AppError.notFound('Organization not found', 'ORG_NOT_FOUND');
-    }
-
-    // Check if client exists in this org
-    const client = await prisma.client.findFirst({
-        where: { phone, orgId: org.id, isActive: true },
-    });
+    const client = clients[0] || null;
 
     if (!client) {
         throw AppError.notFound('No account found with this phone number', 'CLIENT_NOT_FOUND');
@@ -49,10 +48,14 @@ export const requestOTP = asyncHandler(async (req: Request, res: Response) => {
 
     // Generate OTP
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
-    // Store OTP (in production, send via SMS)
-    otpStore.set(phone, { otp, expiresAt });
+    // Store OTP + resolved orgId in Redis so verifyOTP uses the same org
+    await redis.set(
+        `${OTP_KEY_PREFIX}${phone}`,
+        JSON.stringify({ otp, orgId: client.orgId }),
+        'EX',
+        OTP_TTL_SECONDS,
+    );
 
     logger.info('Client OTP generated', { phone: phone.slice(-4).padStart(phone.length, '*') });
 
@@ -65,26 +68,19 @@ export const requestOTP = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
-    const { phone, otp, orgSlug } = req.body;
+    const { phone, otp } = req.body;
 
     if (!phone || !otp) {
         throw AppError.badRequest('Phone and OTP required', 'MISSING_FIELDS');
     }
 
-    if (!orgSlug) {
-        throw AppError.badRequest('Organization identifier required', 'MISSING_ORG');
-    }
+    const storedRaw = await redis.get(`${OTP_KEY_PREFIX}${phone}`);
 
-    const stored = otpStore.get(phone);
-
-    if (!stored) {
+    if (!storedRaw) {
         throw AppError.badRequest('OTP expired or not found', 'OTP_EXPIRED');
     }
 
-    if (stored.expiresAt < new Date()) {
-        otpStore.delete(phone);
-        throw AppError.badRequest('OTP expired', 'OTP_EXPIRED');
-    }
+    const stored = JSON.parse(storedRaw) as { otp: string; orgId: string };
 
     // Timing-safe comparison to prevent timing attacks
     const isValid = stored.otp.length === otp.length &&
@@ -94,20 +90,12 @@ export const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
         throw AppError.badRequest('Invalid OTP', 'INVALID_OTP');
     }
 
-    // OTP verified, delete from store
-    otpStore.delete(phone);
+    // OTP verified, delete from Redis
+    await redis.del(`${OTP_KEY_PREFIX}${phone}`);
 
-    // Resolve org
-    const org = await prisma.organization.findFirst({
-        where: { slug: orgSlug, isActive: true },
-    });
-    if (!org) {
-        throw AppError.notFound('Organization not found', 'ORG_NOT_FOUND');
-    }
-
-    // Get client scoped to org
+    // Get client using the orgId that was resolved at OTP-request time
     const client = await prisma.client.findFirst({
-        where: { phone, orgId: org.id, isActive: true },
+        where: { phone, orgId: stored.orgId, isActive: true },
         include: {
             primaryDietitian: {
                 select: { fullName: true, email: true },

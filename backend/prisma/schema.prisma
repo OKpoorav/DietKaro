@@ -116,7 +116,7 @@ enum ReferralSource {
 model Organization {
   id                    String             @id @default(uuid())
   name                  String             @unique
-  slug                  String             @unique @default("")
+  slug                  String             @unique @default(uuid())
   description           String?
   logoUrl               String?
   phone                 String?
@@ -419,14 +419,37 @@ model FoodItem {
   mealSuitabilityTags String[] @default([]) // ["good_for_breakfast", "too_heavy_for_night"]
   dietaryCategory     String? // "vegan", "vegetarian", "veg_with_egg", "non_veg"
 
+  // Base ingredient system
+  isBaseIngredient  Boolean @default(false)
+
   // Relations
   organization  Organization?  @relation(fields: [orgId], references: [id], onDelete: SetNull)
   creator       User?          @relation("FoodItemCreator", fields: [createdByUserId], references: [id])
   mealFoodItems MealFoodItem[]
 
+  // Self-referential ingredient relations
+  ingredients        FoodItemIngredient[] @relation("CompositeFood")
+  usedAsIngredientIn FoodItemIngredient[] @relation("IngredientItem")
+
   @@index([orgId])
   @@index([category])
   @@index([orgId, category])
+  @@index([isBaseIngredient])
+}
+
+model FoodItemIngredient {
+  id            String   @id @default(uuid())
+  foodItemId    String
+  ingredientId  String
+
+  foodItem      FoodItem @relation("CompositeFood", fields: [foodItemId], references: [id], onDelete: Cascade)
+  ingredient    FoodItem @relation("IngredientItem", fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+
+  @@unique([foodItemId, ingredientId])
+  @@index([foodItemId])
+  @@index([ingredientId])
 }
 
 model MealFoodItem {
@@ -734,3 +757,4 @@ model ClientPreferences {
 
   @@index([clientId])
 }
+

@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { clerkMiddleware } from '@clerk/express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId.middleware';
+import { apiLimiter } from './middleware/rateLimiter';
 import logger from './utils/logger';
 
 const app = express();
@@ -54,6 +55,9 @@ app.use(express.json());
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morgan('dev'));
+
+// Global rate limiting on all /api routes
+app.use('/api/', apiLimiter);
 
 // Clerk middleware - adds auth info to every request
 app.use(clerkMiddleware());

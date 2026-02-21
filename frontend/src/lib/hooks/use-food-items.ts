@@ -13,6 +13,7 @@ export interface FoodItem {
     servingSize: string;
     isGlobal: boolean;
     isVerified: boolean;
+    isBaseIngredient: boolean;
     nutrition: {
         calories: number;
         proteinG: number | null;
@@ -22,7 +23,16 @@ export interface FoodItem {
     };
     allergenFlags: string[];
     dietaryTags: string[];
+    ingredients?: { id: string; name: string; allergenFlags: string[]; dietaryCategory: string | null }[];
     barcode?: string;
+}
+
+export interface BaseIngredient {
+    id: string;
+    name: string;
+    allergenFlags: string[];
+    dietaryCategory: string | null;
+    category: string;
 }
 
 interface FoodItemsParams {
@@ -61,6 +71,20 @@ export function useFoodItem(id: string) {
     });
 }
 
+export function useBaseIngredients(search?: string) {
+    const api = useApiClient();
+
+    return useQuery({
+        queryKey: ['base-ingredients', search],
+        queryFn: async () => {
+            const { data } = await api.get('/food-items/base-ingredients', {
+                params: { q: search, pageSize: 50 },
+            });
+            return data.data as BaseIngredient[];
+        },
+    });
+}
+
 export interface CreateFoodItemInput {
     name: string;
     brand?: string;
@@ -76,6 +100,8 @@ export interface CreateFoodItemInput {
     sodiumMg?: number;
     dietaryTags?: string[];
     allergenFlags?: string[];
+    isBaseIngredient?: boolean;
+    ingredientIds?: string[];
     nutrition?: never; // Ensure we don't accidentally use this
 }
 
@@ -90,6 +116,7 @@ export function useCreateFoodItem() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['food-items'] });
+            queryClient.invalidateQueries({ queryKey: ['base-ingredients'] });
         }
     });
 }
@@ -108,6 +135,7 @@ export function useUpdateFoodItem() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['food-items'] });
+            queryClient.invalidateQueries({ queryKey: ['base-ingredients'] });
         }
     });
 }
