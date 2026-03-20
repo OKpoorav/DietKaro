@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { authStore } from '../store/authStore';
-import { clientAuthApi } from '../services/api';
+import { clientAuthApi, setForceLogoutHandler } from '../services/api';
+import { connectSocket, disconnectSocket } from '../services/socket';
 import { Client } from '../types';
 
 interface AuthContextValue {
@@ -22,6 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         checkAuth();
+        setForceLogoutHandler(() => {
+            disconnectSocket();
+            setClient(null);
+            setIsAuthenticated(false);
+        });
     }, []);
 
     const checkAuth = async () => {
@@ -34,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setClient(clientData);
                 setIsAuthenticated(true);
                 await authStore.updateLastActivity();
+                connectSocket();
             } else if (token && isExpired) {
                 await authStore.removeToken();
                 setIsAuthenticated(false);
@@ -51,16 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = useCallback(async (phone: string, otp: string) => {
         const response = await clientAuthApi.verifyOTP(phone, otp);
-        const { token, client: clientData } = response.data.data;
+        const { token, refreshToken, client: clientData } = response.data.data;
 
         await authStore.setToken(token);
+        if (refreshToken) await authStore.setRefreshToken(refreshToken);
         await authStore.setClientData(clientData);
 
         setClient(clientData);
         setIsAuthenticated(true);
+        connectSocket();
     }, []);
 
     const logout = useCallback(async () => {
+        disconnectSocket();
         await authStore.removeToken();
         setClient(null);
         setIsAuthenticated(false);

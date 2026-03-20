@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { AlertTriangle, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DayNutrition } from '@/lib/types/diet-plan.types';
@@ -12,11 +12,30 @@ interface NutritionTargets {
     fat: number;
 }
 
+interface ClientMeasurements {
+    heightCm?: number;
+    currentWeightKg?: number;
+    targetWeightKg?: number;
+    gender?: string;
+    activityLevel?: string;
+    dateOfBirth?: string;
+    latestMeasurement?: {
+        logDate: string;
+        chestCm: number | null;
+        waistCm: number | null;
+        hipsCm: number | null;
+        thighsCm: number | null;
+        armsCm: number | null;
+        bodyFatPercentage: number | null;
+    } | null;
+}
+
 interface NutritionSummaryProps {
     dayNutrition: DayNutrition;
     targets: NutritionTargets;
     hasAllergyWarning: boolean;
     onTargetsChange?: (targets: NutritionTargets) => void;
+    client?: ClientMeasurements | null;
 }
 
 const FIELD_CONFIG: { key: keyof NutritionTargets; label: string; unit: string; min: number; max: number }[] = [
@@ -26,7 +45,7 @@ const FIELD_CONFIG: { key: keyof NutritionTargets; label: string; unit: string; 
     { key: 'fat', label: 'Fat', unit: 'g', min: 0, max: 500 },
 ];
 
-export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onTargetsChange }: NutritionSummaryProps) {
+export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onTargetsChange, client }: NutritionSummaryProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<NutritionTargets>(targets);
 
@@ -146,6 +165,61 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                     </div>
                 )}
             </div>
+
+            {/* Client Measurements */}
+            {client && (client.heightCm || client.currentWeightKg) && (
+                <MeasurementsCard client={client} />
+            )}
         </aside>
+    );
+}
+
+function MeasurementsCard({ client }: { client: ClientMeasurements }) {
+    const { stats, logDate } = useMemo(() => {
+        const m = client.latestMeasurement;
+        const bmi = client.heightCm && client.currentWeightKg
+            ? client.currentWeightKg / ((client.heightCm / 100) ** 2)
+            : null;
+        const bmiColor = bmi
+            ? bmi < 18.5 ? 'text-yellow-600' : bmi < 25 ? 'text-green-600' : bmi < 30 ? 'text-orange-600' : 'text-red-600'
+            : '';
+        const bmiLabel = bmi
+            ? bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese'
+            : '';
+
+        const s: { label: string; value: string; color?: string }[] = [];
+        if (client.heightCm) s.push({ label: 'Height', value: `${client.heightCm} cm` });
+        if (client.currentWeightKg) s.push({ label: 'Weight', value: `${client.currentWeightKg} kg` });
+        if (client.targetWeightKg) s.push({ label: 'Goal', value: `${client.targetWeightKg} kg` });
+        if (bmi) s.push({ label: 'BMI', value: `${bmi.toFixed(1)} ${bmiLabel}`, color: bmiColor });
+        if (m?.chestCm) s.push({ label: 'Chest', value: `${m.chestCm} cm` });
+        if (m?.waistCm) s.push({ label: 'Waist', value: `${m.waistCm} cm` });
+        if (m?.hipsCm) s.push({ label: 'Hips', value: `${m.hipsCm} cm` });
+        if (m?.thighsCm) s.push({ label: 'Thighs', value: `${m.thighsCm} cm` });
+        if (m?.armsCm) s.push({ label: 'Arms', value: `${m.armsCm} cm` });
+        if (m?.bodyFatPercentage) s.push({ label: 'Body Fat', value: `${m.bodyFatPercentage}%` });
+
+        return { stats: s, logDate: m?.logDate };
+    }, [client.heightCm, client.currentWeightKg, client.targetWeightKg, client.latestMeasurement]);
+
+    return (
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-gray-900 font-medium">Measurements</h3>
+                {logDate && (
+                    <span className="text-xs text-gray-400">
+                        {new Date(logDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </span>
+                )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                {stats.map(({ label, value, color }) => (
+                    <div key={label} className="bg-gray-50 rounded-lg px-2.5 py-2">
+                        <span className="text-xs text-gray-500 block">{label}</span>
+                        <span className={`text-sm font-semibold ${color || 'text-gray-900'}`}>{value}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }

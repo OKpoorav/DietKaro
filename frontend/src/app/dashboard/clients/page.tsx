@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import Link from 'next/link';
 import {
     Search,
@@ -15,6 +16,7 @@ import {
 import { AddClientModal } from '@/components/modals/add-client-modal';
 import { useClients, useCreateClient, Client } from '@/lib/hooks/use-clients';
 import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 type FilterType = 'all' | 'active' | 'at-risk' | 'completed';
@@ -25,11 +27,14 @@ export default function ClientsPage() {
     const [page, setPage] = useState(1);
     const [showAddClientModal, setShowAddClientModal] = useState(false);
 
+    const router = useRouter();
+    const debouncedSearch = useDebouncedValue(search, 300);
+
     // API hook
     const { data, isLoading, error } = useClients({
         page,
         pageSize: 20,
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         status: filter !== 'all' ? filter : undefined,
     });
     const createClient = useCreateClient();
@@ -203,7 +208,10 @@ export default function ClientsPage() {
                                                     <Eye className="w-4 h-4" />
                                                     View
                                                 </Link>
-                                                <button className="text-brand hover:underline text-sm font-medium flex items-center gap-1">
+                                                <button
+                                                    onClick={() => router.push(`/dashboard/messages?client=${client.id}`)}
+                                                    className="text-brand hover:underline text-sm font-medium flex items-center gap-1"
+                                                >
                                                     <MessageSquare className="w-4 h-4" />
                                                     Message
                                                 </button>

@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Readable } from 'stream';
 import sharp from 'sharp';
 import logger from '../utils/logger';
 
@@ -101,6 +102,32 @@ export async function getPresignedUrls(keys: string[], expiresIn: number = PRESI
     );
 
     return urls;
+}
+
+/**
+ * Generate presigned URL for uploading an object (PUT)
+ */
+export async function getPresignedPutUrl(key: string, contentType: string, expiresIn: number = 3600): Promise<string> {
+    const command = new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        ContentType: contentType,
+    });
+    return getSignedUrl(s3Client, command, { expiresIn });
+}
+
+/**
+ * Download an object from storage and return as Buffer
+ */
+export async function downloadFromStorage(key: string): Promise<Buffer> {
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+    const response = await s3Client.send(command);
+    const stream = response.Body as Readable;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
 }
 
 /**

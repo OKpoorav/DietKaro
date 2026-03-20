@@ -8,6 +8,6 @@ const router = Router();
 router.get('/', requireAuth, listTeamMembers);
 router.post('/invite', requireAuth, requireRole('admin', 'owner'), inviteMember);
 router.get('/invitation/:token', validateInvite); // Public route
-router.post('/join', acceptInvite);
+router.post('/join', requireAuth, acceptInvite);
 
 export default router;

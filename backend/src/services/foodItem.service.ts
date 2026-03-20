@@ -251,12 +251,36 @@ export class FoodItemService {
 
         // Re-link ingredients if provided
         if (ingredientIds !== undefined) {
-            // Delete old links
-            await prisma.foodItemIngredient.deleteMany({ where: { foodItemId } });
-            // Create new links and derive allergens
-            if (ingredientIds.length > 0) {
-                await this.linkIngredients(foodItemId, ingredientIds, foodData.allergenFlags || updated.allergenFlags);
-            }
+            await prisma.$transaction(async (tx) => {
+                // Delete old links
+                await tx.foodItemIngredient.deleteMany({ where: { foodItemId } });
+                // Create new links and derive allergens
+                if (ingredientIds.length > 0) {
+                    // Verify all ingredients exist and are base ingredients
+                    const validIngredients = await tx.foodItem.findMany({
+                        where: { id: { in: ingredientIds }, isBaseIngredient: true },
+                        select: { id: true },
+                    });
+                    const validIds = validIngredients.map(i => i.id);
+
+                    if (validIds.length > 0) {
+                        await tx.foodItemIngredient.createMany({
+                            data: validIds.map(ingredientId => ({ foodItemId, ingredientId })),
+                            skipDuplicates: true,
+                        });
+
+                        // Auto-derive allergens and dietary category
+                        const derived = await this.deriveFromIngredients(validIds, foodData.allergenFlags || updated.allergenFlags);
+                        await tx.foodItem.update({
+                            where: { id: foodItemId },
+                            data: {
+                                allergenFlags: derived.allergenFlags,
+                                ...(derived.dietaryCategory && { dietaryCategory: derived.dietaryCategory }),
+                            },
+                        });
+                    }
+                }
+            });
         }
 
         logger.info('Food item updated', { foodItemId: updated.id });

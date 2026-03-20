@@ -27,6 +27,7 @@ export const env = {
     DATABASE_URL: requireEnv('DATABASE_URL', 'PostgreSQL connection string'),
 
     // Authentication (required)
+    CLERK_SECRET_KEY: requireEnv('CLERK_SECRET_KEY', 'Clerk authentication secret key'),
     CLIENT_JWT_SECRET: requireEnv('CLIENT_JWT_SECRET', 'Secret for signing client JWT tokens'),
 
     // S3 / Object Storage
@@ -51,4 +52,16 @@ export const env = {
 
     // Logging
     LOG_LEVEL: optionalEnv('LOG_LEVEL', 'info'),
+
+    // Redis (shared with Socket.io)
+    REDIS_URL: optionalEnv('REDIS_URL', 'redis://localhost:6379'),
+
+    // AI providers
+    OPENAI_API_KEY: optionalEnv('OPENAI_API_KEY', ''),
+    GOOGLE_AI_API_KEY: optionalEnv('GOOGLE_AI_API_KEY', ''),
 } as const;
+
+// Startup warnings for optional but important env vars
+if (!env.S3_ACCESS_KEY) console.warn('[env] WARNING: S3_ACCESS_KEY not set — file uploads will fail');
+if (!env.OPENAI_API_KEY) console.warn('[env] WARNING: OPENAI_API_KEY not set — AI features disabled');
+if (!env.GOOGLE_AI_API_KEY) console.warn('[env] WARNING: GOOGLE_AI_API_KEY not set — document extraction disabled');

@@ -2,11 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { Prisma } from '@prisma/client';
 import { clerkMiddleware } from '@clerk/express';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { requestIdMiddleware } from './middleware/requestId.middleware';
 import { apiLimiter } from './middleware/rateLimiter';
 import logger from './utils/logger';
+import prisma from './utils/prisma';
+import redis from './utils/redis';
+import { env } from './config/env';
 
 const app = express();
 
@@ -14,12 +18,12 @@ const app = express();
 app.use(requestIdMiddleware);
 
 // CORS Configuration
-const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '')
+const ALLOWED_ORIGINS = (env.CORS_ALLOWED_ORIGINS || '')
     .split(',')
     .map(origin => origin.trim())
     .filter(Boolean);
 
-if (ALLOWED_ORIGINS.length === 0 && process.env.NODE_ENV !== 'production') {
+if (ALLOWED_ORIGINS.length === 0 && env.NODE_ENV !== 'production') {
     ALLOWED_ORIGINS.push(
         'http://localhost:3000',
         'http://localhost:3001',
@@ -28,7 +32,7 @@ if (ALLOWED_ORIGINS.length === 0 && process.env.NODE_ENV !== 'production') {
     logger.warn('CORS: No CORS_ALLOWED_ORIGINS set, using development defaults');
 }
 
-if (ALLOWED_ORIGINS.length === 0 && process.env.NODE_ENV === 'production') {
+if (ALLOWED_ORIGINS.length === 0 && env.NODE_ENV === 'production') {
     logger.error('CORS: CORS_ALLOWED_ORIGINS is not set in production! All cross-origin requests will be blocked.');
 }
 
@@ -51,10 +55,10 @@ const corsOptions: cors.CorsOptions = {
 };
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cors(corsOptions));
 app.use(helmet());
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Global rate limiting on all /api routes
 app.use('/api/', apiLimiter);
@@ -62,9 +66,32 @@ app.use('/api/', apiLimiter);
 // Clerk middleware - adds auth info to every request
 app.use(clerkMiddleware());
 
-// Health check
+// Health check (liveness)
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Readiness check (deep health)
+app.get('/readiness', async (req, res) => {
+    let db = false;
+    let redisOk = false;
+
+    try {
+        await prisma.$queryRaw(Prisma.sql`SELECT 1`);
+        db = true;
+    } catch (err) {
+        logger.error('Readiness: DB ping failed', { error: (err as Error).message });
+    }
+
+    try {
+        await redis.ping();
+        redisOk = true;
+    } catch (err) {
+        logger.error('Readiness: Redis ping failed', { error: (err as Error).message });
+    }
+
+    const ok = db && redisOk;
+    res.status(ok ? 200 : 503).json({ status: ok ? 'ok' : 'error', db, redis: redisOk });
 });
 
 import authRoutes from './routes/auth.routes';
@@ -90,6 +117,9 @@ import onboardingRoutes from './routes/onboarding.routes';
 import notificationRoutes from './routes/notification.routes';
 import complianceRoutes from './routes/compliance.routes';
 import invoiceRoutes from './routes/invoice.routes';
+import chatRoutes from './routes/chat.routes';
+import reportSummaryRoutes from './routes/report-summary.routes';
+import clientDocumentSummaryRoutes from './routes/client-document-summary.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -109,6 +139,9 @@ app.use('/api/v1/share', shareRoutes); // Diet plan sharing (PDF, email, etc)
 app.use('/api/v1/referrals', adminReferralRoutes); // Admin referral management
 app.use('/api/v1/diet-validation', validationRoutes); // Real-time diet validation
 app.use('/api/v1/invoices', invoiceRoutes); // Invoice management
+app.use('/api/v1/chat', chatRoutes); // Dietitian chat
+app.use('/api/v1/reports', reportSummaryRoutes); // Per-document AI summaries (dietitian)
+app.use('/api/v1/clients/:clientId/document-summary', clientDocumentSummaryRoutes); // Unified client summary
 app.use('/media', mediaRoutes); // Public media proxy (no auth required)
 
 // Client Mobile App Routes
@@ -120,7 +153,7 @@ app.use('/api/v1/client/reports', reportsRoutes);
 
 
 // Test-only routes (for development testing without Clerk)
-if (process.env.NODE_ENV !== 'production') {
+if (env.NODE_ENV === 'test') {
     const testRouter = require('./routes/test.routes').default;
     app.use('/test', testRouter);
 }

@@ -1,0 +1,13 @@
+{
+  "name": "dietkaro",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,frontend,mobile -c blue,green,magenta \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:mobile\"",
+    "dev:backend": "npm -C backend run dev",
+    "dev:frontend": "npm -C frontend run dev -- -p 3001",
+    "dev:mobile": "npm -C client-app run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

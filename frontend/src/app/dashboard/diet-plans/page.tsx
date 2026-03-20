@@ -5,6 +5,7 @@ import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, 
 import { useDietPlans, usePublishDietPlan, useAssignTemplate } from '@/lib/hooks/use-diet-plans';
 import { useClients } from '@/lib/hooks/use-clients';
 import { useState, useRef, useEffect } from 'react';
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
@@ -24,6 +25,7 @@ export default function DietPlansPage() {
 
     const menuRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+    const debouncedSearch = useDebouncedValue(search, 300);
 
     // Fetch based on active tab
     const isTemplateView = activeTab === 'templates';
@@ -46,7 +48,7 @@ export default function DietPlansPage() {
     const filteredPlans = plans.filter(p => {
         const planName = (p.name || '').toLowerCase();
         const clientName = (p.client?.fullName || '').toLowerCase();
-        const searchLower = search.toLowerCase();
+        const searchLower = debouncedSearch.toLowerCase();
         return planName.includes(searchLower) || clientName.includes(searchLower);
     });
 

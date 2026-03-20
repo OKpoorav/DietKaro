@@ -51,7 +51,7 @@ export class MealService {
         const { name, description, instructions, timeOfDay } = body;
 
         const meal = await prisma.meal.findFirst({
-            where: { id: mealId },
+            where: { id: mealId, deletedAt: null },
             include: { dietPlan: true },
         });
 
@@ -75,7 +75,7 @@ export class MealService {
 
     async deleteMeal(mealId: string, orgId: string) {
         const meal = await prisma.meal.findFirst({
-            where: { id: mealId },
+            where: { id: mealId, deletedAt: null },
             include: { dietPlan: true },
         });
 
@@ -83,8 +83,8 @@ export class MealService {
             throw AppError.notFound('Meal not found', 'MEAL_NOT_FOUND');
         }
 
-        await prisma.meal.delete({ where: { id: mealId } });
-        logger.info('Meal deleted', { mealId });
+        await prisma.meal.update({ where: { id: mealId }, data: { deletedAt: new Date() } });
+        logger.info('Meal soft-deleted', { mealId });
     }
 }
 

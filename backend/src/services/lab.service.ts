@@ -46,28 +46,32 @@ class LabService {
         // Derive risk tags
         const { derivedTags, alerts } = this.deriveRiskFlags(cleanedValues);
 
-        // Upsert MedicalProfile with lab data
-        const medicalProfile = await prisma.medicalProfile.upsert({
-            where: { clientId },
-            create: {
-                clientId,
-                labValues: cleanedValues,
-                labDate: new Date(labDate),
-                labDerivedTags: derivedTags,
-                updatedByUserId: userId,
-            },
-            update: {
-                labValues: cleanedValues,
-                labDate: new Date(labDate),
-                labDerivedTags: derivedTags,
-                updatedByUserId: userId,
-            },
-        });
+        // Upsert MedicalProfile with lab data and sync derived tags atomically
+        const medicalProfile = await prisma.$transaction(async (tx) => {
+            const profile = await tx.medicalProfile.upsert({
+                where: { clientId },
+                create: {
+                    clientId,
+                    labValues: cleanedValues,
+                    labDate: new Date(labDate),
+                    labDerivedTags: derivedTags,
+                    updatedByUserId: userId,
+                },
+                update: {
+                    labValues: cleanedValues,
+                    labDate: new Date(labDate),
+                    labDerivedTags: derivedTags,
+                    updatedByUserId: userId,
+                },
+            });
 
-        // Sync derived tags to Client table for validation engine
-        await prisma.client.update({
-            where: { id: clientId },
-            data: { labDerivedTags: derivedTags },
+            // Sync derived tags to Client table for validation engine
+            await tx.client.update({
+                where: { id: clientId },
+                data: { labDerivedTags: derivedTags },
+            });
+
+            return profile;
         });
 
         // Invalidate validation cache so next food validation uses new tags

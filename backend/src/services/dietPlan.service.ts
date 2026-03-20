@@ -4,6 +4,9 @@ import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta } from '../utils/queryFilters';
 import type { CreateDietPlanInput, UpdateDietPlanInput, DietPlanListQuery, AssignTemplateInput } from '../schemas/dietPlan.schema';
+import { getIO } from '../socket';
+import { notificationService } from './notification.service';
+import { invalidateClientCache } from '../utils/cache';
 
 export class DietPlanService {
     async createPlan(data: CreateDietPlanInput, orgId: string, userId: string) {
@@ -241,36 +244,73 @@ export class DietPlanService {
             }
         }
 
-        // Batch create with conflict handling
+        // Batch create with conflict handling — upserts batched in groups of 50
+        const BATCH_SIZE = 50;
+        const upsertOps = mealLogsToCreate.map((log) =>
+            prisma.mealLog.upsert({
+                where: {
+                    clientId_mealId_scheduledDate: {
+                        clientId: log.clientId,
+                        mealId: log.mealId,
+                        scheduledDate: log.scheduledDate,
+                    },
+                },
+                create: log,
+                update: {},
+            })
+        );
+
+        // First transaction: deactivate old plans + activate this one
         await prisma.$transaction([
+            prisma.dietPlan.updateMany({
+                where: { clientId: plan.clientId!, isActive: true, id: { not: planId } },
+                data: { isActive: false },
+            }),
             prisma.dietPlan.update({
                 where: { id: planId },
                 data: { status: 'active', publishedAt: new Date() },
             }),
-            ...mealLogsToCreate.map((log) =>
-                prisma.mealLog.upsert({
-                    where: {
-                        clientId_mealId_scheduledDate: {
-                            clientId: log.clientId,
-                            mealId: log.mealId,
-                            scheduledDate: log.scheduledDate,
-                        },
-                    },
-                    create: log,
-                    update: {},
-                })
-            ),
         ]);
+
+        // Subsequent transactions: upsert meal logs in batches of 50
+        for (let i = 0; i < upsertOps.length; i += BATCH_SIZE) {
+            const batch = upsertOps.slice(i, i + BATCH_SIZE);
+            await prisma.$transaction(batch);
+        }
 
         logger.info('Diet plan published with meal logs', {
             planId,
             mealLogsCreated: mealLogsToCreate.length,
         });
 
+        const clientId = plan.clientId!;
+        const publishedAt = new Date();
+
+        // Clear server-side cache so next request returns fresh data
+        invalidateClientCache(clientId);
+
+        // Emit real-time socket event so the client app refreshes instantly
+        try {
+            getIO().to(`client:${clientId}`).emit('plan:published', { planId, planName: plan.name });
+        } catch (err) {
+            logger.warn('Socket emit for plan:published failed', { err });
+        }
+
+        // Push notification (fire-and-forget, don't block the response)
+        notificationService.sendNotification(
+            clientId,
+            'client',
+            plan.orgId,
+            'Your diet plan is ready!',
+            `"${plan.name}" has been published by your dietitian.`,
+            { entityType: 'diet_plan', entityId: planId },
+            'diet_plan'
+        ).catch(err => logger.warn('Push notification for plan publish failed', { err }));
+
         return {
             planId,
             status: 'active',
-            publishedAt: new Date(),
+            publishedAt,
             mealLogsCreated: mealLogsToCreate.length,
         };
     }

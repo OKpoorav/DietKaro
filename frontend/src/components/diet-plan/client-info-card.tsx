@@ -43,26 +43,30 @@ export function ClientInfoCard({ client, isTemplateMode }: ClientInfoCardProps) 
     const initials = getInitials(client.fullName);
 
     return (
-        <>
-            {/* Client Card */}
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
-                        {initials}
-                    </div>
-                    <div>
-                        <h1 className="text-gray-900 font-medium">{client.fullName}</h1>
-                        <p className="text-gray-500 text-sm">
-                            {client.heightCm}cm, {client.currentWeightKg}kg <br />
-                            Goal: {client.targetWeightKg}kg
-                        </p>
-                    </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
+                    {initials}
+                </div>
+                <div>
+                    <h1 className="text-gray-900 font-medium">{client.fullName}</h1>
+                    <p className="text-gray-500 text-sm">
+                        {client.heightCm}cm, {client.currentWeightKg}kg <br />
+                        Goal: {client.targetWeightKg}kg
+                    </p>
                 </div>
             </div>
+        </div>
+    );
+}
 
-            {/* Dietary Restrictions Summary */}
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h3 className="text-gray-900 font-medium mb-3">Dietary Restrictions</h3>
+export function ClientRestrictionsCard({ client }: { client: ClientData | null | undefined }) {
+    if (!client) return null;
+
+    return (
+        <div className="bg-white rounded-lg border border-gray-200 flex flex-col h-full min-h-0">
+            <h3 className="text-gray-900 font-medium px-4 pt-4 pb-2 flex-shrink-0">Dietary Restrictions</h3>
+            <div className="overflow-y-auto px-4 pb-4 flex-1 min-h-0">
                 <ClientRestrictionsSummary
                     allergies={client.medicalProfile?.allergies || client.allergies || []}
                     intolerances={client.intolerances || []}
@@ -73,6 +77,6 @@ export function ClientInfoCard({ client, isTemplateMode }: ClientInfoCardProps) 
                     likedFoods={client.likedFoods || []}
                 />
             </div>
-        </>
+        </div>
     );
 }

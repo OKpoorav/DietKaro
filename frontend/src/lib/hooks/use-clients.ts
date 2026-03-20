@@ -43,6 +43,16 @@ export interface Client {
     targetProteinG?: number | null;
     targetCarbsG?: number | null;
     targetFatsG?: number | null;
+    // Latest body measurements
+    latestMeasurement?: {
+        logDate: string;
+        chestCm: number | null;
+        waistCm: number | null;
+        hipsCm: number | null;
+        thighsCm: number | null;
+        armsCm: number | null;
+        bodyFatPercentage: number | null;
+    } | null;
 }
 
 export interface ClientProgress {
@@ -100,6 +110,7 @@ export function useClients(params: ClientsParams = {}) {
             });
             return data;
         },
+        staleTime: 30 * 1000,
     });
 }
 
@@ -113,6 +124,7 @@ export function useClient(id: string) {
             return data.data as Client;
         },
         enabled: !!id,
+        staleTime: 60 * 1000,
     });
 }
 
@@ -149,6 +161,7 @@ export function useClientProgress(clientId: string, params?: { dateFrom?: string
             return progress;
         },
         enabled: !!clientId,
+        staleTime: 60 * 1000,
     });
 }
 
@@ -177,8 +190,8 @@ export function useUpdateClient() {
             return data.data;
         },
         onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['clients'] });
             queryClient.invalidateQueries({ queryKey: ['clients', variables.id] });
+            queryClient.invalidateQueries({ queryKey: ['clients'], exact: false, refetchType: 'active' });
         },
     });
 }

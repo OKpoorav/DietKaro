@@ -20,41 +20,59 @@ export class InvoiceService {
         const client = await prisma.client.findFirst({ where: { id: data.clientId, orgId } });
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
 
-        // Generate invoice number: INV-YYYYMM-XXXX
-        const count = await prisma.invoice.count({ where: { orgId } });
-        const now = new Date();
-        const invoiceNumber = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(count + 1).padStart(4, '0')}`;
-
         const tax = data.tax ?? 0;
         const total = data.subtotal + tax;
 
-        const invoice = await prisma.invoice.create({
-            data: {
-                orgId,
-                clientId: data.clientId,
-                createdByUserId: userId,
-                invoiceNumber,
-                issueDate: new Date(data.issueDate),
-                dueDate: new Date(data.dueDate),
-                subtotal: data.subtotal,
-                tax,
-                total,
-                notes: data.notes,
-                status: 'unpaid',
-            },
-            include: {
-                client: { select: { id: true, fullName: true, email: true } },
-                creator: { select: { id: true, fullName: true } },
-            },
-        });
+        // Generate invoice number with retry to handle unique-constraint race conditions
+        const MAX_RETRIES = 3;
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            const count = await prisma.invoice.count({ where: { orgId } });
+            const now = new Date();
+            const invoiceNumber = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(count + 1 + attempt).padStart(4, '0')}`;
 
-        logger.info('Invoice created', { invoiceId: invoice.id, invoiceNumber });
-        return invoice;
+            try {
+                const invoice = await prisma.invoice.create({
+                    data: {
+                        orgId,
+                        clientId: data.clientId,
+                        createdByUserId: userId,
+                        invoiceNumber,
+                        issueDate: new Date(data.issueDate),
+                        dueDate: new Date(data.dueDate),
+                        subtotal: data.subtotal,
+                        tax,
+                        total,
+                        notes: data.notes,
+                        status: 'unpaid',
+                    },
+                    include: {
+                        client: { select: { id: true, fullName: true, email: true } },
+                        creator: { select: { id: true, fullName: true } },
+                    },
+                });
+
+                logger.info('Invoice created', { invoiceId: invoice.id, invoiceNumber });
+                return invoice;
+            } catch (err) {
+                if (
+                    err instanceof Prisma.PrismaClientKnownRequestError &&
+                    err.code === 'P2002' &&
+                    attempt < MAX_RETRIES - 1
+                ) {
+                    logger.warn('Invoice number conflict, retrying', { invoiceNumber, attempt: attempt + 1 });
+                    continue;
+                }
+                throw err;
+            }
+        }
+
+        // Unreachable, but satisfies TypeScript
+        throw AppError.internal('Failed to generate unique invoice number after retries', 'INVOICE_NUMBER_CONFLICT');
     }
 
     async getInvoice(invoiceId: string, orgId: string) {
         const invoice = await prisma.invoice.findFirst({
-            where: { id: invoiceId, orgId },
+            where: { id: invoiceId, orgId, deletedAt: null },
             include: {
                 client: { select: { id: true, fullName: true, email: true, phone: true } },
                 creator: { select: { id: true, fullName: true } },
@@ -68,7 +86,7 @@ export class InvoiceService {
     async listInvoices(orgId: string, query: { clientId?: string; status?: string; page?: string; pageSize?: string }) {
         const pagination = buildPaginationParams(query.page, query.pageSize);
 
-        const where: Prisma.InvoiceWhereInput = { orgId };
+        const where: Prisma.InvoiceWhereInput = { orgId, deletedAt: null };
         if (query.clientId) where.clientId = query.clientId;
         if (query.status) where.status = query.status as Prisma.EnumInvoiceStatusFilter;
 
@@ -140,8 +158,8 @@ export class InvoiceService {
             throw AppError.badRequest('Cannot delete a paid invoice', 'INVOICE_PAID');
         }
 
-        await prisma.invoice.delete({ where: { id: invoiceId } });
-        logger.info('Invoice deleted', { invoiceId });
+        await prisma.invoice.update({ where: { id: invoiceId }, data: { deletedAt: new Date() } });
+        logger.info('Invoice soft-deleted', { invoiceId });
     }
 }
 

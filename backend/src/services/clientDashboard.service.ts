@@ -150,6 +150,127 @@ export class ClientDashboardService {
         });
     }
 
+    async getMealsForDateRange(clientId: string, startDate: Date, endDate: Date) {
+        // Normalize to UTC day boundaries (mealDate stored as UTC midnight)
+        const start = new Date(startDate);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setUTCHours(23, 59, 59, 999);
+
+        const activePlan = await prisma.dietPlan.findFirst({
+            where: {
+                clientId,
+                status: 'active',
+                isActive: true,
+                startDate: { lte: end },
+                OR: [{ endDate: null }, { endDate: { gte: start } }],
+            },
+            orderBy: { publishedAt: 'desc' },
+            include: {
+                meals: {
+                    include: {
+                        foodItems: {
+                            orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
+                            include: { foodItem: true },
+                        },
+                    },
+                    orderBy: { mealType: 'asc' },
+                },
+            },
+        });
+
+        if (!activePlan) return [];
+
+        // Get all meal logs in the date range
+        const mealLogs = await prisma.mealLog.findMany({
+            where: {
+                clientId,
+                scheduledDate: { gte: start, lte: end },
+            },
+        });
+
+        // Generate meals for each day in the range
+        const result: any[] = [];
+        const currentDate = new Date(start);
+
+        while (currentDate <= end) {
+            const dayStart = new Date(currentDate);
+            const dayEnd = new Date(currentDate);
+            dayEnd.setUTCHours(23, 59, 59, 999);
+
+            // Calculate day of week index (0=Monday, 6=Sunday)
+            const jsDay = currentDate.getUTCDay();
+            const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
+
+            // Filter meals for this specific day
+            const dayMeals = activePlan.meals.filter(meal => {
+                // Date-based meal: must match the exact date only
+                if (meal.mealDate) {
+                    const mealDateOnly = new Date(meal.mealDate);
+                    mealDateOnly.setUTCHours(0, 0, 0, 0);
+                    return mealDateOnly.getTime() === dayStart.getTime();
+                }
+                // Day-of-week based: match by dayOfWeek, null means every day
+                if (meal.dayOfWeek === null) return true;
+                return meal.dayOfWeek === dayOfWeek;
+            });
+
+            // Map meals with their logs
+            dayMeals.forEach(meal => {
+                const log = mealLogs.find(l =>
+                    l.mealId === meal.id &&
+                    l.scheduledDate >= dayStart &&
+                    l.scheduledDate <= dayEnd
+                );
+
+                const foodItems = meal.foodItems || [];
+                const { hasAlternatives, options, defaultMacros } = buildOptionGroups(foodItems);
+
+                result.push({
+                    id: log?.id || `pending-${meal.id}-${dayStart.toISOString().split('T')[0]}`,
+                    mealId: meal.id,
+                    scheduledDate: dayStart.toISOString().split('T')[0],
+                    scheduledTime: meal.timeOfDay,
+                    status: log?.status || 'pending',
+                    chosenOptionGroup: log?.chosenOptionGroup ?? null,
+                    mealPhotoUrl: log?.mealPhotoUrl,
+                    clientNotes: log?.clientNotes,
+                    dietitianFeedback: log?.dietitianFeedback,
+                    dietitianFeedbackAt: log?.dietitianFeedbackAt,
+                    loggedAt: log?.loggedAt,
+                    meal: {
+                        id: meal.id,
+                        planId: meal.planId,
+                        mealType: meal.mealType,
+                        name: meal.name,
+                        description: meal.description,
+                        timeOfDay: meal.timeOfDay,
+                        instructions: meal.instructions,
+                        totalCalories: meal.totalCalories || defaultMacros.calories,
+                        totalProteinG: Number(meal.totalProteinG) || defaultMacros.protein,
+                        totalCarbsG: Number(meal.totalCarbsG) || defaultMacros.carbs,
+                        totalFatsG: Number(meal.totalFatsG) || defaultMacros.fats,
+                        hasAlternatives,
+                        options,
+                        foodItems: foodItems.map((fi) => ({
+                            id: fi.id,
+                            foodId: fi.foodId,
+                            foodName: fi.foodItem.name,
+                            quantityG: fi.quantityG,
+                            calories: fi.calories || Math.round((fi.foodItem.calories * Number(fi.quantityG)) / 100),
+                            optionGroup: fi.optionGroup ?? 0,
+                            optionLabel: fi.optionLabel,
+                        })),
+                    },
+                });
+            });
+
+            currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+        }
+
+        return result;
+    }
+
     async getMealLog(clientId: string, mealLogId: string) {
         const mealLog = await prisma.mealLog.findFirst({
             where: { id: mealLogId, clientId },
@@ -458,33 +579,37 @@ export class ClientDashboardService {
         const parsedDate = new Date(logDate);
         parsedDate.setHours(0, 0, 0, 0);
 
-        const previousLog = await prisma.weightLog.findFirst({
-            where: { clientId, logDate: { lt: parsedDate } },
-            orderBy: { logDate: 'desc' },
-        });
+        const log = await prisma.$transaction(async (tx) => {
+            const previousLog = await tx.weightLog.findFirst({
+                where: { clientId, logDate: { lt: parsedDate } },
+                orderBy: { logDate: 'desc' },
+            });
 
-        const weightChange = previousLog
-            ? weightKg - Number(previousLog.weightKg)
-            : null;
+            const weightChange = previousLog
+                ? weightKg - Number(previousLog.weightKg)
+                : null;
 
-        const log = await prisma.weightLog.upsert({
-            where: {
-                clientId_logDate: { clientId, logDate: parsedDate },
-            },
-            update: { weightKg, notes, weightChangeFromPrevious: weightChange },
-            create: {
-                orgId,
-                clientId,
-                weightKg,
-                logDate: parsedDate,
-                notes,
-                weightChangeFromPrevious: weightChange,
-            },
-        });
+            const created = await tx.weightLog.upsert({
+                where: {
+                    clientId_logDate: { clientId, logDate: parsedDate },
+                },
+                update: { weightKg, notes, weightChangeFromPrevious: weightChange },
+                create: {
+                    orgId,
+                    clientId,
+                    weightKg,
+                    logDate: parsedDate,
+                    notes,
+                    weightChangeFromPrevious: weightChange,
+                },
+            });
 
-        await prisma.client.update({
-            where: { id: clientId },
-            data: { currentWeightKg: weightKg },
+            await tx.client.update({
+                where: { id: clientId },
+                data: { currentWeightKg: weightKg },
+            });
+
+            return created;
         });
 
         return log;

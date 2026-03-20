@@ -4,8 +4,8 @@ import { requireAuth, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Public route for creating new organizations (during onboarding)
-router.post('/', createOrganization);
+// Protected route for creating new organizations (during onboarding)
+router.post('/', requireAuth, createOrganization);
 
 // Protected routes
 router.get('/', requireAuth, getOrganization);

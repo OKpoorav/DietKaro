@@ -21,6 +21,8 @@ const s3Client = new S3Client({
 
 const BUCKET = process.env.S3_BUCKET || 'dietkaro-media';
 
+const ALLOWED_PREFIXES = ['meal-photos', 'weight-photos', 'reports', 'profile-photos'];
+
 async function serveFromS3(key: string, res: Response) {
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
     const response = await s3Client.send(command);
@@ -57,6 +59,10 @@ router.get('/web/:prefix/:orgId/:entityId/:filename',
 
             const { prefix, orgId, entityId, filename } = req.params;
 
+            if (!ALLOWED_PREFIXES.includes(prefix)) {
+                return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: `Invalid prefix. Allowed: ${ALLOWED_PREFIXES.join(', ')}` } });
+            }
+
             if (req.user.organizationId !== orgId) {
                 return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
             }
@@ -86,6 +92,10 @@ router.get('/client/:prefix/:orgId/:entityId/:filename',
             }
 
             const { prefix, orgId, entityId, filename } = req.params;
+
+            if (!ALLOWED_PREFIXES.includes(prefix)) {
+                return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: `Invalid prefix. Allowed: ${ALLOWED_PREFIXES.join(', ')}` } });
+            }
 
             if (req.client.orgId !== orgId) {
                 return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });

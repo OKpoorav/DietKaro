@@ -1,5 +1,6 @@
 import winston from 'winston';
 import path from 'path';
+import { env } from '../config/env';
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
 
@@ -19,7 +20,7 @@ const jsonFormat = printf(({ level, message, timestamp, ...meta }) => {
 
 // Create logger instance
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
+    level: env.LOG_LEVEL,
     format: combine(
         timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         errors({ stack: true })
@@ -36,8 +37,8 @@ const logger = winston.createLogger({
     ]
 });
 
-// Add file transport in production
-if (process.env.NODE_ENV === 'production') {
+// Add file transports only when explicitly opted in (containers should log to stdout)
+if (process.env.LOG_TO_FILE === 'true') {
     logger.add(new winston.transports.File({
         filename: path.join(process.cwd(), 'logs', 'error.log'),
         level: 'error',

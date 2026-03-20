@@ -14,10 +14,13 @@ import {
     Settings,
     Menu,
     X,
+    MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { SocketProvider } from '@/lib/socket/socket-provider';
+import { useUnreadCounts } from '@/lib/hooks/use-chat';
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -39,6 +42,7 @@ export default function DashboardLayout({
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
+        <SocketProvider>
         <div className="min-h-screen bg-gray-50">
             {/* Mobile sidebar backdrop */}
             {sidebarOpen && (
@@ -75,7 +79,6 @@ export default function DashboardLayout({
                     {/* Navigation */}
                     <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                         {navigation.map((item) => {
-                            // Dashboard should only be active on exact match
                             const isActive = item.href === '/dashboard'
                                 ? pathname === '/dashboard'
                                 : pathname === item.href || pathname.startsWith(item.href + '/');
@@ -95,6 +98,7 @@ export default function DashboardLayout({
                                 </Link>
                             );
                         })}
+                        <MessagesNavItem />
                     </nav>
 
                     {/* User section */}
@@ -142,5 +146,33 @@ export default function DashboardLayout({
                 <main className="p-6"><ErrorBoundary>{children}</ErrorBoundary></main>
             </div>
         </div>
+        </SocketProvider>
+    );
+}
+
+function MessagesNavItem() {
+    const pathname = usePathname();
+    const isActive = pathname.startsWith('/dashboard/messages');
+    const { data: unreadData } = useUnreadCounts();
+    const total = unreadData?.total || 0;
+
+    return (
+        <Link
+            href="/dashboard/messages"
+            className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                isActive
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            )}
+        >
+            <MessageSquare className={cn('w-5 h-5', isActive && 'text-emerald-600')} />
+            Messages
+            {total > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 rounded-full bg-brand text-white text-[11px] flex items-center justify-center font-bold px-1.5">
+                    {total > 9 ? '9+' : total}
+                </span>
+            )}
+        </Link>
     );
 }

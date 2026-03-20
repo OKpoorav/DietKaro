@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import {
     Search,
     Plus,
@@ -19,15 +20,20 @@ export default function FoodLibraryPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingItem, setEditingItem] = useState<FoodItem | undefined>(undefined);
+    const [page, setPage] = useState(1);
+
+    const debouncedSearch = useDebouncedValue(search, 300);
 
     // API hook
     const { data, isLoading, error } = useFoodItems({
-        q: search || undefined,
+        q: debouncedSearch || undefined,
         category: category !== 'All' ? category : undefined,
+        page,
         pageSize: 50,
     });
 
     const foodItems = data?.data || [];
+    const totalPages = data?.meta?.totalPages || 1;
 
     const handleEdit = (item: FoodItem) => {
         setEditingItem(item);
@@ -69,7 +75,7 @@ export default function FoodLibraryPage() {
                                 className="flex w-full min-w-0 flex-1 bg-transparent h-full placeholder:text-gray-400 pl-3 pr-4 text-base outline-none text-gray-900"
                                 placeholder="Search food items..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                             />
                         </div>
                     </label>
@@ -97,7 +103,7 @@ export default function FoodLibraryPage() {
                 {categories.map((cat) => (
                     <button
                         key={cat}
-                        onClick={() => setCategory(cat)}
+                        onClick={() => { setCategory(cat); setPage(1); }}
                         className={`flex h-8 shrink-0 items-center justify-center px-4 rounded-lg text-sm font-medium transition-colors ${category === cat
                             ? 'bg-brand text-white'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -242,6 +248,29 @@ export default function FoodLibraryPage() {
                             ))}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {/* Pagination */}
+            {!isLoading && foodItems.length > 0 && (
+                <div className="flex items-center justify-center gap-4 pt-2">
+                    <button
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page <= 1}
+                        className="h-9 px-4 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Previous
+                    </button>
+                    <span className="text-sm text-gray-600">
+                        Page {page} of {totalPages}
+                    </span>
+                    <button
+                        onClick={() => setPage((p) => p + 1)}
+                        disabled={page >= totalPages}
+                        className="h-9 px-4 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Next
+                    </button>
                 </div>
             )}
 

@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useTodayMeals, useClientStats } from '../../../hooks/useMeals';
+import { useMealsByDateRange, useClientStats, usePlanSocket } from '../../../hooks/useMeals';
 import { useDailyAdherence } from '../../../hooks/useAdherence';
-import { Clock, Camera, Check, AlertCircle, MessageSquare, CalendarOff } from 'lucide-react-native';
-import { useState } from 'react';
+import { Clock, Camera, Check, AlertCircle, MessageSquare, CalendarOff, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { useState, useMemo } from 'react';
 import { MealLog } from '../../../types';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, StatusColors } from '../../../constants/theme';
 import { LoadingScreen } from '../../../components/LoadingScreen';
@@ -60,8 +60,9 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
                     </View>
                 </View>
 
+                {meal?.name && meal.name.toLowerCase() !== meal.mealType?.toLowerCase() && (
                 <View style={styles.mealNameRow}>
-                    <Text style={styles.mealName} numberOfLines={1}>{meal?.name || 'Meal'}</Text>
+                    <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
                     {meal?.hasAlternatives && (
                         <View style={styles.optionsBadge}>
                             <Text style={styles.optionsBadgeText}>
@@ -70,12 +71,20 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
                         </View>
                     )}
                 </View>
+                )}
 
                 {scheduledTime && (
                     <View style={styles.timeRow}>
                         <Clock size={14} color={Colors.textSecondary} />
                         <Text style={styles.timeText}>{scheduledTime}</Text>
                     </View>
+                )}
+
+                {/* Food items */}
+                {meal?.foodItems && meal.foodItems.length > 0 && (
+                    <Text style={styles.foodItemsText} numberOfLines={2}>
+                        {meal.foodItems.map((fi: any) => `${fi.foodName} ${fi.quantityG}g`).join(' · ')}
+                    </Text>
                 )}
 
                 {/* Macros */}
@@ -106,12 +115,126 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
     );
 }
 
+// Helper to get week dates starting from Monday
+function getWeekDates(baseDate: Date): Date[] {
+    const date = new Date(baseDate);
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Monday as start
+    const monday = new Date(date);
+    monday.setDate(date.getDate() + diff);
+    monday.setHours(0, 0, 0, 0);
+
+    const week: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        week.push(d);
+    }
+    return week;
+}
+
+function WeekCalendar({ selectedDate, onSelectDate }: { selectedDate: Date; onSelectDate: (date: Date) => void }) {
+    const [weekStart, setWeekStart] = useState(() => {
+        const d = new Date(selectedDate);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    });
+
+    const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart]);
+
+    const goToPreviousWeek = () => {
+        const newDate = new Date(weekStart);
+        newDate.setDate(newDate.getDate() - 7);
+        setWeekStart(newDate);
+    };
+
+    const goToNextWeek = () => {
+        const newDate = new Date(weekStart);
+        newDate.setDate(newDate.getDate() + 7);
+        setWeekStart(newDate);
+    };
+
+    const isToday = (date: Date) => {
+        const today = new Date();
+        return date.toDateString() === today.toDateString();
+    };
+
+    const isSelected = (date: Date) => {
+        return date.toDateString() === selectedDate.toDateString();
+    };
+
+    return (
+        <View style={styles.calendarContainer}>
+            <View style={styles.calendarHeader}>
+                <TouchableOpacity onPress={goToPreviousWeek} style={styles.weekNavButton}>
+                    <ChevronLeft size={20} color={Colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.weekLabel}>
+                    {weekDates[0].toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                </Text>
+                <TouchableOpacity onPress={goToNextWeek} style={styles.weekNavButton}>
+                    <ChevronRight size={20} color={Colors.text} />
+                </TouchableOpacity>
+            </View>
+            <View style={styles.weekDays}>
+                {weekDates.map((date, index) => {
+                    const selected = isSelected(date);
+                    const today = isToday(date);
+                    return (
+                        <TouchableOpacity
+                            key={index}
+                            style={[
+                                styles.dayButton,
+                                selected && styles.dayButtonSelected,
+                                today && !selected && styles.dayButtonToday,
+                            ]}
+                            onPress={() => onSelectDate(date)}
+                        >
+                            <Text style={[
+                                styles.dayLabel,
+                                selected && styles.dayLabelSelected,
+                            ]}>
+                                {date.toLocaleDateString('en-US', { weekday: 'narrow' })}
+                            </Text>
+                            <Text style={[
+                                styles.dayNumber,
+                                selected && styles.dayNumberSelected,
+                            ]}>
+                                {date.getDate()}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
 export default function HomeScreen() {
     const router = useRouter();
-    const { data: meals, isLoading, refetch } = useTodayMeals();
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    });
+
+    // Get week start and end for the selected week
+    const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate]);
+    const startDate = weekDates[0].toISOString().split('T')[0];
+    const endDate = weekDates[6].toISOString().split('T')[0];
+
+    usePlanSocket();
+    const { data: allMeals, isLoading, refetch } = useMealsByDateRange(startDate, endDate);
     const { data: stats } = useClientStats();
-    const { data: dailyAdherence } = useDailyAdherence();
+    const selectedDateStr = selectedDate.toISOString().split('T')[0];
+    const { data: dailyAdherence } = useDailyAdherence(selectedDateStr);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Filter meals for the selected date
+    const mealsForSelectedDate = useMemo(() => {
+        if (!allMeals) return [];
+        return allMeals.filter(m => m.scheduledDate === selectedDateStr);
+    }, [allMeals, selectedDateStr]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -119,7 +242,7 @@ export default function HomeScreen() {
         setRefreshing(false);
     };
 
-    const today = new Date().toLocaleDateString('en-US', {
+    const formattedDate = selectedDate.toLocaleDateString('en-US', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -152,11 +275,17 @@ export default function HomeScreen() {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.dateText}>{today}</Text>
-                    <View style={styles.streakBadge}>
-                        <Text style={styles.streakText}>🔥 {stats?.currentStreak || 0} day streak</Text>
+                    <Text style={styles.dateText}>{formattedDate}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    
+                        <View style={styles.streakBadge}>
+                            <Text style={styles.streakText}>🔥 {stats?.currentStreak || 0} day streak</Text>
+                        </View>
                     </View>
                 </View>
+
+                {/* Week Calendar */}
+                <WeekCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
 
                 {/* Stats Cards */}
                 <View style={styles.statsRow}>
@@ -179,12 +308,12 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
-                {/* Today's Meals */}
-                <Text style={styles.sectionTitle}>Today's Meals</Text>
+                {/* Selected Day's Meals */}
+                <Text style={styles.sectionTitle}>Meals</Text>
 
-                {meals && meals.length > 0 ? (
+                {mealsForSelectedDate && mealsForSelectedDate.length > 0 ? (
                     <View style={styles.mealsContainer}>
-                        {meals.map((mealLog) => (
+                        {mealsForSelectedDate.map((mealLog) => (
                             <MealCardV2
                                 key={mealLog.id}
                                 mealLog={mealLog}
@@ -195,8 +324,8 @@ export default function HomeScreen() {
                 ) : (
                     <EmptyState
                         icon={<CalendarOff size={48} color={Colors.textSecondary} />}
-                        title="No meals scheduled for today"
-                        subtitle="Your dietitian will add your meal plan soon"
+                        title="No meals scheduled"
+                        subtitle="No meals for this day"
                     />
                 )}
             </ScrollView>
@@ -228,6 +357,62 @@ const styles = StyleSheet.create({
     streakText: {
         fontSize: FontSizes.md,
         color: Colors.textSecondary,
+    },
+    calendarContainer: {
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.lg,
+    },
+    calendarHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: Spacing.md,
+    },
+    weekNavButton: {
+        padding: Spacing.sm,
+    },
+    weekLabel: {
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+    },
+    weekDays: {
+        flexDirection: 'row',
+        gap: Spacing.sm,
+    },
+    dayButton: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.md,
+        backgroundColor: Colors.surface,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    dayButtonSelected: {
+        backgroundColor: Colors.primary,
+        borderColor: Colors.primary,
+    },
+    dayButtonToday: {
+        borderColor: Colors.primary,
+        borderWidth: 2,
+    },
+    dayLabel: {
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+        marginBottom: 4,
+        fontWeight: FontWeights.medium,
+    },
+    dayLabelSelected: {
+        color: Colors.surface,
+    },
+    dayNumber: {
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.bold,
+        color: Colors.text,
+    },
+    dayNumberSelected: {
+        color: Colors.surface,
     },
     statsRow: {
         flexDirection: 'row',
@@ -379,6 +564,11 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: Colors.primary,
         flex: 1,
+    },
+    foodItemsText: {
+        fontSize: 11,
+        color: Colors.textSecondary,
+        marginBottom: Spacing.xs,
     },
     logButton: {
         width: 44,

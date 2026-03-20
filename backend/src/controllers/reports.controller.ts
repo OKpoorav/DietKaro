@@ -4,19 +4,8 @@ import { ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-
-// Initialize S3 client
-const s3Client = new S3Client({
-    region: process.env.AWS_REGION || 'ap-south-1',
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-    },
-});
-
-const BUCKET_NAME = process.env.AWS_S3_BUCKET || 'dietconnect-uploads';
+import { getPresignedPutUrl, deleteFromS3 } from '../services/storage.service';
+import { enqueueDocumentProcessing } from '../jobs/queue';
 
 /**
  * Get list of reports for the authenticated client
@@ -59,24 +48,26 @@ export const getUploadUrl = asyncHandler(async (req: ClientAuthRequest, res: Res
     }
 
     // Validate file type
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/msword',  // .doc
+        'text/csv',
+        'application/csv',
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+    ];
     if (!allowedTypes.includes(fileType)) {
-        throw AppError.badRequest('Invalid file type. Allowed: PDF, JPEG, PNG, WEBP');
+        throw AppError.badRequest('Invalid file type. Allowed: PDF, DOCX, DOC, CSV, JPEG, PNG, WEBP');
     }
 
-    // Generate unique key for S3
+    // Generate unique key
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
     const key = `reports/${req.client.orgId}/${req.client.id}/${timestamp}-${sanitizedFileName}`;
 
-    // Generate presigned URL for upload
-    const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: key,
-        ContentType: fileType,
-    });
-
-    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
+    const uploadUrl = await getPresignedPutUrl(key, fileType, 3600);
 
     res.status(200).json({
         success: true,
@@ -102,31 +93,52 @@ export const createReport = asyncHandler(async (req: ClientAuthRequest, res: Res
         throw AppError.badRequest('key, fileName, and fileType are required');
     }
 
-    // Construct the file URL
-    const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${key}`;
+    // Validate that the key belongs to this client's org and ID
+    const expectedPrefix = `reports/${req.client.orgId}/${req.client.id}/`;
+    if (!key.startsWith(expectedPrefix)) {
+        return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid file key' } });
+    }
 
-    // Create report record
+    // Store the key as fileUrl (presigned read URLs are generated on demand)
+    const fileUrl = key;
+
+    // Derive a human-friendly fileType label
+    const fileTypeLabel = fileType.startsWith('image/') ? 'image'
+        : fileType === 'application/pdf' ? 'pdf'
+        : fileType.includes('word') ? 'docx'
+        : fileType.includes('csv') ? 'csv'
+        : 'other';
+
+    // Create report record — store s3Key and mimeType for the processing worker
     const report = await prisma.clientReport.create({
         data: {
             orgId: req.client.orgId,
             clientId: req.client.id,
             fileName,
             fileUrl,
-            fileType: fileType.startsWith('image/') ? 'image' : 'pdf',
+            fileType: fileTypeLabel,
+            mimeType: fileType,
+            s3Key: key,
             reportType: reportType || 'other',
-            notes
-        }
+            notes,
+        },
     });
 
     logger.info('Client report uploaded', {
         clientId: req.client.id,
         reportId: report.id,
-        reportType
+        reportType,
+        mimeType: fileType,
     });
+
+    // Enqueue background processing (non-blocking — fire and forget)
+    enqueueDocumentProcessing(report.id).catch((err) =>
+        logger.error('Failed to enqueue document processing', { reportId: report.id, error: err.message }),
+    );
 
     res.status(201).json({
         success: true,
-        data: report
+        data: report,
     });
 });
 
@@ -146,17 +158,13 @@ export const deleteReport = asyncHandler(async (req: ClientAuthRequest, res: Res
         throw AppError.notFound('Report not found');
     }
 
-    // Extract key from URL for S3 deletion
-    const urlParts = report.fileUrl.split('.amazonaws.com/');
-    if (urlParts.length === 2) {
-        const key = urlParts[1];
+    // Use stored s3Key for deletion (fall back to fileUrl which is also the key for new records)
+    const key = report.s3Key || report.fileUrl;
+    if (key) {
         try {
-            await s3Client.send(new DeleteObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: key
-            }));
+            await deleteFromS3(key);
         } catch (error) {
-            logger.warn('Failed to delete S3 object', { key, error });
+            logger.warn('Failed to delete storage object', { key, error });
         }
     }
 

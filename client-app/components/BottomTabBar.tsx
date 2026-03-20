@@ -1,6 +1,6 @@
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { Home, TrendingUp, Bell, User } from 'lucide-react-native';
+import { Home, TrendingUp, Bell, User, MessageCircle } from 'lucide-react-native';
 import { Colors, Spacing, FontSizes, FontWeights } from '../constants/theme';
 
 interface TabItemProps {
@@ -25,6 +25,7 @@ function TabItem({ title, icon: Icon, isActive, onPress }: TabItemProps) {
 const tabs = [
     { name: 'home', title: 'Home', icon: Home, path: '/(tabs)/home' },
     { name: 'progress', title: 'Progress', icon: TrendingUp, path: '/(tabs)/progress' },
+    { name: 'chat', title: 'Chat', icon: MessageCircle, path: '/(tabs)/chat' },
     { name: 'notifications', title: 'Inbox', icon: Bell, path: '/(tabs)/notifications' },
     { name: 'profile', title: 'Profile', icon: User, path: '/(tabs)/profile' },
 ];

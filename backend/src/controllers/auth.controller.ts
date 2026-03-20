@@ -8,13 +8,19 @@ import logger from '../utils/logger';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
     const auth = getAuth(req);
-    const clerkUserId = req.body.clerkUserId || auth.userId;
+    const clerkUserId = auth.userId;
 
     if (!clerkUserId) {
         throw AppError.badRequest('Clerk user ID is required', 'MISSING_CLERK_USER');
     }
 
     const { email, fullName, role, orgId, phone, licenseNumber, specialization } = req.body;
+
+    // Restrict allowed roles — never allow 'owner' via registration
+    const ALLOWED_REGISTRATION_ROLES = ['dietitian', 'admin'];
+    if (!role || !ALLOWED_REGISTRATION_ROLES.includes(role)) {
+        throw AppError.badRequest('Invalid role. Allowed: dietitian, admin', 'INVALID_ROLE');
+    }
 
     if (!email || !fullName || !role || !orgId) {
         throw AppError.badRequest('email, fullName, role, and orgId are required', 'MISSING_FIELDS');

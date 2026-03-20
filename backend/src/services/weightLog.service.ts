@@ -15,36 +15,40 @@ export class WeightLogService {
             bmi = Math.round((data.weightKg / (heightM * heightM)) * 10) / 10;
         }
 
-        const previousLog = await prisma.weightLog.findFirst({
-            where: { clientId },
-            orderBy: { logDate: 'desc' },
-        });
+        const weightLog = await prisma.$transaction(async (tx) => {
+            const previousLog = await tx.weightLog.findFirst({
+                where: { clientId },
+                orderBy: { logDate: 'desc' },
+            });
 
-        let weightChange: number | null = null;
-        if (previousLog) {
-            weightChange = Math.round((data.weightKg - Number(previousLog.weightKg)) * 100) / 100;
-        }
+            let weightChange: number | null = null;
+            if (previousLog) {
+                weightChange = Math.round((data.weightKg - Number(previousLog.weightKg)) * 100) / 100;
+            }
 
-        const isOutlier = weightChange !== null && Math.abs(weightChange) > 3;
+            const isOutlier = weightChange !== null && Math.abs(weightChange) > 3;
 
-        const weightLog = await prisma.weightLog.create({
-            data: {
-                orgId,
-                clientId,
-                logDate: new Date(data.logDate),
-                logTime: data.logTime,
-                weightKg: data.weightKg,
-                bmi,
-                weightChangeFromPrevious: weightChange,
-                notes: data.notes,
-                progressPhotoUrl: data.progressPhotoUrl,
-                isOutlier,
-            },
-        });
+            const created = await tx.weightLog.create({
+                data: {
+                    orgId,
+                    clientId,
+                    logDate: new Date(data.logDate),
+                    logTime: data.logTime,
+                    weightKg: data.weightKg,
+                    bmi,
+                    weightChangeFromPrevious: weightChange,
+                    notes: data.notes,
+                    progressPhotoUrl: data.progressPhotoUrl,
+                    isOutlier,
+                },
+            });
 
-        await prisma.client.update({
-            where: { id: clientId },
-            data: { currentWeightKg: data.weightKg },
+            await tx.client.update({
+                where: { id: clientId },
+                data: { currentWeightKg: data.weightKg },
+            });
+
+            return created;
         });
 
         logger.info('Weight log created', { weightLogId: weightLog.id, clientId, weightKg: data.weightKg });

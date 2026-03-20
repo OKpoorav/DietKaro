@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,6 +5,671 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                    String             @id @default(uuid())
+  name                  String             @unique
+  description           String?
+  logoUrl               String?
+  phone                 String?
+  email                 String?
+  address               String?
+  city                  String?
+  country               String             @default("IN")
+  timezone              String             @default("Asia/Kolkata")
+  subscriptionTier      SubscriptionTier   @default(free)
+  subscriptionStatus    SubscriptionStatus @default(active)
+  subscriptionExpiresAt DateTime?
+  maxClients            Int                @default(10)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  deletedAt             DateTime?
+  isActive              Boolean            @default(true)
+  slug                  String             @unique @default(uuid())
+  activityLogs          ActivityLog[]
+  bodyMeasurements      BodyMeasurement[]
+  clients               Client[]
+  clientReports         ClientReport[]
+  conversations         Conversation[]
+  dietPlans             DietPlan[]
+  foodItems             FoodItem[]
+  invitations           Invitation[]
+  invoices              Invoice[]
+  mealLogs              MealLog[]
+  notifications         Notification[]
+  sessionNotes          SessionNote[]
+  users                 User[]
+  weightLogs            WeightLog[]
+
+  @@index([subscriptionStatus])
+  @@index([isActive])
+}
+
+model User {
+  id                  String         @id @default(uuid())
+  orgId               String
+  clerkUserId         String?        @unique
+  role                UserRole
+  email               String
+  fullName            String
+  phone               String?
+  profilePhotoUrl     String?
+  licenseNumber       String?
+  specialization      String?
+  bio                 String?
+  mfaEnabled          Boolean        @default(false)
+  lastLoginAt         DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  deletedAt           DateTime?
+  isActive            Boolean        @default(true)
+  pushTokens          String[]       @default([])
+  activityLogs        ActivityLog[]  @relation("UserActivityLog")
+  clientsPrimary      Client[]       @relation("PrimaryDietitian")
+  conversations       Conversation[]
+  createdDietPlans    DietPlan[]     @relation("DietPlanCreator")
+  createdFoodItems    FoodItem[]     @relation("FoodItemCreator")
+  createdInvoices     Invoice[]      @relation("InvoiceCreator")
+  reviewedMealLogs    MealLog[]      @relation("MealLogReviewer")
+  createdSessionNotes SessionNote[]  @relation("SessionNoteCreator")
+  organization        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@index([clerkUserId])
+  @@index([role])
+}
+
+model Client {
+  id                    String                 @id @default(uuid())
+  orgId                 String
+  primaryDietitianId    String?
+  email                 String
+  phone                 String
+  fullName              String
+  dateOfBirth           DateTime?              @db.Date
+  gender                Gender?
+  profilePhotoUrl       String?
+  heightCm              Decimal?               @db.Decimal(5, 2)
+  currentWeightKg       Decimal?               @db.Decimal(5, 2)
+  targetWeightKg        Decimal?               @db.Decimal(5, 2)
+  activityLevel         ActivityLevel?
+  dietaryPreferences    String[]
+  allergies             String[]
+  medicalConditions     String[]
+  medications           String[]
+  healthNotes           String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  onboardingCompleted   Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  deletedAt             DateTime?
+  createdByUserId       String?
+  isActive              Boolean                @default(true)
+  referralCode          String?
+  referralSource        ReferralSource?
+  referralSourceName    String?
+  referralSourcePhone   String?
+  referredByClientId    String?
+  avoidCategories       String[]               @default([])
+  dietPattern           String?
+  dislikes              String[]               @default([])
+  eggAllowed            Boolean                @default(true)
+  eggAvoidDays          String[]               @default([])
+  intolerances          String[]               @default([])
+  labDerivedTags        String[]               @default([])
+  likedFoods            String[]               @default([])
+  preferredCuisines     String[]               @default([])
+  foodRestrictions      Json                   @default("[]")
+  pushTokens            String[]               @default([])
+  targetCalories        Int?
+  targetCarbsG          Decimal?               @db.Decimal(5, 1)
+  targetFatsG           Decimal?               @db.Decimal(5, 1)
+  targetProteinG        Decimal?               @db.Decimal(5, 1)
+  bodyMeasurements      BodyMeasurement[]
+  organization          Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  primaryDietitian      User?                  @relation("PrimaryDietitian", fields: [primaryDietitianId], references: [id], onDelete: SetNull)
+  referredByClient      Client?                @relation("ClientReferrals", fields: [referredByClientId], references: [id])
+  referredClients       Client[]               @relation("ClientReferrals")
+  documentSummary       ClientDocumentSummary?
+  preferences           ClientPreferences?
+  refreshTokens         ClientRefreshToken[]
+  clientReports         ClientReport[]
+  conversations         Conversation[]
+  dietPlans             DietPlan[]
+  invoices              Invoice[]
+  mealLogs              MealLog[]
+  medicalProfile        MedicalProfile?
+  referralBenefit       ReferralBenefit?
+  sessionNotes          SessionNote[]
+  weightLogs            WeightLog[]
+
+  @@unique([orgId, email])
+  @@unique([orgId, referralCode])
+  @@index([orgId])
+  @@index([primaryDietitianId])
+  @@index([isActive])
+  @@index([referralCode])
+  @@index([referredByClientId])
+  @@index([orgId, isActive, createdAt])
+  @@index([dietPattern])
+  @@index([phone])
+}
+
+model ClientRefreshToken {
+  id        String   @id @default(uuid())
+  clientId  String
+  tokenHash String   @unique
+  familyId  String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([familyId])
+}
+
+model MedicalProfile {
+  id                  String    @id @default(uuid())
+  clientId            String    @unique
+  diagnoses           String[]
+  allergies           String[]
+  intolerances        String[]
+  medications         String[]
+  supplements         String[]
+  surgeries           String[]
+  familyHistory       String?
+  healthNotes         String?
+  dietaryRestrictions String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  updatedByUserId     String?
+  labDate             DateTime?
+  labDerivedTags      String[]
+  labValues           Json?
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model DietPlan {
+  id               String             @id @default(uuid())
+  orgId            String
+  clientId         String?
+  createdByUserId  String?
+  name             String
+  description      String?
+  startDate        DateTime           @db.Date
+  endDate          DateTime?          @db.Date
+  targetCalories   Int?
+  targetProteinG   Decimal?           @db.Decimal(5, 1)
+  targetCarbsG     Decimal?           @db.Decimal(5, 1)
+  targetFatsG      Decimal?           @db.Decimal(5, 1)
+  targetFiberG     Decimal?           @db.Decimal(5, 1)
+  notesForClient   String?
+  internalNotes    String?
+  status           DietPlanStatus     @default(draft)
+  isTemplate       Boolean            @default(false)
+  templateCategory String?
+  visibility       DietPlanVisibility @default(private)
+  publishedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+  isActive         Boolean            @default(true)
+  client           Client?            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  creator          User?              @relation("DietPlanCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization     Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  meals            Meal[]
+
+  @@index([orgId])
+  @@index([clientId])
+  @@index([status])
+  @@index([isTemplate])
+  @@index([orgId, status, createdAt])
+  @@index([clientId, status])
+}
+
+model Meal {
+  id               String         @id @default(uuid())
+  planId           String
+  dayOfWeek        Int?
+  mealDate         DateTime?      @db.Date
+  sequenceNumber   Int?
+  mealType         MealType
+  timeOfDay        String?
+  name             String
+  description      String?
+  instructions     String?
+  servingSizeNotes String?
+  totalCalories    Int?
+  totalProteinG    Decimal?       @db.Decimal(5, 1)
+  totalCarbsG      Decimal?       @db.Decimal(5, 1)
+  totalFatsG       Decimal?       @db.Decimal(5, 1)
+  totalFiberG      Decimal?       @db.Decimal(5, 1)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  createdByUserId  String?
+  deletedAt        DateTime?
+  dietPlan         DietPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  foodItems        MealFoodItem[]
+  mealLogs         MealLog[]
+
+  @@index([planId])
+  @@index([mealDate])
+  @@index([createdByUserId])
+}
+
+model FoodItem {
+  id                  String               @id @default(uuid())
+  orgId               String?
+  name                String
+  brand               String?
+  category            String
+  subCategory         String?
+  servingSizeG        Decimal              @default(100) @db.Decimal(6, 2)
+  calories            Int
+  proteinG            Decimal?             @db.Decimal(5, 1)
+  carbsG              Decimal?             @db.Decimal(5, 1)
+  fatsG               Decimal?             @db.Decimal(5, 1)
+  fiberG              Decimal?             @db.Decimal(5, 1)
+  sodiumMg            Decimal?             @db.Decimal(7, 2)
+  sugarG              Decimal?             @db.Decimal(5, 1)
+  isVerified          Boolean              @default(false)
+  source              String?
+  barcode             String?
+  allergenFlags       String[]
+  dietaryTags         String[]
+  createdByUserId     String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  cuisineTags         String[]             @default([])
+  dietaryCategory     String?
+  healthFlags         String[]             @default([])
+  mealSuitabilityTags String[]             @default([])
+  nutritionTags       String[]             @default([])
+  processingLevel     String?
+  deletedAt           DateTime?
+  updatedByUserId     String?
+  isBaseIngredient    Boolean              @default(false)
+  creator             User?                @relation("FoodItemCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization        Organization?        @relation(fields: [orgId], references: [id])
+  ingredients         FoodItemIngredient[] @relation("CompositeFood")
+  usedAsIngredientIn  FoodItemIngredient[] @relation("IngredientItem")
+  mealFoodItems       MealFoodItem[]
+
+  @@index([orgId])
+  @@index([category])
+  @@index([orgId, category])
+  @@index([isBaseIngredient])
+}
+
+model FoodItemIngredient {
+  id           String   @id @default(uuid())
+  foodItemId   String
+  ingredientId String
+  createdAt    DateTime @default(now())
+  foodItem     FoodItem @relation("CompositeFood", fields: [foodItemId], references: [id], onDelete: Cascade)
+  ingredient   FoodItem @relation("IngredientItem", fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([foodItemId, ingredientId])
+  @@index([foodItemId])
+  @@index([ingredientId])
+}
+
+model MealFoodItem {
+  id              String    @id @default(uuid())
+  mealId          String
+  foodId          String
+  quantityG       Decimal   @db.Decimal(6, 2)
+  calories        Int?
+  proteinG        Decimal?  @db.Decimal(5, 1)
+  carbsG          Decimal?  @db.Decimal(5, 1)
+  fatsG           Decimal?  @db.Decimal(5, 1)
+  fiberG          Decimal?  @db.Decimal(5, 1)
+  sortOrder       Int       @default(0)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  createdByUserId String?
+  deletedAt       DateTime?
+  optionGroup     Int       @default(0)
+  optionLabel     String?
+  foodItem        FoodItem  @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  meal            Meal      @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  @@index([mealId])
+  @@index([foodId])
+  @@index([mealId, optionGroup])
+  @@index([createdByUserId])
+}
+
+model MealLog {
+  id                    String        @id @default(uuid())
+  orgId                 String
+  clientId              String
+  mealId                String
+  scheduledDate         DateTime      @db.Date
+  scheduledTime         String?
+  status                MealLogStatus @default(pending)
+  mealPhotoUrl          String?
+  mealPhotoSmallUrl     String?
+  photoUploadedAt       DateTime?
+  aiFoodRecognition     Json?
+  clientNotes           String?
+  dietitianFeedback     String?
+  dietitianFeedbackAt   DateTime?
+  reviewedByUserId      String?
+  substituteDescription String?
+  substituteCaloriesEst Int?
+  loggedAt              DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  complianceColor       String?
+  complianceIssues      String[]      @default([])
+  complianceScore       Int?
+  deletedAt             DateTime?
+  chosenOptionGroup     Int?
+  client                Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  meal                  Meal          @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  organization          Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  reviewer              User?         @relation("MealLogReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, mealId, scheduledDate])
+  @@index([orgId])
+  @@index([clientId])
+  @@index([scheduledDate])
+  @@index([status])
+  @@index([orgId, status, scheduledDate])
+  @@index([clientId, scheduledDate])
+}
+
+model WeightLog {
+  id                       String       @id @default(uuid())
+  orgId                    String
+  clientId                 String
+  weightKg                 Decimal      @db.Decimal(5, 2)
+  logDate                  DateTime     @db.Date
+  logTime                  String?
+  notes                    String?
+  progressPhotoUrl         String?
+  bmi                      Decimal?     @db.Decimal(4, 2)
+  weightChangeFromPrevious Decimal?     @db.Decimal(5, 2)
+  isOutlier                Boolean      @default(false)
+  createdAt                DateTime     @default(now())
+  createdByUserId          String?
+  deletedAt                DateTime?
+  client                   Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organization             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, logDate])
+  @@index([orgId])
+  @@index([clientId])
+  @@index([clientId, logDate])
+}
+
+model BodyMeasurement {
+  id                String       @id @default(uuid())
+  orgId             String
+  clientId          String
+  logDate           DateTime     @db.Date
+  chestCm           Decimal?     @db.Decimal(5, 2)
+  waistCm           Decimal?     @db.Decimal(5, 2)
+  hipsCm            Decimal?     @db.Decimal(5, 2)
+  thighsCm          Decimal?     @db.Decimal(5, 2)
+  armsCm            Decimal?     @db.Decimal(5, 2)
+  bodyFatPercentage Decimal?     @db.Decimal(4, 2)
+  notes             String?
+  createdAt         DateTime     @default(now())
+  createdByUserId   String?
+  deletedAt         DateTime?
+  client            Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, logDate])
+  @@index([orgId])
+  @@index([clientId])
+}
+
+model SessionNote {
+  id              String       @id @default(uuid())
+  orgId           String
+  clientId        String
+  createdByUserId String?
+  noteType        NoteType
+  title           String
+  subjective      String?
+  objective       String?
+  assessment      String?
+  plan            String?
+  internalNotes   String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  client          Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  creator         User?        @relation("SessionNoteCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([clientId])
+}
+
+model Notification {
+  id                String         @id @default(uuid())
+  recipientId       String
+  recipientType     RecipientType
+  orgId             String
+  type              String
+  category          String?
+  title             String
+  message           String
+  icon              String?
+  deepLink          String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  isRead            Boolean        @default(false)
+  readAt            DateTime?
+  sentViaChannels   String[]       @default(["push"])
+  deliveryStatus    DeliveryStatus @default(pending)
+  createdAt         DateTime       @default(now())
+  expiresAt         DateTime       @default(dbgenerated("(now() + '30 days'::interval)"))
+  organization      Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, recipientType])
+  @@index([isRead])
+  @@index([orgId])
+  @@index([recipientId, recipientType, isRead, createdAt])
+  @@index([expiresAt])
+}
+
+model ActivityLog {
+  id           String       @id @default(uuid())
+  orgId        String
+  userId       String?
+  userType     String?
+  action       String
+  entityType   String?
+  entityId     String?
+  oldValues    Json?
+  newValues    Json?
+  changeDesc   String?
+  ipAddress    String?
+  userAgent    String?
+  status       String       @default("success")
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime     @default(now())
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User?        @relation("UserActivityLog", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([action])
+}
+
+model Invoice {
+  id              String        @id @default(uuid())
+  orgId           String
+  clientId        String
+  createdByUserId String?
+  invoiceNumber   String        @unique
+  issueDate       DateTime      @db.Date
+  dueDate         DateTime      @db.Date
+  currency        String        @default("INR")
+  subtotal        Decimal       @db.Decimal(10, 2)
+  tax             Decimal       @default(0) @db.Decimal(10, 2)
+  total           Decimal       @db.Decimal(10, 2)
+  status          InvoiceStatus @default(unpaid)
+  notes           String?
+  sentAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  creator         User?         @relation("InvoiceCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization    Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model Invitation {
+  id           String           @id @default(uuid())
+  email        String
+  role         UserRole
+  token        String           @unique
+  orgId        String
+  expiresAt    DateTime
+  createdAt    DateTime         @default(now())
+  status       InvitationStatus @default(pending)
+  organization Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([token])
+  @@index([email])
+}
+
+model ReferralBenefit {
+  id               String   @id @default(uuid())
+  clientId         String   @unique
+  referralCount    Int      @default(0)
+  freeMonthsEarned Int      @default(0)
+  freeMonthsUsed   Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientReport {
+  id               String                 @id @default(uuid())
+  orgId            String
+  clientId         String
+  fileName         String
+  fileUrl          String
+  fileType         String
+  reportType       String?
+  notes            String?
+  uploadedAt       DateTime               @default(now())
+  mimeType         String?
+  processingError  String?
+  processingStatus ReportProcessingStatus @default(pending)
+  s3Key            String?
+  client           Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organization     Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  summary          ReportSummary?
+
+  @@index([clientId])
+  @@index([orgId])
+  @@index([clientId, processingStatus])
+}
+
+model ReportSummary {
+  id            String       @id @default(uuid())
+  reportId      String       @unique
+  rawText       String?
+  summaryText   String?
+  extractedData Json?
+  modelVersion  String?
+  promptVersion Int          @default(1)
+  generatedAt   DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  report        ClientReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+}
+
+model ClientDocumentSummary {
+  id           String   @id @default(uuid())
+  clientId     String   @unique
+  summaryText  String
+  docCount     Int      @default(0)
+  modelVersion String?
+  generatedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model ClientPreferences {
+  id               String   @id @default(uuid())
+  clientId         String   @unique
+  breakfastTime    String?
+  lunchTime        String?
+  dinnerTime       String?
+  snackTime        String?
+  canCook          Boolean  @default(true)
+  kitchenAvailable Boolean  @default(true)
+  hasDietaryCook   Boolean  @default(false)
+  weekdayActivity  String?
+  weekendActivity  String?
+  sportOrHobby     String?
+  generalNotes     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model Conversation {
+  id              String       @id @default(uuid())
+  orgId           String
+  userId          String?
+  clientId        String
+  lastMessageAt   DateTime?
+  lastMessageText String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  client          Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages        Message[]
+
+  @@unique([orgId, userId, clientId])
+  @@index([userId, lastMessageAt(sort: Desc)])
+  @@index([clientId, lastMessageAt(sort: Desc)])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String
+  senderType     RecipientType
+  senderId       String
+  content        String
+  status         MessageStatus @default(sent)
+  readAt         DateTime?
+  createdAt      DateTime      @default(now())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([conversationId, status])
+  @@index([conversationId, senderType, status])
 }
 
 enum SubscriptionTier {
@@ -102,6 +761,21 @@ enum InvoiceStatus {
   cancelled
 }
 
+enum MessageStatus {
+  sent
+  delivered
+  read
+}
+
+enum ReportProcessingStatus {
+  pending
+  extracting
+  summarizing
+  done
+  failed
+  skipped
+}
+
 enum ReferralSource {
   doctor
   dietitian
@@ -110,651 +784,3 @@ enum ReferralSource {
   website
   other
 }
-
-// ============ MODELS ============
-
-model Organization {
-  id                    String             @id @default(uuid())
-  name                  String             @unique
-  slug                  String             @unique @default(uuid())
-  description           String?
-  logoUrl               String?
-  phone                 String?
-  email                 String?
-  address               String?
-  city                  String?
-  country               String             @default("IN")
-  timezone              String             @default("Asia/Kolkata")
-  subscriptionTier      SubscriptionTier   @default(free)
-  subscriptionStatus    SubscriptionStatus @default(active)
-  subscriptionExpiresAt DateTime?
-  maxClients            Int                @default(10)
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  deletedAt             DateTime?
-  isActive              Boolean            @default(true)
-
-  // Relations
-  users            User[]
-  clients          Client[]
-  dietPlans        DietPlan[]
-  foodItems        FoodItem[]
-  mealLogs         MealLog[]
-  weightLogs       WeightLog[]
-  bodyMeasurements BodyMeasurement[]
-  sessionNotes     SessionNote[]
-  notifications    Notification[]
-  activityLogs     ActivityLog[]
-  invoices         Invoice[]
-  invitations      Invitation[]
-  clientReports    ClientReport[]
-
-  @@index([subscriptionStatus])
-  @@index([isActive])
-}
-
-model User {
-  id              String    @id @default(uuid())
-  orgId           String
-  clerkUserId     String?   @unique
-  role            UserRole
-  email           String
-  fullName        String
-  phone           String?
-  profilePhotoUrl String?
-  licenseNumber   String?
-  specialization  String?
-  bio             String?
-  mfaEnabled      Boolean   @default(false)
-  lastLoginAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
-  isActive        Boolean   @default(true)
-
-  // Relations
-  organization        Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  clientsPrimary      Client[]      @relation("PrimaryDietitian")
-  createdDietPlans    DietPlan[]    @relation("DietPlanCreator")
-  createdFoodItems    FoodItem[]    @relation("FoodItemCreator")
-  reviewedMealLogs    MealLog[]     @relation("MealLogReviewer")
-  createdSessionNotes SessionNote[] @relation("SessionNoteCreator")
-  createdInvoices     Invoice[]     @relation("InvoiceCreator")
-  activityLogs        ActivityLog[] @relation("UserActivityLog")
-
-  pushTokens String[] @default([]) // Expo push tokens
-
-  @@unique([orgId, email])
-  @@index([orgId])
-  @@index([clerkUserId])
-  @@index([role])
-}
-
-model Client {
-  id                    String         @id @default(uuid())
-  orgId                 String
-  primaryDietitianId    String
-  email                 String
-  phone                 String
-  fullName              String
-  dateOfBirth           DateTime?      @db.Date
-  gender                Gender?
-  profilePhotoUrl       String?
-  heightCm              Decimal?       @db.Decimal(5, 2)
-  currentWeightKg       Decimal?       @db.Decimal(5, 2)
-  targetWeightKg        Decimal?       @db.Decimal(5, 2)
-  targetCalories        Int?
-  targetProteinG        Decimal?       @db.Decimal(5, 1)
-  targetCarbsG          Decimal?       @db.Decimal(5, 1)
-  targetFatsG           Decimal?       @db.Decimal(5, 1)
-  activityLevel         ActivityLevel?
-  dietaryPreferences    String[]
-  allergies             String[]
-  medicalConditions     String[]
-  medications           String[]
-  healthNotes           String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  onboardingCompleted   Boolean        @default(false)
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  deletedAt             DateTime?
-  createdByUserId       String?
-  isActive              Boolean        @default(true)
-
-  // Validation Tags (for diet validation engine)
-  intolerances      String[] @default([]) // Separate from allergies (e.g., lactose)
-  dietPattern       String? // "vegetarian", "vegan", "non_veg", "pescatarian"
-  eggAllowed        Boolean  @default(true)
-  eggAvoidDays      String[] @default([]) // ["tuesday", "thursday"]
-  dislikes          String[] @default([]) // Food names client dislikes
-  avoidCategories   String[] @default([]) // ["fried_foods", "processed"]
-  labDerivedTags    String[] @default([]) // ["vitamin_d_deficiency", "high_cholesterol"]
-  likedFoods        String[] @default([]) // Food IDs client likes
-  preferredCuisines String[] @default([]) // ["indian", "mughlai"]
-  foodRestrictions  Json     @default("[]") // Array of FoodRestriction objects for flexible restrictions
-
-  // Referral tracking
-  referralSource      ReferralSource?
-  referralSourceName  String? // Doctor/Dietitian name if applicable
-  referralSourcePhone String? // Contact phone for referrer
-  referralCode        String?
-  referredByClientId  String?
-
-  // Relations
-  organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  primaryDietitian User              @relation("PrimaryDietitian", fields: [primaryDietitianId], references: [id])
-  medicalProfile   MedicalProfile?
-  dietPlans        DietPlan[]
-  mealLogs         MealLog[]
-  weightLogs       WeightLog[]
-  bodyMeasurements BodyMeasurement[]
-  sessionNotes     SessionNote[]
-  invoices         Invoice[]
-  referralBenefit  ReferralBenefit?
-  clientReports    ClientReport[]
-  preferences      ClientPreferences?
-
-  // Self-referential relation for client referrals
-  referredByClient Client?  @relation("ClientReferrals", fields: [referredByClientId], references: [id])
-  referredClients  Client[] @relation("ClientReferrals")
-
-  pushTokens String[] @default([]) // Expo push tokens
-  refreshTokens ClientRefreshToken[]
-
-  @@unique([orgId, email])
-  @@unique([orgId, referralCode])
-  @@index([orgId])
-  @@index([primaryDietitianId])
-  @@index([isActive])
-  @@index([referralCode])
-  @@index([referredByClientId])
-  @@index([orgId, isActive, createdAt])
-  @@index([dietPattern])
-}
-
-model ClientRefreshToken {
-  id        String   @id @default(uuid())
-  clientId  String
-  tokenHash String   @unique
-  familyId  String
-  expiresAt DateTime
-  isRevoked Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-  @@index([familyId])
-}
-
-model MedicalProfile {
-  id                  String   @id @default(uuid())
-  clientId            String   @unique
-  diagnoses           String[]
-  allergies           String[]
-  intolerances        String[]
-  medications         String[]
-  supplements         String[]
-  surgeries           String[]
-  familyHistory       String?
-  healthNotes         String?
-  dietaryRestrictions String?
-  labValues           Json?
-  labDate             DateTime?
-  labDerivedTags      String[]
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  updatedByUserId     String?
-
-  // Relations
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-}
-
-model DietPlan {
-  id               String             @id @default(uuid())
-  orgId            String
-  clientId         String? // Optional for templates
-  createdByUserId  String
-  name             String
-  description      String?
-  startDate        DateTime           @db.Date
-  endDate          DateTime?          @db.Date
-  targetCalories   Int?
-  targetProteinG   Decimal?           @db.Decimal(5, 1)
-  targetCarbsG     Decimal?           @db.Decimal(5, 1)
-  targetFatsG      Decimal?           @db.Decimal(5, 1)
-  targetFiberG     Decimal?           @db.Decimal(5, 1)
-  notesForClient   String?
-  internalNotes    String?
-  status           DietPlanStatus     @default(draft)
-  isTemplate       Boolean            @default(false)
-  templateCategory String?
-  visibility       DietPlanVisibility @default(private)
-  publishedAt      DateTime?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  deletedAt        DateTime?
-  isActive         Boolean            @default(true)
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  creator      User         @relation("DietPlanCreator", fields: [createdByUserId], references: [id])
-  meals        Meal[]
-
-  @@index([orgId])
-  @@index([clientId])
-  @@index([status])
-  @@index([isTemplate])
-  @@index([orgId, status, createdAt])
-  @@index([clientId, status])
-}
-
-model Meal {
-  id               String    @id @default(uuid())
-  planId           String
-  dayOfWeek        Int?
-  mealDate         DateTime? @db.Date
-  sequenceNumber   Int?
-  mealType         MealType
-  timeOfDay        String?
-  name             String
-  description      String?
-  instructions     String?
-  servingSizeNotes String?
-  totalCalories    Int?
-  totalProteinG    Decimal?  @db.Decimal(5, 1)
-  totalCarbsG      Decimal?  @db.Decimal(5, 1)
-  totalFatsG       Decimal?  @db.Decimal(5, 1)
-  totalFiberG      Decimal?  @db.Decimal(5, 1)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  deletedAt        DateTime?
-  createdByUserId  String?
-
-  // Relations
-  dietPlan  DietPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
-  foodItems MealFoodItem[]
-  mealLogs  MealLog[]
-
-  @@index([planId])
-  @@index([mealDate])
-  @@index([createdByUserId])
-}
-
-model FoodItem {
-  id              String   @id @default(uuid())
-  orgId           String?
-  name            String
-  brand           String?
-  category        String
-  subCategory     String?
-  servingSizeG    Decimal  @default(100) @db.Decimal(6, 2)
-  calories        Int
-  proteinG        Decimal? @db.Decimal(5, 1)
-  carbsG          Decimal? @db.Decimal(5, 1)
-  fatsG           Decimal? @db.Decimal(5, 1)
-  fiberG          Decimal? @db.Decimal(5, 1)
-  sodiumMg        Decimal? @db.Decimal(7, 2)
-  sugarG          Decimal? @db.Decimal(5, 1)
-  isVerified      Boolean  @default(false)
-  source          String?
-  barcode         String?
-  allergenFlags   String[]
-  dietaryTags     String[]
-  createdByUserId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  deletedAt       DateTime?
-  updatedByUserId String?
-
-  // Validation Tags (for diet validation engine)
-  nutritionTags       String[] @default([]) // ["high_protein", "low_carb", "high_sugar"]
-  healthFlags         String[] @default([]) // ["diabetic_caution", "heart_caution"]
-  cuisineTags         String[] @default([]) // ["indian", "chinese", "mughlai"]
-  processingLevel     String? // "raw", "minimally_processed", "processed", "ultra_processed"
-  mealSuitabilityTags String[] @default([]) // ["good_for_breakfast", "too_heavy_for_night"]
-  dietaryCategory     String? // "vegan", "vegetarian", "veg_with_egg", "non_veg"
-
-  // Base ingredient system
-  isBaseIngredient  Boolean @default(false)
-
-  // Relations
-  organization  Organization?  @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  creator       User?          @relation("FoodItemCreator", fields: [createdByUserId], references: [id])
-  mealFoodItems MealFoodItem[]
-
-  // Self-referential ingredient relations
-  ingredients        FoodItemIngredient[] @relation("CompositeFood")
-  usedAsIngredientIn FoodItemIngredient[] @relation("IngredientItem")
-
-  @@index([orgId])
-  @@index([category])
-  @@index([orgId, category])
-  @@index([isBaseIngredient])
-}
-
-model FoodItemIngredient {
-  id            String   @id @default(uuid())
-  foodItemId    String
-  ingredientId  String
-
-  foodItem      FoodItem @relation("CompositeFood", fields: [foodItemId], references: [id], onDelete: Cascade)
-  ingredient    FoodItem @relation("IngredientItem", fields: [ingredientId], references: [id], onDelete: Cascade)
-
-  createdAt     DateTime @default(now())
-
-  @@unique([foodItemId, ingredientId])
-  @@index([foodItemId])
-  @@index([ingredientId])
-}
-
-model MealFoodItem {
-  id        String   @id @default(uuid())
-  mealId    String
-  foodId    String
-  quantityG Decimal  @db.Decimal(6, 2)
-  calories  Int?
-  proteinG  Decimal? @db.Decimal(5, 1)
-  carbsG    Decimal? @db.Decimal(5, 1)
-  fatsG     Decimal? @db.Decimal(5, 1)
-  fiberG    Decimal? @db.Decimal(5, 1)
-  sortOrder Int      @default(0)
-  notes           String?
-  optionGroup     Int      @default(0) // 0 = default, 1+ = alternative meal options
-  optionLabel     String?              // e.g. "Oatmeal Bowl", "Egg Plate"
-  createdAt       DateTime @default(now())
-  deletedAt       DateTime?
-  createdByUserId String?
-
-  // Relations
-  meal     Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  foodItem FoodItem @relation(fields: [foodId], references: [id], onDelete: Cascade)
-
-  @@index([mealId])
-  @@index([foodId])
-  @@index([mealId, optionGroup])
-  @@index([createdByUserId])
-}
-
-model MealLog {
-  id                    String        @id @default(uuid())
-  orgId                 String
-  clientId              String
-  mealId                String
-  scheduledDate         DateTime      @db.Date
-  scheduledTime         String?
-  status                MealLogStatus @default(pending)
-  mealPhotoUrl          String?
-  mealPhotoSmallUrl     String?
-  photoUploadedAt       DateTime?
-  aiFoodRecognition     Json?
-  clientNotes           String?
-  dietitianFeedback     String?
-  dietitianFeedbackAt   DateTime?
-  reviewedByUserId      String?
-  substituteDescription String?
-  substituteCaloriesEst Int?
-  loggedAt              DateTime?
-
-  // Option tracking (for meals with alternatives)
-  chosenOptionGroup Int? // which option the client chose (null = default option 0)
-
-  // Compliance Tracking
-  complianceScore  Int? // 0-100
-  complianceColor  String? // GREEN, YELLOW, RED
-  complianceIssues String[] @default([]) // ["portion_exceeded", "forbidden_food"]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  meal         Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  reviewer     User?        @relation("MealLogReviewer", fields: [reviewedByUserId], references: [id])
-
-  @@unique([clientId, mealId, scheduledDate])
-  @@index([orgId])
-  @@index([clientId])
-  @@index([scheduledDate])
-  @@index([status])
-  @@index([orgId, status, scheduledDate])
-  @@index([clientId, scheduledDate])
-}
-
-model WeightLog {
-  id                       String   @id @default(uuid())
-  orgId                    String
-  clientId                 String
-  weightKg                 Decimal  @db.Decimal(5, 2)
-  logDate                  DateTime @db.Date
-  logTime                  String?
-  notes                    String?
-  progressPhotoUrl         String?
-  bmi                      Decimal? @db.Decimal(4, 2)
-  weightChangeFromPrevious Decimal? @db.Decimal(5, 2)
-  isOutlier                Boolean  @default(false)
-  createdAt                DateTime @default(now())
-  deletedAt                DateTime?
-  createdByUserId          String?
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@unique([clientId, logDate])
-  @@index([orgId])
-  @@index([clientId])
-  @@index([clientId, logDate])
-}
-
-model BodyMeasurement {
-  id                String   @id @default(uuid())
-  orgId             String
-  clientId          String
-  logDate           DateTime @db.Date
-  chestCm           Decimal? @db.Decimal(5, 2)
-  waistCm           Decimal? @db.Decimal(5, 2)
-  hipsCm            Decimal? @db.Decimal(5, 2)
-  thighsCm          Decimal? @db.Decimal(5, 2)
-  armsCm            Decimal? @db.Decimal(5, 2)
-  bodyFatPercentage Decimal? @db.Decimal(4, 2)
-  notes             String?
-  createdAt         DateTime @default(now())
-  deletedAt         DateTime?
-  createdByUserId   String?
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([orgId])
-  @@index([clientId])
-}
-
-model SessionNote {
-  id              String    @id @default(uuid())
-  orgId           String
-  clientId        String
-  createdByUserId String
-  noteType        NoteType
-  title           String
-  subjective      String?
-  objective       String?
-  assessment      String?
-  plan            String?
-  internalNotes   String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  creator      User         @relation("SessionNoteCreator", fields: [createdByUserId], references: [id])
-
-  @@index([orgId])
-  @@index([clientId])
-}
-
-model Notification {
-  id                String         @id @default(uuid())
-  recipientId       String
-  recipientType     RecipientType
-  orgId             String
-  type              String
-  category          String?
-  title             String
-  message           String
-  icon              String?
-  deepLink          String?
-  relatedEntityType String?
-  relatedEntityId   String?
-  isRead            Boolean        @default(false)
-  readAt            DateTime?
-  sentViaChannels   String[]       @default(["push"])
-  deliveryStatus    DeliveryStatus @default(pending)
-  createdAt         DateTime       @default(now())
-  expiresAt         DateTime       @default(dbgenerated("NOW() + INTERVAL '30 days'"))
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-
-  @@index([recipientId, recipientType])
-  @@index([isRead])
-  @@index([orgId])
-  @@index([recipientId, recipientType, isRead, createdAt])
-}
-
-model ActivityLog {
-  id           String   @id @default(uuid())
-  orgId        String
-  userId       String?
-  userType     String?
-  action       String
-  entityType   String?
-  entityId     String?
-  oldValues    Json?
-  newValues    Json?
-  changeDesc   String?
-  ipAddress    String?
-  userAgent    String?
-  status       String   @default("success")
-  errorMessage String?
-  metadata     Json?
-  createdAt    DateTime @default(now())
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  user         User?        @relation("UserActivityLog", fields: [userId], references: [id])
-
-  @@index([orgId])
-  @@index([userId])
-  @@index([action])
-}
-
-model Invoice {
-  id              String        @id @default(uuid())
-  orgId           String
-  clientId        String
-  createdByUserId String
-  invoiceNumber   String        @unique
-  issueDate       DateTime      @db.Date
-  dueDate         DateTime      @db.Date
-  currency        String        @default("INR")
-  subtotal        Decimal       @db.Decimal(10, 2)
-  tax             Decimal       @default(0) @db.Decimal(10, 2)
-  total           Decimal       @db.Decimal(10, 2)
-  status          InvoiceStatus @default(unpaid)
-  notes           String?
-  sentAt          DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  deletedAt       DateTime?
-
-  // Relations
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  creator      User         @relation("InvoiceCreator", fields: [createdByUserId], references: [id])
-
-  @@index([orgId])
-  @@index([clientId])
-  @@index([status])
-}
-
-model Invitation {
-  id        String   @id @default(uuid())
-  email     String
-  role      UserRole
-  token     String   @unique
-  orgId     String
-  expiresAt DateTime
-  status    InvitationStatus @default(pending)
-  createdAt DateTime @default(now())
-
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-
-  @@index([orgId])
-  @@index([token])
-  @@index([email])
-}
-
-model ReferralBenefit {
-  id               String   @id @default(uuid())
-  clientId         String   @unique
-  referralCount    Int      @default(0)
-  freeMonthsEarned Int      @default(0)
-  freeMonthsUsed   Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-}
-
-model ClientReport {
-  id         String   @id @default(uuid())
-  orgId      String
-  clientId   String
-  fileName   String
-  fileUrl    String
-  fileType   String // pdf, image
-  reportType String? // blood_test, scan, prescription, other
-  notes      String?
-  uploadedAt DateTime @default(now())
-
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-  @@index([orgId])
-}
-
-model ClientPreferences {
-  id               String   @id @default(uuid())
-  clientId         String   @unique
-  breakfastTime    String?
-  lunchTime        String?
-  dinnerTime       String?
-  snackTime        String?
-  canCook          Boolean  @default(true)
-  kitchenAvailable Boolean  @default(true)
-  hasDietaryCook   Boolean  @default(false)
-  weekdayActivity  String?
-  weekendActivity  String?
-  sportOrHobby     String?
-  generalNotes     String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-}
-

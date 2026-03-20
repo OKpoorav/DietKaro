@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../types/auth.types';
@@ -74,7 +75,7 @@ export const inviteMember = asyncHandler(async (req: AuthenticatedRequest, res: 
     }
 
     // Generate token
-    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const token = crypto.randomBytes(32).toString('base64url');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
@@ -98,7 +99,11 @@ export const inviteMember = asyncHandler(async (req: AuthenticatedRequest, res: 
         message: 'Invitation link generated',
         data: {
             inviteLink,
-            invitation
+            invitation: {
+                id: invitation.id,
+                email: invitation.email,
+                status: invitation.status,
+            }
         }
     });
 });

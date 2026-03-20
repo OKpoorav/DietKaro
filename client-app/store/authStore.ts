@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Client } from '../types';
 
 const TOKEN_KEY = 'auth_token';
+const REFRESH_TOKEN_KEY = 'refresh_token';
 const CLIENT_KEY = 'client_data';
 const LAST_ACTIVITY_KEY = 'last_activity';
 
@@ -19,8 +20,21 @@ export const authStore = {
         await this.updateLastActivity();
     },
 
+    async getRefreshToken(): Promise<string | null> {
+        try {
+            return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+        } catch {
+            return null;
+        }
+    },
+
+    async setRefreshToken(token: string): Promise<void> {
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+    },
+
     async removeToken(): Promise<void> {
         await SecureStore.deleteItemAsync(TOKEN_KEY);
+        await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
         await SecureStore.deleteItemAsync(CLIENT_KEY);
         await SecureStore.deleteItemAsync(LAST_ACTIVITY_KEY);
     },

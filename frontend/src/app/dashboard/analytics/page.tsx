@@ -21,11 +21,10 @@ export default function AnalyticsPage() {
     const clients = clientsData?.data || [];
     const totalClients = clientsData?.meta?.total || 0;
 
-    // Calculate top performers from client data
-    // For now, just show the first 5 clients sorted by name alphabetically
+    // Recent clients list — adherence tracking not yet implemented
     const topClients = clients.slice(0, 5).map((c) => ({
         name: c.fullName,
-        adherence: 80 + Math.floor(Math.random() * 15), // Simulated - would need real progress data
+        adherence: null as number | null, // Not yet available — requires real progress data
         weightLoss: c.targetWeightKg && c.currentWeightKg
             ? Math.max(0, Number(c.currentWeightKg) - Number(c.targetWeightKg)).toFixed(1)
             : '0'
@@ -214,15 +213,7 @@ export default function AnalyticsPage() {
                                             <span className="font-medium text-gray-900">{client.name}</span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-brand rounded-full"
-                                                        style={{ width: `${client.adherence}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-sm font-medium text-gray-900">{client.adherence}%</span>
-                                            </div>
+                                            <span className="text-sm text-gray-400 italic">Coming soon</span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className="text-brand font-medium">{client.weightLoss} kg</span>

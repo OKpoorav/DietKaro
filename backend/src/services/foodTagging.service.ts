@@ -268,23 +268,83 @@ export class FoodTaggingService {
             where.orgId = options.orgId;
         }
 
+        // Single query: fetch all foods with their ingredients in one go (eliminates N+1)
         const foods = await prisma.foodItem.findMany({
             where,
-            take: options.limit || 1000
+            take: options.limit || 1000,
+            include: {
+                ingredients: {
+                    include: { ingredient: { select: { allergenFlags: true, dietaryCategory: true } } },
+                },
+            },
         });
 
-        let updated = 0;
+        const PRIORITY: Record<string, number> = { non_veg: 4, veg_with_egg: 3, vegetarian: 2, vegan: 1 };
+        const updates: ReturnType<typeof prisma.foodItem.update>[] = [];
 
         for (const food of foods) {
             try {
-                await this.autoTagFood(food.id);
-                updated++;
+                const hasIngredients = food.ingredients.length > 0;
+
+                let allergenFlags: string[];
+                let dietaryCategory: string | null;
+
+                if (hasIngredients) {
+                    const allFlags = new Set<string>(food.allergenFlags);
+                    let maxPriority = 0;
+                    dietaryCategory = null;
+
+                    for (const link of food.ingredients) {
+                        for (const flag of link.ingredient.allergenFlags) {
+                            allFlags.add(flag);
+                        }
+                        const p = PRIORITY[link.ingredient.dietaryCategory || ''] || 0;
+                        if (p > maxPriority) {
+                            maxPriority = p;
+                            dietaryCategory = link.ingredient.dietaryCategory;
+                        }
+                    }
+                    allergenFlags = Array.from(allFlags);
+                } else {
+                    allergenFlags = food.allergenFlags;
+                    dietaryCategory = this.detectDietaryCategory(food.name, food.dietaryCategory);
+                }
+
+                const nutritionTags = this.calculateNutritionTags({
+                    calories: food.calories,
+                    proteinG: food.proteinG ? Number(food.proteinG) : null,
+                    carbsG: food.carbsG ? Number(food.carbsG) : null,
+                    fatsG: food.fatsG ? Number(food.fatsG) : null,
+                    fiberG: food.fiberG ? Number(food.fiberG) : null,
+                    sugarG: food.sugarG ? Number(food.sugarG) : null,
+                    sodiumMg: food.sodiumMg ? Number(food.sodiumMg) : null,
+                });
+                const healthFlags = this.calculateHealthFlags({
+                    ...food,
+                    proteinG: food.proteinG ? Number(food.proteinG) : null,
+                    carbsG: food.carbsG ? Number(food.carbsG) : null,
+                    fatsG: food.fatsG ? Number(food.fatsG) : null,
+                    sugarG: food.sugarG ? Number(food.sugarG) : null,
+                    sodiumMg: food.sodiumMg ? Number(food.sodiumMg) : null,
+                });
+
+                updates.push(
+                    prisma.foodItem.update({
+                        where: { id: food.id },
+                        data: { dietaryCategory, allergenFlags, nutritionTags, healthFlags },
+                    })
+                );
             } catch (error) {
-                logger.warn('Failed to auto-tag food', { foodId: food.id, error });
+                logger.warn('Failed to compute tags for food', { foodId: food.id, error });
             }
         }
 
-        return { processed: foods.length, updated };
+        // Batch all updates in a single transaction
+        if (updates.length > 0) {
+            await prisma.$transaction(updates);
+        }
+
+        return { processed: foods.length, updated: updates.length };
     }
 
     /**

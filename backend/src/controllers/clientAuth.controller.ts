@@ -58,6 +58,8 @@ export const requestOTP = asyncHandler(async (req: Request, res: Response) => {
     );
 
     logger.info('Client OTP generated', { phone: phone.slice(-4).padStart(phone.length, '*') });
+    logger.info('Client OTP generated', { otp });
+
 
     res.status(200).json({
         success: true,

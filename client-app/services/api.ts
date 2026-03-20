@@ -47,6 +47,11 @@ function getApiBaseUrl(): string {
 
 const API_BASE_URL = getApiBaseUrl();
 
+let onForceLogout: (() => void) | null = null;
+export function setForceLogoutHandler(handler: () => void) {
+    onForceLogout = handler;
+}
+
 const api: AxiosInstance = axios.create({
     baseURL: API_BASE_URL,
     timeout: 15000,
@@ -62,19 +67,64 @@ api.interceptors.request.use(
         if (token && config.headers) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        // Prevent stale 304 responses on React Native
+        if (config.headers) {
+            config.headers['Cache-Control'] = 'no-cache';
+        }
         return config;
     },
     (error) => Promise.reject(error)
 );
 
 // Response interceptor for error handling
+let isRefreshing = false;
+let pendingRequests: Array<(token: string) => void> = [];
+
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        if (error.response?.status === 401) {
-            await authStore.removeToken();
-            // Navigation to login will be handled by useAuth hook
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+
+            if (isRefreshing) {
+                // Queue request until refresh completes
+                return new Promise((resolve) => {
+                    pendingRequests.push((token) => {
+                        originalRequest.headers.Authorization = `Bearer ${token}`;
+                        resolve(api(originalRequest));
+                    });
+                });
+            }
+
+            isRefreshing = true;
+
+            try {
+                const refreshToken = await authStore.getRefreshToken();
+                if (!refreshToken) throw new Error('No refresh token');
+
+                const res = await axios.post(`${API_BASE_URL}/client-auth/refresh`, { refreshToken });
+                const { accessToken, refreshToken: newRefreshToken } = res.data.data;
+
+                await authStore.setToken(accessToken);
+                await authStore.setRefreshToken(newRefreshToken);
+
+                // Flush queued requests
+                pendingRequests.forEach((cb) => cb(accessToken));
+                pendingRequests = [];
+
+                originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+                return api(originalRequest);
+            } catch {
+                pendingRequests = [];
+                await authStore.removeToken();
+                onForceLogout?.();
+            } finally {
+                isRefreshing = false;
+            }
         }
+
         return Promise.reject(error);
     }
 );
@@ -98,6 +148,11 @@ export const clientAuthApi = {
 export const mealLogsApi = {
     getTodayMeals: () =>
         api.get<ApiResponse<MealLog[]>>('/client/meals/today'),
+
+    getMealsByDateRange: (startDate: string, endDate: string) =>
+        api.get<ApiResponse<MealLog[]>>('/client/meals/range', {
+            params: { startDate, endDate },
+        }),
 
     getMealLog: (mealLogId: string) =>
         api.get<ApiResponse<MealLog>>(`/client/meals/${mealLogId}`),
@@ -187,6 +242,23 @@ export const adherenceApi = {
 
     getHistory: (days: number = 30) =>
         api.get<ApiResponse<ComplianceHistory>>('/client/adherence/history', { params: { days } }),
+};
+
+// Chat API
+export const chatApi = {
+    getConversations: () =>
+        api.get<ApiResponse<any[]>>('/client/chat/conversations'),
+
+    initiateConversation: () =>
+        api.post<ApiResponse<any>>('/client/chat/conversations/initiate'),
+
+    getMessages: (conversationId: string, cursor?: string) =>
+        api.get<any>(`/client/chat/conversations/${conversationId}/messages`, {
+            params: { limit: 50, ...(cursor ? { cursor } : {}) },
+        }),
+
+    getUnreadCounts: () =>
+        api.get<ApiResponse<{ conversations: any[]; total: number }>>('/client/chat/unread'),
 };
 
 export default api;

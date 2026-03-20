@@ -7,7 +7,7 @@ import { ArrowLeft, Save, Send, Loader2 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
-import { ClientInfoCard } from '@/components/diet-plan/client-info-card';
+import { ClientInfoCard, ClientRestrictionsCard } from '@/components/diet-plan/client-info-card';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { DayNavigator } from '@/components/diet-plan/day-navigator';
 import { MealEditor } from '@/components/diet-plan/meal-editor';
@@ -129,17 +129,31 @@ function BuilderContent() {
 
             {/* Main Content */}
             <main className="flex-grow grid grid-cols-12 gap-4 p-4 overflow-hidden bg-gray-50">
-                {/* Left Sidebar */}
-                <aside className="col-span-3 flex flex-col gap-4 overflow-y-auto pr-2">
-                    <ClientInfoCard client={client} isTemplateMode={isTemplateMode} />
-                    {!isTemplateMode && clientId && (
-                        <MedicalSidebar clientId={clientId} />
+                {/* Left Sidebar — scrolls as one column, each card has min-height */}
+                <aside className="col-span-3 flex flex-col overflow-y-auto overflow-x-hidden pr-2 gap-3 pb-4">
+                    <div className="flex-shrink-0">
+                        <ClientInfoCard client={client} isTemplateMode={isTemplateMode} />
+                    </div>
+
+                    {!isTemplateMode && client && (
+                        <div className="flex-shrink-0 min-h-[160px]">
+                            <ClientRestrictionsCard client={client} />
+                        </div>
                     )}
-                    <TemplateSidebar
-                        templates={templates}
-                        applyingTemplateId={builder.applyingTemplateId}
-                        onApplyTemplate={builder.applyTemplate}
-                    />
+
+                    {!isTemplateMode && clientId && (
+                        <div className="flex-shrink-0 min-h-[280px]">
+                            <MedicalSidebar clientId={clientId} />
+                        </div>
+                    )}
+
+                    <div className="flex-shrink-0 min-h-[260px]">
+                        <TemplateSidebar
+                            templates={templates}
+                            applyingTemplateId={builder.applyingTemplateId}
+                            onApplyTemplate={builder.applyTemplate}
+                        />
+                    </div>
                 </aside>
 
                 {/* Center - Meal Editor */}
@@ -182,6 +196,7 @@ function BuilderContent() {
                     targets={builder.targets}
                     hasAllergyWarning={builder.hasAllergyWarning}
                     onTargetsChange={builder.setTargets}
+                    client={client}
                 />
             </main>
 

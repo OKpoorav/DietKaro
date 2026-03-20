@@ -1,13 +1,15 @@
 'use client';
 
 import { useAuth } from '@clerk/nextjs';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import axios, { AxiosInstance } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export function useApiClient(): AxiosInstance {
     const { getToken } = useAuth();
+    const getTokenRef = useRef(getToken);
+    getTokenRef.current = getToken;
 
     const client = useMemo(() => {
         const instance = axios.create({
@@ -20,7 +22,7 @@ export function useApiClient(): AxiosInstance {
         // Add auth token to every request
         instance.interceptors.request.use(async (config) => {
             try {
-                const token = await getToken();
+                const token = await getTokenRef.current();
                 if (token) {
                     config.headers.Authorization = `Bearer ${token}`;
                 }
@@ -34,6 +36,9 @@ export function useApiClient(): AxiosInstance {
         instance.interceptors.response.use(
             (response) => response,
             (error) => {
+                if (error.response?.status === 401) {
+                    window.location.href = '/sign-in';
+                }
                 const message =
                     error.response?.data?.error?.message ||
                     error.message ||
@@ -44,7 +49,7 @@ export function useApiClient(): AxiosInstance {
         );
 
         return instance;
-    }, [getToken]);
+    }, []);
 
     return client;
 }

@@ -51,39 +51,57 @@ export class ClientService {
             if (referrer) referredByClientId = referrer.id;
         }
 
-        const client = await prisma.client.create({
-            data: {
-                orgId,
-                primaryDietitianId: data.primaryDietitianId || userId,
-                fullName: data.fullName,
-                email: data.email,
-                phone: data.phone,
-                dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-                gender: data.gender,
-                heightCm: data.heightCm,
-                currentWeightKg: data.currentWeightKg,
-                targetWeightKg: data.targetWeightKg,
-                activityLevel: data.activityLevel,
-                dietaryPreferences: data.dietaryPreferences || [],
-                allergies: data.allergies || [],
-                medicalConditions: data.medicalConditions || [],
-                medications: data.medications || [],
-                healthNotes: data.healthNotes,
-                createdByUserId: userId,
-                referralSource: data.referralSource,
-                referralSourceName: data.referralSourceName,
-                referralSourcePhone: data.referralSourcePhone,
-                referredByClientId,
-                referralCode: await this.generateUniqueReferralCode(orgId),
-            },
-            include: {
-                primaryDietitian: { select: { id: true, fullName: true } },
-            },
-        });
+        const referralCode = await this.generateUniqueReferralCode(orgId);
 
-        if (referredByClientId) {
-            await this.processReferralBenefit(referredByClientId);
-        }
+        const client = await prisma.$transaction(async (tx) => {
+            const created = await tx.client.create({
+                data: {
+                    orgId,
+                    primaryDietitianId: data.primaryDietitianId || userId,
+                    fullName: data.fullName,
+                    email: data.email,
+                    phone: data.phone,
+                    dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+                    gender: data.gender,
+                    heightCm: data.heightCm,
+                    currentWeightKg: data.currentWeightKg,
+                    targetWeightKg: data.targetWeightKg,
+                    activityLevel: data.activityLevel,
+                    dietaryPreferences: data.dietaryPreferences || [],
+                    allergies: data.allergies || [],
+                    medicalConditions: data.medicalConditions || [],
+                    medications: data.medications || [],
+                    healthNotes: data.healthNotes,
+                    createdByUserId: userId,
+                    referralSource: data.referralSource,
+                    referralSourceName: data.referralSourceName,
+                    referralSourcePhone: data.referralSourcePhone,
+                    referredByClientId,
+                    referralCode,
+                },
+                include: {
+                    primaryDietitian: { select: { id: true, fullName: true } },
+                },
+            });
+
+            if (referredByClientId) {
+                const benefit = await tx.referralBenefit.upsert({
+                    where: { clientId: referredByClientId },
+                    create: { clientId: referredByClientId, referralCount: 1, freeMonthsEarned: 0 },
+                    update: { referralCount: { increment: 1 } },
+                });
+
+                const newFreeMonths = Math.floor(benefit.referralCount / REFERRALS_PER_FREE_MONTH);
+                if (newFreeMonths > benefit.freeMonthsEarned) {
+                    await tx.referralBenefit.update({
+                        where: { clientId: referredByClientId },
+                        data: { freeMonthsEarned: newFreeMonths },
+                    });
+                }
+            }
+
+            return created;
+        });
 
         logger.info('Client created', { clientId: client.id, orgId, referralSource: data.referralSource, referredBy: referredByClientId });
         return client;
@@ -116,16 +134,42 @@ export class ClientService {
     }
 
     async getClient(clientId: string, orgId: string, userRole: string = 'owner', userId: string = '') {
-        const client = await prisma.client.findFirst({
-            where: { id: clientId, orgId, isActive: true },
-            include: {
-                primaryDietitian: { select: { id: true, fullName: true } },
-                medicalProfile: true,
-            },
-        });
+        const [client, latestMeasurement] = await Promise.all([
+            prisma.client.findFirst({
+                where: { id: clientId, orgId, isActive: true },
+                include: {
+                    primaryDietitian: { select: { id: true, fullName: true } },
+                    medicalProfile: true,
+                },
+            }),
+            prisma.bodyMeasurement.findFirst({
+                where: { clientId, orgId, deletedAt: null },
+                orderBy: { logDate: 'desc' },
+                select: {
+                    logDate: true,
+                    chestCm: true,
+                    waistCm: true,
+                    hipsCm: true,
+                    thighsCm: true,
+                    armsCm: true,
+                    bodyFatPercentage: true,
+                },
+            }),
+        ]);
         if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
         this.assertDietitianAccess(client, userRole, userId);
-        return client;
+        return {
+            ...client,
+            latestMeasurement: latestMeasurement ? {
+                logDate: latestMeasurement.logDate,
+                chestCm: latestMeasurement.chestCm ? Number(latestMeasurement.chestCm) : null,
+                waistCm: latestMeasurement.waistCm ? Number(latestMeasurement.waistCm) : null,
+                hipsCm: latestMeasurement.hipsCm ? Number(latestMeasurement.hipsCm) : null,
+                thighsCm: latestMeasurement.thighsCm ? Number(latestMeasurement.thighsCm) : null,
+                armsCm: latestMeasurement.armsCm ? Number(latestMeasurement.armsCm) : null,
+                bodyFatPercentage: latestMeasurement.bodyFatPercentage ? Number(latestMeasurement.bodyFatPercentage) : null,
+            } : null,
+        };
     }
 
     private static CLIENT_SORT_FIELDS = new Set(['createdAt', 'fullName', 'email', 'currentWeightKg', 'updatedAt']);
@@ -218,10 +262,12 @@ export class ClientService {
         this.assertDietitianAccess(client, userRole, userId);
 
         const dateFilter = buildDateFilter(query.dateFrom, query.dateTo);
+        const effectiveDateFilter = dateFilter || { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) };
 
         const weightLogs = await prisma.weightLog.findMany({
-            where: { clientId, ...(dateFilter && { logDate: dateFilter }) },
+            where: { clientId, logDate: effectiveDateFilter },
             orderBy: { logDate: 'asc' },
+            take: 365,
         });
 
         let startWeight: number | null = null;
@@ -273,7 +319,8 @@ export class ClientService {
         }
 
         const mealLogs = await prisma.mealLog.findMany({
-            where: { clientId, ...(dateFilter && { scheduledDate: dateFilter }) },
+            where: { clientId, scheduledDate: effectiveDateFilter },
+            take: 1000,
         });
 
         const totalMeals = mealLogs.length;

@@ -1,6 +1,7 @@
 'use client';
 
-import { BookOpen, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { BookOpen, Loader2, Search } from 'lucide-react';
 import type { TemplateData } from '@/lib/types/diet-plan.types';
 
 interface TemplateSidebarProps {
@@ -10,17 +11,39 @@ interface TemplateSidebarProps {
 }
 
 export function TemplateSidebar({ templates, applyingTemplateId, onApplyTemplate }: TemplateSidebarProps) {
+    const [search, setSearch] = useState('');
+
+    const filtered = useMemo(() => {
+        if (!search.trim()) return templates;
+        const q = search.toLowerCase();
+        return templates.filter(t => t.name?.toLowerCase().includes(q));
+    }, [templates, search]);
+
     return (
-        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mt-4 flex flex-col gap-3 max-h-[400px]">
-            <h3 className="text-gray-900 font-medium flex items-center gap-2">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col h-full min-h-0">
+            <h3 className="text-gray-900 font-medium px-4 pt-4 pb-2 flex-shrink-0 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-brand" />
                 Saved Templates
             </h3>
-            <div className="overflow-y-auto pr-1 space-y-2 flex-grow">
-                {templates.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic text-center py-4">No templates found</p>
+            <div className="px-4 pb-2 flex-shrink-0">
+                <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search templates..."
+                        className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand outline-none"
+                    />
+                </div>
+            </div>
+            <div className="overflow-y-auto px-4 pb-4 pr-3 space-y-2 flex-1 min-h-0">
+                {filtered.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic text-center py-4">
+                        {search.trim() ? 'No matching templates' : 'No templates found'}
+                    </p>
                 ) : (
-                    templates.map((t) => (
+                    filtered.map((t) => (
                         <button
                             key={t.id}
                             onClick={() => onApplyTemplate(t.id)}

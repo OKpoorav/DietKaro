@@ -123,6 +123,7 @@ export function useDietPlans(params: DietPlansParams = {}) {
             });
             return data;
         },
+        staleTime: 30 * 1000,
     });
 }
 
@@ -136,6 +137,7 @@ export function useDietPlan(id: string) {
             return data.data as DietPlan;
         },
         enabled: !!id,
+        staleTime: 60 * 1000,
     });
 }
 

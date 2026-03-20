@@ -5,6 +5,7 @@ import { Router, Response } from 'express';
 import { requireClientAuth, ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { uploadSinglePhoto, validateFileContent, IMAGE_MIMES } from '../middleware/upload.middleware';
 import { validateBody } from '../middleware/validation.middleware';
+import { writeOperationLimiter } from '../middleware/rateLimiter';
 
 // Utilities
 import { asyncHandler } from '../utils/asyncHandler';
@@ -35,6 +36,27 @@ router.get('/meals/today', asyncHandler(async (req: ClientAuthRequest, res: Resp
     res.status(200).json({ success: true, data });
 }));
 
+router.get('/meals/range', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+
+    const startDateStr = req.query.startDate as string;
+    const endDateStr = req.query.endDate as string;
+
+    if (!startDateStr || !endDateStr) {
+        throw AppError.badRequest('startDate and endDate query params are required');
+    }
+
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw AppError.badRequest('Invalid date format. Use YYYY-MM-DD');
+    }
+
+    const data = await clientDashboardService.getMealsForDateRange(req.client.id, startDate, endDate);
+    res.status(200).json({ success: true, data });
+}));
+
 // GET /meals/:mealLogId — individual meal log detail (client-scoped)
 router.get('/meals/:mealLogId', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
@@ -42,7 +64,7 @@ router.get('/meals/:mealLogId', asyncHandler(async (req: ClientAuthRequest, res:
     res.status(200).json({ success: true, data });
 }));
 
-router.patch('/meals/:mealLogId/log', validateBody(logMealSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.patch('/meals/:mealLogId/log', writeOperationLimiter, validateBody(logMealSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const data = await clientDashboardService.logMeal(
         req.client.id, req.client.orgId, req.params.mealLogId, req.body
@@ -51,7 +73,7 @@ router.patch('/meals/:mealLogId/log', validateBody(logMealSchema), asyncHandler(
     res.status(200).json({ success: true, data });
 }));
 
-router.post('/meals/:mealLogId/photo', uploadSinglePhoto, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.post('/meals/:mealLogId/photo', writeOperationLimiter, uploadSinglePhoto, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     if (!req.file) throw AppError.badRequest('No photo file provided', 'NO_FILE');
 
@@ -78,7 +100,7 @@ router.get('/weight-logs', asyncHandler(async (req: ClientAuthRequest, res: Resp
     res.status(200).json({ success: true, data });
 }));
 
-router.post('/weight-logs', validateBody(createWeightLogSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.post('/weight-logs', writeOperationLimiter, validateBody(createWeightLogSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const data = await clientDashboardService.createWeightLog(
         req.client.id, req.client.orgId, req.body
@@ -123,7 +145,7 @@ router.get('/onboarding/presets', asyncHandler(async (req: ClientAuthRequest, re
     res.status(200).json({ success: true, data });
 }));
 
-router.post('/onboarding/step/:step', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.post('/onboarding/step/:step', writeOperationLimiter, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const step = parseInt(req.params.step);
 
@@ -143,7 +165,7 @@ router.post('/onboarding/step/:step', asyncHandler(async (req: ClientAuthRequest
     res.status(200).json({ success: true, message: `Step ${step} saved successfully` });
 }));
 
-router.post('/onboarding/complete', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.post('/onboarding/complete', writeOperationLimiter, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     await onboardingService.completeOnboarding(req.client.id);
     res.status(200).json({ success: true, message: 'Onboarding marked as complete' });
@@ -159,7 +181,7 @@ router.get('/preferences', asyncHandler(async (req: ClientAuthRequest, res: Resp
     res.status(200).json({ success: true, data });
 }));
 
-router.put('/preferences', validateBody(updatePreferencesSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.put('/preferences', writeOperationLimiter, validateBody(updatePreferencesSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const data = await clientDashboardService.updatePreferences(req.client.id, req.body);
     res.status(200).json({ success: true, data });
@@ -204,7 +226,7 @@ router.get('/adherence/history', asyncHandler(async (req: ClientAuthRequest, res
 
 // ============ NOTIFICATIONS ============
 
-router.post('/device-token', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.post('/device-token', writeOperationLimiter, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const { token } = req.body;
     if (!token || typeof token !== 'string') throw AppError.badRequest('Push token is required', 'MISSING_TOKEN');
@@ -221,5 +243,14 @@ router.get('/notifications', asyncHandler(async (req: ClientAuthRequest, res: Re
     });
     res.status(200).json({ success: true, data: notifications });
 }));
+
+// ============ CHAT ============
+
+import { listClientConversations, getClientMessages, getClientUnreadCounts, initiateClientConversation } from '../controllers/chat.controller';
+
+router.post('/chat/conversations/initiate', writeOperationLimiter, initiateClientConversation);
+router.get('/chat/conversations', listClientConversations);
+router.get('/chat/conversations/:conversationId/messages', getClientMessages);
+router.get('/chat/unread', getClientUnreadCounts);
 
 export default router;

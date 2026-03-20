@@ -9,6 +9,137 @@ import { useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
 import { toast } from 'sonner';
 
+const MEAL_TYPE_ORDER = ['breakfast', 'lunch', 'snack', 'dinner', 'pre_workout', 'post_workout', 'other'];
+
+function getMealDate(meal: any, startDate: string): Date {
+    if (meal.mealDate) return new Date(meal.mealDate);
+    const d = new Date(startDate);
+    d.setUTCDate(d.getUTCDate() + (meal.dayOfWeek ?? 0));
+    return d;
+}
+
+function formatDateKey(d: Date): string {
+    return d.toISOString().slice(0, 10);
+}
+
+function MealCell({ meal }: { meal: any }) {
+    const optionGroups = new Map<number, any[]>();
+    (meal.foodItems || []).forEach((fi: any) => {
+        const g = fi.optionGroup ?? 0;
+        if (!optionGroups.has(g)) optionGroups.set(g, []);
+        optionGroups.get(g)!.push(fi);
+    });
+    const sortedGroups = Array.from(optionGroups.entries()).sort(([a], [b]) => a - b);
+    const hasAlts = sortedGroups.length > 1;
+
+    return (
+        <div className="min-w-0">
+            {meal.timeOfDay && (
+                <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3 inline" /> {meal.timeOfDay}
+                </p>
+            )}
+            {meal.name && meal.name.toLowerCase() !== meal.mealType?.toLowerCase() && (
+                <p className="text-xs font-semibold text-gray-700 mb-1 truncate">{meal.name}</p>
+            )}
+            {sortedGroups.map(([groupNum, foods], gIdx) => (
+                <div key={groupNum}>
+                    {hasAlts && gIdx > 0 && (
+                        <p className="text-xs text-gray-300 font-bold my-1">— OR —</p>
+                    )}
+                    {hasAlts && (
+                        <p className="text-xs font-semibold text-brand mb-0.5">
+                            {foods[0]?.optionLabel || `Option ${String.fromCharCode(65 + gIdx)}`}
+                        </p>
+                    )}
+                    {foods.map((food: any, fi: number) => (
+                        <div key={fi} className="flex justify-between items-baseline gap-2 text-xs text-gray-600">
+                            <span className="truncate">{food.foodItem?.name || 'Unknown'}</span>
+                            <span className="text-gray-400 whitespace-nowrap shrink-0">{food.quantityG}g</span>
+                        </div>
+                    ))}
+                </div>
+            ))}
+            {sortedGroups.length === 0 && (
+                <p className="text-xs text-gray-300 italic">No items</p>
+            )}
+        </div>
+    );
+}
+
+function MealsSpreadsheet({ meals, startDate }: { meals: any[]; startDate: string }) {
+    // Build date → mealType → meal[] map
+    const dateMap = new Map<string, Map<string, any[]>>();
+    const mealTypesFound = new Set<string>();
+
+    for (const meal of meals) {
+        const d = getMealDate(meal, startDate);
+        const key = formatDateKey(d);
+        const type = (meal.mealType || 'other').toLowerCase();
+        mealTypesFound.add(type);
+        if (!dateMap.has(key)) dateMap.set(key, new Map());
+        const typeMap = dateMap.get(key)!;
+        if (!typeMap.has(type)) typeMap.set(type, []);
+        typeMap.get(type)!.push(meal);
+    }
+
+    const sortedDates = Array.from(dateMap.keys()).sort();
+    const columns = MEAL_TYPE_ORDER.filter(t => mealTypesFound.has(t));
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+                <thead>
+                    <tr className="bg-gray-50">
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-r border-gray-200 w-36 sticky left-0 bg-gray-50 z-10">
+                            Date
+                        </th>
+                        {columns.map(col => (
+                            <th key={col} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-r border-gray-200 min-w-[160px]">
+                                {col.replace('_', ' ')}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {sortedDates.map((dateKey, rowIdx) => {
+                        const typeMap = dateMap.get(dateKey)!;
+                        const date = new Date(dateKey + 'T00:00:00Z');
+                        const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+                        const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+                        const isEven = rowIdx % 2 === 0;
+
+                        return (
+                            <tr key={dateKey} className={isEven ? 'bg-white' : 'bg-gray-50/50'}>
+                                <td className={`px-4 py-3 border-b border-r border-gray-200 sticky left-0 z-10 ${isEven ? 'bg-white' : 'bg-gray-50/50'}`}>
+                                    <p className="font-semibold text-gray-800 text-sm">{dayLabel}</p>
+                                    <p className="text-xs text-gray-400">{dateLabel}</p>
+                                </td>
+                                {columns.map(col => {
+                                    const cellMeals = typeMap.get(col) || [];
+                                    return (
+                                        <td key={col} className="px-4 py-3 border-b border-r border-gray-200 align-top">
+                                            {cellMeals.length > 0 ? (
+                                                <div className="space-y-2">
+                                                    {cellMeals.map((meal: any, mi: number) => (
+                                                        <MealCell key={meal.id || mi} meal={meal} />
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-200 text-xs">—</span>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export default function DietPlanDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -242,83 +373,23 @@ export default function DietPlanDetailPage() {
                 )}
             </div>
 
-            {/* Meals Section */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Meals</h2>
+            {/* Meals Spreadsheet */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                    <h2 className="text-lg font-semibold text-gray-900">Meals Schedule</h2>
+                </div>
                 <ErrorBoundary
                     fallback={
-                        <div className="text-center py-8 text-red-500">
+                        <div className="text-center py-8 text-red-500 px-6">
                             <p className="font-medium">Could not display meals</p>
                             <p className="text-sm text-gray-500 mt-1">The plan data may be corrupted. Try refreshing.</p>
                         </div>
                     }
                 >
                 {plan.meals && plan.meals.length > 0 ? (
-                    <div className="space-y-4">
-                        {plan.meals.map((meal, index) => {
-                            // Group food items by optionGroup
-                            const optionGroups = new Map<number, typeof meal.foodItems>();
-                            (meal.foodItems || []).forEach((fi: any) => {
-                                const g = fi.optionGroup ?? 0;
-                                if (!optionGroups.has(g)) optionGroups.set(g, []);
-                                optionGroups.get(g)!.push(fi);
-                            });
-                            const sortedGroups = Array.from(optionGroups.entries()).sort(([a], [b]) => a - b);
-                            const hasAlts = sortedGroups.length > 1;
-
-                            return (
-                                <div key={meal.id || index} className="p-4 bg-gray-50 rounded-lg">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="font-medium text-gray-900">{meal.name}</h3>
-                                        <div className="flex items-center gap-2">
-                                            {hasAlts && (
-                                                <span className="text-xs font-medium text-blue-500 bg-blue-50 px-2 py-0.5 rounded">
-                                                    {sortedGroups.length} options
-                                                </span>
-                                            )}
-                                            <span className="text-sm text-gray-500 capitalize">{meal.mealType}</span>
-                                        </div>
-                                    </div>
-                                    {meal.timeOfDay && (
-                                        <p className="text-sm text-gray-500 flex items-center gap-1">
-                                            <Clock className="w-4 h-4" />
-                                            {meal.timeOfDay}
-                                        </p>
-                                    )}
-                                    {sortedGroups.length > 0 && (
-                                        <div className="mt-3">
-                                            {sortedGroups.map(([groupNum, foods], gIdx) => (
-                                                <div key={groupNum}>
-                                                    {hasAlts && gIdx > 0 && (
-                                                        <div className="flex items-center gap-2 my-2">
-                                                            <div className="flex-grow border-t border-dashed border-gray-300" />
-                                                            <span className="text-xs font-bold text-gray-400 tracking-wider">OR</span>
-                                                            <div className="flex-grow border-t border-dashed border-gray-300" />
-                                                        </div>
-                                                    )}
-                                                    {hasAlts && (
-                                                        <p className="text-xs font-semibold text-brand mb-1">
-                                                            {(foods as any)[0]?.optionLabel || `Option ${String.fromCharCode(65 + gIdx)}`}
-                                                        </p>
-                                                    )}
-                                                    <div className="space-y-1">
-                                                        {(foods as any[]).map((food: any, fi: number) => (
-                                                            <div key={fi} className="text-sm text-gray-600 flex justify-between">
-                                                                <span>{food.foodItem?.name || 'Unknown'}</span>
-                                                                <span>{food.quantityG}g</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <MealsSpreadsheet meals={plan.meals} startDate={plan.startDate} />
                 ) : (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-12 text-gray-500">
                         <Utensils className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                         <p>No meals added yet</p>
                     </div>

@@ -77,6 +77,130 @@ export function useLabValues(clientId: string) {
     });
 }
 
+// ============ CLIENT REPORTS ============
+
+export interface ClientReport {
+    id: string;
+    fileName: string;
+    fileType: string;
+    reportType: string | null;
+    notes: string | null;
+    uploadedAt: string;
+    viewUrl: string;
+}
+
+export function useClientReports(clientId: string) {
+    const api = useApiClient();
+
+    return useQuery({
+        queryKey: ['client-reports', clientId],
+        queryFn: async () => {
+            const { data } = await api.get(`/clients/${clientId}/reports`);
+            return data.data as ClientReport[];
+        },
+        enabled: !!clientId,
+        staleTime: 5 * 60 * 1000,
+    });
+}
+
+// ============ DOCUMENT AI SUMMARY ============
+
+export type ReportProcessingStatus = 'pending' | 'extracting' | 'summarizing' | 'done' | 'failed' | 'skipped';
+
+export interface MedicalExtractedData {
+    diagnoses: string[];
+    conditions: string[];
+    medications: Array<{ name: string; dose: string | null; frequency: string | null }>;
+    allergies: string[];
+    intolerances: string[];
+    dietary_restrictions: string[];
+    lab_values: Record<string, string> | null;
+    dietary_flags: string[];
+    dietary_recommendations: string[];
+    document_type_detected: string;
+    summary: string;
+}
+
+export interface ReportDocumentItem {
+    id: string;
+    fileName: string;
+    fileType: string;
+    reportType: string | null;
+    processingStatus: ReportProcessingStatus;
+    processingError: string | null;
+    uploadedAt: string;
+    viewUrl: string | null;
+    summary: {
+        summaryText: string | null;
+        generatedAt: string;
+        extractedData: MedicalExtractedData | null;
+    } | null;
+}
+
+export interface ClientDocumentSummaryData {
+    clientId: string;
+    unifiedSummary: {
+        id: string;
+        summaryText: string;
+        docCount: number;
+        modelVersion: string | null;
+        generatedAt: string;
+        updatedAt: string;
+    } | null;
+    documents: ReportDocumentItem[];
+}
+
+export function useClientDocumentSummary(clientId: string) {
+    const api = useApiClient();
+
+    return useQuery({
+        queryKey: ['client-document-summary', clientId],
+        queryFn: async () => {
+            const { data } = await api.get(`/clients/${clientId}/document-summary`);
+            return data.data as ClientDocumentSummaryData;
+        },
+        enabled: !!clientId,
+        staleTime: 2 * 60 * 1000,
+        refetchInterval: (query) => {
+            // Poll every 5s while any doc is still processing
+            const docs = query.state.data?.documents ?? [];
+            const processing = docs.some(
+                (d) => d.processingStatus === 'pending' || d.processingStatus === 'extracting' || d.processingStatus === 'summarizing'
+            );
+            return processing ? 5000 : false;
+        },
+    });
+}
+
+export function useRegenerateDocumentSummary(clientId: string) {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async () => {
+            const { data } = await api.post(`/clients/${clientId}/document-summary/regenerate`);
+            return data.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['client-document-summary', clientId] });
+        },
+    });
+}
+
+export function useRetriggerSummarize(clientId: string) {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (reportId: string) => {
+            await api.post(`/reports/${reportId}/summarize`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['client-document-summary', clientId] });
+        },
+    });
+}
+
 export function useSaveLabValues(clientId: string) {
     const api = useApiClient();
     const queryClient = useQueryClient();
