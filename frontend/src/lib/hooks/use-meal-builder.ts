@@ -16,6 +16,16 @@ interface UseMealBuilderOptions {
     onSaved: (isTemplate: boolean, published: boolean) => void;
 }
 
+function makeId() { return Math.random().toString(36).substr(2, 9); }
+
+function defaultMeals(prefs?: { breakfastTime?: string | null; lunchTime?: string | null; dinnerTime?: string | null; snackTime?: string | null } | null): LocalMeal[] {
+    return [
+        { id: makeId(), name: 'Breakfast', type: 'breakfast', time: prefs?.breakfastTime || '08:00', foods: [] },
+        { id: makeId(), name: 'Lunch',     type: 'lunch',     time: prefs?.lunchTime     || '13:00', foods: [] },
+        { id: makeId(), name: 'Dinner',    type: 'dinner',    time: prefs?.dinnerTime    || '19:30', foods: [] },
+    ];
+}
+
 // Helper to generate dates for keys
 export const getDates = (startDate: Date, days: number) => {
     return Array.from({ length: days }, (_, i) => {
@@ -39,13 +49,9 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [planName, setPlanName] = useState(isTemplateMode ? 'New Template' : 'New Diet Plan');
     const [planDescription, setPlanDescription] = useState('');
-    const [weeklyMeals, setWeeklyMeals] = useState<Record<number, LocalMeal[]>>({
-        0: [
-            { id: '1', name: 'Breakfast', type: 'breakfast', time: '08:00', foods: [] },
-            { id: '2', name: 'Lunch', type: 'lunch', time: '13:00', foods: [] },
-            { id: '3', name: 'Dinner', type: 'dinner', time: '19:30', foods: [] },
-        ]
-    });
+    const [weeklyMeals, setWeeklyMeals] = useState<Record<number, LocalMeal[]>>(() => ({
+        0: defaultMeals(client?.preferences),
+    }));
     const [showAddFoodModal, setShowAddFoodModal] = useState(false);
     const [activeMealId, setActiveMealId] = useState<string | null>(null);
     const [activeOptionGroup, setActiveOptionGroup] = useState<number>(0);
@@ -244,9 +250,9 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         if (numDays >= 7) return;
         const newIndex = numDays;
         setNumDays(prev => prev + 1);
-        setWeeklyMeals(prev => ({ ...prev, [newIndex]: [] }));
+        setWeeklyMeals(prev => ({ ...prev, [newIndex]: defaultMeals(client?.preferences) }));
         setSelectedDayIndex(newIndex);
-    }, [numDays]);
+    }, [numDays, client]);
 
     const removeDay = useCallback(() => {
         if (numDays <= 1) return;

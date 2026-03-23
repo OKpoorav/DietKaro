@@ -1,4 +1,4 @@
-# DietConnect Database Schema (Production-Ready)
+# HealthPractix Database Schema (Production-Ready)
 
 ## Table Definitions
 

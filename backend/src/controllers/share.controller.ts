@@ -5,8 +5,8 @@ import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
 import { generateDietPlanPDF, generateMealPlanPrintHtml } from '../utils/pdfGenerator';
-import { sendEmail, generateDietPlanEmailHtml } from '../utils/emailService';
 import { escapeHtml } from '../utils/htmlEscape';
+import { enqueueEmailPdf } from '../jobs/queue';
 
 /**
  * Generate and download PDF for a diet plan
@@ -88,7 +88,7 @@ export const getDietPlanPrintView = asyncHandler(async (req: AuthenticatedReques
 });
 
 /**
- * Send diet plan via email to client
+ * Send diet plan via email to client (async — enqueues a background job)
  */
 export const emailDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
@@ -96,88 +96,41 @@ export const emailDietPlan = asyncHandler(async (req: AuthenticatedRequest, res:
     const { id } = req.params;
     const { recipientEmail, customMessage } = req.body;
 
+    // Validate the plan exists and get basic info for the immediate response
     const plan = await prisma.dietPlan.findFirst({
         where: { id, orgId: req.user.organizationId, isActive: true },
-        include: {
+        select: {
+            id: true,
+            name: true,
             client: {
-                select: {
-                    fullName: true,
-                    email: true,
-                    currentWeightKg: true,
-                    targetWeightKg: true
-                }
-            },
-            creator: {
-                select: { fullName: true }
-            },
-            meals: {
-                orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
-                include: {
-                    foodItems: {
-                        orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
-                        include: { foodItem: true }
-                    }
-                }
+                select: { email: true }
             }
         }
     });
 
     if (!plan) throw AppError.notFound('Diet plan not found');
 
-    // Use provided email or client's email
+    // Determine recipient email
     const targetEmail = recipientEmail || plan.client?.email;
     if (!targetEmail) {
         throw AppError.badRequest('No email address provided or client has no email');
     }
 
-    // Generate PDF as buffer
-    const doc = generateDietPlanPDF(plan);
-    const chunks: Buffer[] = [];
-
-    await new Promise<void>((resolve, reject) => {
-        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-        doc.on('end', () => resolve());
-        doc.on('error', reject);
-        doc.end();
+    // Enqueue the heavy work (PDF generation + email sending) as a background job
+    await enqueueEmailPdf({
+        planId: id,
+        orgId: req.user.organizationId,
+        recipientEmail: targetEmail,
+        customMessage,
+        userId: req.user.id,
     });
 
-    const pdfBuffer = Buffer.concat(chunks);
+    logger.info('Diet plan email job enqueued', { planId: id, to: targetEmail, userId: req.user.id });
 
-    // Generate email HTML
-    const html = generateDietPlanEmailHtml(
-        plan.name,
-        plan.client?.fullName || 'Client',
-        plan.creator?.fullName || 'Your Dietitian'
-    );
-
-    // Send email with PDF attachment
-    const sent = await sendEmail({
-        to: targetEmail,
-        subject: `Your Diet Plan: ${plan.name}`,
-        html: customMessage
-            ? `<p>${escapeHtml(customMessage)}</p>${html}`
-            : html,
-        attachments: [
-            {
-                filename: `${plan.name.replace(/[^a-z0-9]/gi, '-')}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf'
-            }
-        ]
-    });
-
-    if (!sent) {
-        throw AppError.internal('Failed to send email');
-    }
-
-    logger.info('Diet plan emailed', { planId: id, to: targetEmail, userId: req.user.id });
-
-    res.status(200).json({
+    res.status(202).json({
         success: true,
-        data: {
-            sent: true,
-            recipient: targetEmail
-        }
+        message: 'Email is being sent',
+        recipient: targetEmail,
     });
 });
 
@@ -255,10 +208,10 @@ ${plan.targetProteinG ? `- Protein: ${plan.targetProteinG}g` : ''}
 ${plan.targetCarbsG ? `- Carbs: ${plan.targetCarbsG}g` : ''}
 ${plan.targetFatsG ? `- Fats: ${plan.targetFatsG}g` : ''}
 
-Open the DietKaro app to view your complete meal plan!
+Open the HealthPractix app to view your complete meal plan!
 
 Best regards,
-Your Dietitian at DietKaro`;
+Your Dietitian at HealthPractix`;
 
     const whatsappLink = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
 

@@ -38,6 +38,12 @@ export interface Client {
     dislikes?: string[];
     likedFoods?: string[];
     preferredCuisines?: string[];
+    preferences?: {
+        breakfastTime?: string | null;
+        lunchTime?: string | null;
+        dinnerTime?: string | null;
+        snackTime?: string | null;
+    } | null;
     // Nutrition targets
     targetCalories?: number | null;
     targetProteinG?: number | null;

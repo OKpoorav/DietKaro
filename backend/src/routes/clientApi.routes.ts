@@ -14,7 +14,7 @@ import prisma from '../utils/prisma';
 import cache, { clientCacheKey, invalidateClientCache } from '../utils/cache';
 
 // Schemas
-import { logMealSchema, createWeightLogSchema, updatePreferencesSchema } from '../schemas/clientApi.schema';
+import { logMealSchema, createWeightLogSchema, updatePreferencesSchema, deviceTokenSchema, ONBOARDING_STEP_SCHEMAS } from '../schemas/clientApi.schema';
 
 // Services
 import { clientDashboardService } from '../services/clientDashboard.service';
@@ -161,6 +161,15 @@ router.post('/onboarding/step/:step', writeOperationLimiter, asyncHandler(async 
     const handler = handlers[step];
     if (!handler) throw AppError.badRequest(`Invalid step: ${step}`, 'INVALID_STEP');
 
+    // Validate body against step-specific schema
+    const schema = ONBOARDING_STEP_SCHEMAS[step];
+    if (schema) {
+        const result = schema.safeParse(req.body);
+        if (!result.success) {
+            throw AppError.badRequest(`Invalid step ${step} data: ${result.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_ERROR');
+        }
+    }
+
     await handler(req.client.id, req.body);
     res.status(200).json({ success: true, message: `Step ${step} saved successfully` });
 }));
@@ -226,10 +235,9 @@ router.get('/adherence/history', asyncHandler(async (req: ClientAuthRequest, res
 
 // ============ NOTIFICATIONS ============
 
-router.post('/device-token', writeOperationLimiter, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+router.post('/device-token', writeOperationLimiter, validateBody(deviceTokenSchema), asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
     const { token } = req.body;
-    if (!token || typeof token !== 'string') throw AppError.badRequest('Push token is required', 'MISSING_TOKEN');
     await notificationService.registerDeviceToken(req.client.id, 'client', token, req.client.orgId);
     res.status(200).json({ success: true });
 }));
@@ -242,6 +250,15 @@ router.get('/notifications', asyncHandler(async (req: ClientAuthRequest, res: Re
         take: 50,
     });
     res.status(200).json({ success: true, data: notifications });
+}));
+
+router.patch('/notifications/:id/read', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    await prisma.notification.updateMany({
+        where: { id: req.params.id, recipientId: req.client.id, recipientType: 'client' },
+        data: { isRead: true, readAt: new Date() },
+    });
+    res.status(200).json({ success: true });
 }));
 
 // ============ CHAT ============

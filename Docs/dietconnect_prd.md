@@ -1,4 +1,4 @@
-# DietConnect PRD (Product Requirements Document)
+# HealthPractix PRD (Product Requirements Document)
 
 **Version:** 1.0.0  
 **Date:** December 7, 2025  
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-**DietConnect** is a **B2B SaaS platform** connecting dietitians with clients for personalized nutrition management. Dietitians create custom meal plans, clients log meals with photos, and dietitians provide real-time feedback. Built on self-hosted infrastructure for complete data control and cost efficiency.
+**HealthPractix** is a **B2B SaaS platform** connecting dietitians with clients for personalized nutrition management. Dietitians create custom meal plans, clients log meals with photos, and dietitians provide real-time feedback. Built on self-hosted infrastructure for complete data control and cost efficiency.
 
 **Target Users:** Nutrition clinics, private practice dietitians, wellness centers in India
 
@@ -558,7 +558,7 @@ These are explicitly **excluded** from MVP to keep scope tight:
 - [ ] Docker setup
 - [ ] Nginx SSL configuration
 
-**Deliverable:** Live MVP at dietconnect.yourcompany.com
+**Deliverable:** Live MVP at healthpractix.yourcompany.com
 
 ---
 
@@ -710,7 +710,7 @@ docker-compose up -d
 ## Appendix A: File Structure
 
 ```
-DietConnect/
+HealthPractix/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts (entry point)
@@ -807,7 +807,7 @@ DietConnect/
 
 ```bash
 # PostgreSQL
-DATABASE_URL="postgresql://user:pass@localhost:5432/dietconnect"
+DATABASE_URL="postgresql://user:pass@localhost:5432/healthpractix"
 
 # Server
 PORT=3000
@@ -821,14 +821,14 @@ UPLOAD_MAX_SIZE_MB=5
 # Email (Postfix)
 SMTP_HOST="localhost"
 SMTP_PORT=25
-SMTP_FROM="noreply@dietconnect.yourcompany.com"
+SMTP_FROM="noreply@healthpractix.yourcompany.com"
 
 # Frontend
-NEXT_PUBLIC_API_URL="https://api.dietconnect.yourcompany.com/v1"
-NEXT_PUBLIC_APP_URL="https://dietconnect.yourcompany.com"
+NEXT_PUBLIC_API_URL="https://api.healthpractix.yourcompany.com/v1"
+NEXT_PUBLIC_APP_URL="https://healthpractix.yourcompany.com"
 
 # Mobile App
-REACT_APP_API_URL="https://api.dietconnect.yourcompany.com/v1"
+REACT_APP_API_URL="https://api.healthpractix.yourcompany.com/v1"
 REACT_APP_APP_VERSION="1.0.0"
 
 # Monitoring

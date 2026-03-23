@@ -6,19 +6,13 @@ import { notificationService } from '../services/notification.service';
 import prisma from '../utils/prisma';
 
 export const registerToken = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    // Can be called by Client (via some auth?) or User
-    // Assuming req.user is populated. If it's a client app, we might need client auth middleware
-    // For now, assuming this is for Users (Dietitians). Clients need separate auth flow or use same middleware if unified.
-
-    // Check if it's a client or user. The `AuthenticatedRequest` typically implies User/Dietitian.
-    // If we have client auth, we need to handle that.
-
     if (!req.user) throw AppError.unauthorized();
 
     const { token } = req.body;
-    if (!token) throw AppError.badRequest('Token required', 'TOKEN_REQUIRED');
+    if (!token || typeof token !== 'string' || token.length < 10) {
+        throw AppError.badRequest('Valid push token is required', 'TOKEN_REQUIRED');
+    }
 
-    // For now, this endpoint assumes it's the logged-in User
     await notificationService.registerDeviceToken(req.user.id, 'user', token, req.user.organizationId);
 
     res.status(200).json({ success: true, message: 'Token registered' });
@@ -43,15 +37,16 @@ export const registerClientToken = asyncHandler(async (req: AuthenticatedRequest
 export const listNotifications = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
 
-    const { page = '1', pageSize = '20' } = req.query;
-    const skip = (Number(page) - 1) * Number(pageSize);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
+    const skip = (page - 1) * pageSize;
 
     const [notifications, total] = await prisma.$transaction([
         prisma.notification.findMany({
             where: { recipientId: req.user.id, orgId: req.user.organizationId },
             orderBy: { createdAt: 'desc' },
             skip,
-            take: Number(pageSize)
+            take: pageSize,
         }),
         prisma.notification.count({ where: { recipientId: req.user.id, orgId: req.user.organizationId } })
     ]);
@@ -59,7 +54,7 @@ export const listNotifications = asyncHandler(async (req: AuthenticatedRequest, 
     res.status(200).json({
         success: true,
         data: notifications,
-        meta: { page: Number(page), pageSize: Number(pageSize), total }
+        meta: { page, pageSize, total }
     });
 });
 
@@ -74,4 +69,22 @@ export const markRead = asyncHandler(async (req: AuthenticatedRequest, res: Resp
     });
 
     res.status(200).json({ success: true });
+});
+
+export const markAllRead = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    await prisma.notification.updateMany({
+        where: {
+            recipientId: req.user.id,
+            recipientType: 'user',
+            isRead: false,
+        },
+        data: {
+            isRead: true,
+            readAt: new Date(),
+        },
+    });
+
+    res.json({ success: true });
 });

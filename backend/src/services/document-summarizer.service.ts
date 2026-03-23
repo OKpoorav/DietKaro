@@ -90,6 +90,26 @@ export async function processReportDocument(reportId: string): Promise<void> {
         // Step 5: Invalidate any cached unified summary — will be rebuilt on next request
         await prisma.clientDocumentSummary.deleteMany({ where: { clientId: report.clientId } });
 
+        // Notify dietitian that document is ready
+        try {
+            const client = await prisma.client.findUnique({
+                where: { id: report.clientId },
+                select: { fullName: true, primaryDietitianId: true, orgId: true }
+            });
+            if (client?.primaryDietitianId) {
+                const { notificationService: notifSvc } = require('./notification.service');
+                await notifSvc.sendNotification(
+                    client.primaryDietitianId, 'user', client.orgId,
+                    'Document summary ready',
+                    `${client.fullName}'s ${report.reportType || 'document'} has been processed`,
+                    { entityType: 'client_report', entityId: report.id, deepLink: `/dashboard/clients/${report.clientId}` },
+                    'report_processed'
+                );
+            }
+        } catch (notifErr) {
+            logger.warn('Failed to send report notification', { error: (notifErr as Error).message });
+        }
+
         logger.info('Report processed successfully', { reportId, clientId: report.clientId });
     } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -103,14 +123,19 @@ export async function processReportDocument(reportId: string): Promise<void> {
 }
 
 /**
- * Returns the cached unified summary for a client, or builds and caches one on the fly.
- * Level-2 uses the default model (GPT-4o / GPT-5).
+ * Returns the cached unified summary for a client (cache-only, no AI call).
+ * Returns null if no cached summary exists yet.
  */
-export async function getOrBuildUnifiedSummary(clientId: string): Promise<string | null> {
+export async function getCachedUnifiedSummary(clientId: string): Promise<string | null> {
     const existing = await prisma.clientDocumentSummary.findUnique({ where: { clientId } });
-    // Only use cache if it has actual content — stale null records from failed builds are skipped
-    if (existing?.summaryText) return existing.summaryText;
+    return existing?.summaryText ?? null;
+}
 
+/**
+ * Builds the unified summary via GPT-4o and caches it in ClientDocumentSummary.
+ * Called by the BullMQ unified-summary worker (runs in background).
+ */
+export async function buildAndCacheUnifiedSummary(clientId: string, _orgId: string): Promise<void> {
     const summaries = await prisma.reportSummary.findMany({
         where: { report: { clientId, processingStatus: 'done' } },
         include: { report: { select: { reportType: true } } },
@@ -124,7 +149,10 @@ export async function getOrBuildUnifiedSummary(clientId: string): Promise<string
             flags: ((s.extractedData as Record<string, unknown>)?.dietary_flags as string[]) ?? [],
         }));
 
-    if (inputs.length === 0) return null;
+    if (inputs.length === 0) {
+        logger.info('No report summaries found, skipping unified summary build', { clientId });
+        return;
+    }
 
     const summaryText = await buildUnifiedClientSummary(inputs);
 
@@ -134,5 +162,5 @@ export async function getOrBuildUnifiedSummary(clientId: string): Promise<string
         update: { summaryText, docCount: inputs.length, modelVersion: 'gpt-4o', updatedAt: new Date() },
     });
 
-    return summaryText;
+    logger.info('Unified summary built and cached', { clientId, docCount: inputs.length });
 }

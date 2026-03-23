@@ -83,6 +83,32 @@ export function registerChatHandlers(io: Server, socket: Socket) {
                     conversationId,
                     messageId: message.id,
                 });
+
+                // Send push notification to the other participant
+                try {
+                    const NotificationService = require('../services/notification.service').notificationService;
+                    if (userType === 'user' && conversation.clientId) {
+                        // Dietitian sent message → notify client
+                        await NotificationService.sendNotification(
+                            conversation.clientId, 'client', orgId,
+                            'New message from your dietitian',
+                            content.substring(0, 100),
+                            { entityType: 'conversation', entityId: conversationId, deepLink: `/chat/${conversationId}` },
+                            'chat_message'
+                        );
+                    } else if (userType === 'client' && conversation.userId) {
+                        // Client sent message → notify dietitian
+                        await NotificationService.sendNotification(
+                            conversation.userId, 'user', orgId,
+                            `New message from client`,
+                            content.substring(0, 100),
+                            { entityType: 'conversation', entityId: conversationId, deepLink: `/dashboard/messages?conversation=${conversationId}` },
+                            'chat_message'
+                        );
+                    }
+                } catch (notifErr) {
+                    logger.warn('Failed to send chat notification', { error: (notifErr as Error).message });
+                }
             }
         } catch (error) {
             logger.error('chat:send_message failed', { error, conversationId, userId });

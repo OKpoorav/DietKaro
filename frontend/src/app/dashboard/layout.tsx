@@ -17,19 +17,23 @@ import {
     MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SocketProvider } from '@/lib/socket/socket-provider';
 import { useUnreadCounts } from '@/lib/hooks/use-chat';
+import { usePermissions } from '../../lib/hooks/use-permissions';
+import { NotificationDropdown } from '@/components/notification-dropdown';
 
-const navigation = [
+type PermissionKey = 'canViewTeam' | 'canViewAnalytics' | 'canViewReferrals';
+
+const navigation: { name: string; href: string; icon: typeof LayoutDashboard; permission?: PermissionKey }[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Clients', href: '/dashboard/clients', icon: Users },
     { name: 'Diet Plans', href: '/dashboard/diet-plans', icon: UtensilsCrossed },
     { name: 'Food Library', href: '/dashboard/food-library', icon: Apple },
     { name: 'Meal Reviews', href: '/dashboard/reviews', icon: Camera },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-    { name: 'Team', href: '/dashboard/team', icon: UsersRound },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, permission: 'canViewAnalytics' },
+    { name: 'Team', href: '/dashboard/team', icon: UsersRound, permission: 'canViewTeam' },
 ];
 
 export default function DashboardLayout({
@@ -40,6 +44,12 @@ export default function DashboardLayout({
     const pathname = usePathname();
     const { user } = useUser();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const permissions = usePermissions();
+
+    const filteredNavigation = useMemo(
+        () => navigation.filter((item) => !item.permission || permissions[item.permission]),
+        [permissions]
+    );
 
     return (
         <SocketProvider>
@@ -66,7 +76,7 @@ export default function DashboardLayout({
                             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
                                 <UtensilsCrossed className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-xl font-bold text-gray-900">DietConnect</span>
+                            <span className="text-xl font-bold text-gray-900">HealthPractix</span>
                         </Link>
                         <button
                             className="lg:hidden p-2 text-gray-500 hover:text-gray-700"
@@ -78,7 +88,7 @@ export default function DashboardLayout({
 
                     {/* Navigation */}
                     <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                        {navigation.map((item) => {
+                        {filteredNavigation.map((item) => {
                             const isActive = item.href === '/dashboard'
                                 ? pathname === '/dashboard'
                                 : pathname === item.href || pathname.startsWith(item.href + '/');
@@ -123,7 +133,7 @@ export default function DashboardLayout({
 
             {/* Main content */}
             <div className="lg:pl-64">
-                {/* Top bar */}
+                {/* Mobile top bar */}
                 <header className="sticky top-0 z-30 bg-white border-b border-gray-200 lg:hidden">
                     <div className="flex items-center justify-between h-16 px-4">
                         <button
@@ -136,8 +146,19 @@ export default function DashboardLayout({
                             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
                                 <UtensilsCrossed className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-lg font-bold text-gray-900">DietConnect</span>
+                            <span className="text-lg font-bold text-gray-900">HealthPractix</span>
                         </Link>
+                        <div className="flex items-center gap-2">
+                            <NotificationDropdown />
+                            <UserButton afterSignOutUrl="/" />
+                        </div>
+                    </div>
+                </header>
+
+                {/* Desktop top bar */}
+                <header className="sticky top-0 z-30 bg-white border-b border-gray-200 hidden lg:block">
+                    <div className="flex items-center justify-end h-14 px-6 gap-3">
+                        <NotificationDropdown />
                         <UserButton afterSignOutUrl="/" />
                     </div>
                 </header>

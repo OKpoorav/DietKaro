@@ -46,6 +46,23 @@ export class NotificationService {
         data: Record<string, unknown> = {},
         category?: string
     ) {
+        // Dedup: skip if same notification sent in last hour
+        if (data?.entityType && data?.entityId) {
+            const recent = await prisma.notification.findFirst({
+                where: {
+                    recipientId,
+                    recipientType,
+                    category: category || undefined,
+                    relatedEntityId: data.entityId as string,
+                    createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+                },
+            });
+            if (recent) {
+                logger.debug('Skipping duplicate notification', { recipientId, category, entityId: data.entityId });
+                return recent;
+            }
+        }
+
         // 1. Save to DB
         const notification = await prisma.notification.create({
             data: {
@@ -131,6 +148,26 @@ export class NotificationService {
             ticketCount: tickets.length,
             delivered: allDelivered,
         });
+
+        // Emit real-time socket event (best-effort)
+        try {
+            const { getIO } = require('../socket');
+            const io = getIO();
+            const room = recipientType === 'user' ? `user:${recipientId}` : `client:${recipientId}`;
+            io.to(room).emit('notification:new', {
+                id: notification.id,
+                title,
+                message,
+                category,
+                deepLink: data?.deepLink,
+                relatedEntityType: data?.entityType,
+                relatedEntityId: data?.entityId,
+                createdAt: notification.createdAt,
+            });
+        } catch (socketErr) {
+            // Socket emit is best-effort, don't fail the notification
+            logger.warn('Failed to emit notification socket event', { error: (socketErr as Error).message });
+        }
 
         return notification;
     }

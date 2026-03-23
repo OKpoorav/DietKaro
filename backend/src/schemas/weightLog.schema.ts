@@ -16,4 +16,9 @@ export const weightLogQuerySchema = z.object({
     pageSize: z.string().optional().default('100')
 });
 
+export const createWeightLogGeneralSchema = createWeightLogSchema.extend({
+    clientId: z.string().uuid('Invalid client ID'),
+});
+
 export type CreateWeightLogInput = z.infer<typeof createWeightLogSchema>;
+export type CreateWeightLogGeneralInput = z.infer<typeof createWeightLogGeneralSchema>;

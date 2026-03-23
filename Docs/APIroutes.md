@@ -1,5 +1,5 @@
 
-# DietConnect API v1 Documentation
+# HealthPractix API v1 Documentation
 
 **Version:** 1.0.0  
 **Last Updated:** December 4, 2025  
@@ -35,13 +35,13 @@
 
 ### Base URL
 ```
-https://api.dietconnect.com/v1
+https://api.healthpractix.com/v1
 ```
 
 ### Environment
-- Development: `https://dev-api.dietconnect.com/v1`
-- Staging: `https://staging-api.dietconnect.com/v1`
-- Production: `https://api.dietconnect.com/v1`
+- Development: `https://dev-api.healthpractix.com/v1`
+- Staging: `https://staging-api.healthpractix.com/v1`
+- Production: `https://api.healthpractix.com/v1`
 
 ### Multi-Tenancy Model
 - Every authenticated request is scoped to an `organization_id` derived from the JWT token.
@@ -115,7 +115,7 @@ Dietitian/admin login via email + password (Clerk integration handles).
     "role": "dietitian",
     "email": "priya@clinic.com",
     "fullName": "Dr. Priya",
-    "profilePhotoUrl": "https://cdn.dietconnect.com/user-uuid-1.jpg",
+    "profilePhotoUrl": "https://cdn.healthpractix.com/user-uuid-1.jpg",
     "specialization": "Weight Loss, PCOS"
   }
 }
@@ -337,7 +337,7 @@ None
     "subscriptionExpiresAt": "2026-01-01T00:00:00Z",
     "maxClients": 250,
     "currentClientCount": 120,
-    "logoUrl": "https://cdn.dietconnect.com/org-uuid-1-logo.png",
+    "logoUrl": "https://cdn.healthpractix.com/org-uuid-1-logo.png",
     "description": "Leading nutrition clinic in Mumbai",
     "phone": "+91-9876543210",
     "email": "contact@healthfirst.com",
@@ -424,7 +424,7 @@ Get current authenticated user.
     "email": "priya@clinic.com",
     "fullName": "Dr. Priya Sharma",
     "phone": "+91-9876543210",
-    "profilePhotoUrl": "https://cdn.dietconnect.com/user-uuid-1.jpg",
+    "profilePhotoUrl": "https://cdn.healthpractix.com/user-uuid-1.jpg",
     "licenseNumber": "DAN-12345",
     "specialization": "Weight Loss, PCOS Management",
     "bio": "10+ years of clinical experience",
@@ -477,7 +477,7 @@ file: <image file, max 5MB>
 {
   "success": true,
   "data": {
-    "profilePhotoUrl": "https://cdn.dietconnect.com/user-uuid-1-new.jpg"
+    "profilePhotoUrl": "https://cdn.healthpractix.com/user-uuid-1-new.jpg"
   }
 }
 ```
@@ -1436,8 +1436,8 @@ Get full meal log details (with photos, feedback).
       }
     },
     "status": "eaten",
-    "photoUrl": "https://cdn.dietconnect.com/meal-logs/meal-log-uuid-1.jpg",
-    "photoThumbnailUrl": "https://cdn.dietconnect.com/meal-logs/meal-log-uuid-1-thumb.jpg",
+    "photoUrl": "https://cdn.healthpractix.com/meal-logs/meal-log-uuid-1.jpg",
+    "photoThumbnailUrl": "https://cdn.healthpractix.com/meal-logs/meal-log-uuid-1-thumb.jpg",
     "photoUploadedAt": "2025-12-01T08:35:00Z",
     "clientNotes": "Used less oil, added extra veggies.",
     "dietitianFeedback": "Great choice! Good portion control.",
@@ -1474,7 +1474,7 @@ Get presigned S3 URL for photo upload (client).
   "success": true,
   "data": {
     "uploadUrl": "https://s3.amazonaws.com/bucket/presigned-url?...",
-    "fileUrl": "https://cdn.dietconnect.com/meal-logs/meal-log-uuid-1.jpg",
+    "fileUrl": "https://cdn.healthpractix.com/meal-logs/meal-log-uuid-1.jpg",
     "expiresIn": 900
   }
 }
@@ -1491,7 +1491,7 @@ Client logs/updates meal status (client app).
 ```json
 {
   "status": "eaten",
-  "photoUrl": "https://cdn.dietconnect.com/meal-logs/meal-log-uuid-1.jpg",
+  "photoUrl": "https://cdn.healthpractix.com/meal-logs/meal-log-uuid-1.jpg",
   "clientNotes": "Used less oil, added extra veggies.",
   "substituteDescription": null
 }
@@ -1501,7 +1501,7 @@ If status = "substituted":
 ```json
 {
   "status": "substituted",
-  "photoUrl": "https://cdn.dietconnect.com/meal-logs/meal-log-uuid-2.jpg",
+  "photoUrl": "https://cdn.healthpractix.com/meal-logs/meal-log-uuid-2.jpg",
   "clientNotes": "Had upma instead",
   "substituteDescription": "1 bowl vegetable upma, no chutney"
 }
@@ -1514,7 +1514,7 @@ If status = "substituted":
   "data": {
     "id": "meal-log-uuid-1",
     "status": "eaten",
-    "photoUrl": "https://cdn.dietconnect.com/meal-logs/meal-log-uuid-1.jpg",
+    "photoUrl": "https://cdn.healthpractix.com/meal-logs/meal-log-uuid-1.jpg",
     "clientNotes": "Used less oil, added extra veggies.",
     "loggedAt": "2025-12-01T08:35:00Z"
   }
@@ -2163,7 +2163,7 @@ Export grocery list as PDF or CSV.
 {
   "success": true,
   "data": {
-    "downloadUrl": "https://cdn.dietconnect.com/grocery-lists/list-uuid-1.pdf",
+    "downloadUrl": "https://cdn.healthpractix.com/grocery-lists/list-uuid-1.pdf",
     "expiresIn": 3600
   }
 }

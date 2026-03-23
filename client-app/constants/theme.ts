@@ -1,4 +1,4 @@
-// DietConnect Design Theme Constants
+// HealthPractix Design Theme Constants
 // Based on Figma design reference
 
 import { StyleSheet } from 'react-native';

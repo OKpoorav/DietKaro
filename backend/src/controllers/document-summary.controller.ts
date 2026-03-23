@@ -3,8 +3,8 @@ import { AuthenticatedRequest } from '../types/auth.types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
 import prisma from '../utils/prisma';
-import { enqueueDocumentProcessing } from '../jobs/queue';
-import { getOrBuildUnifiedSummary } from '../services/document-summarizer.service';
+import { enqueueDocumentProcessing, enqueueUnifiedSummary } from '../jobs/queue';
+import { getCachedUnifiedSummary } from '../services/document-summarizer.service';
 import { getPresignedUrl } from '../services/storage.service';
 
 // ─────────────────────────────────────────────
@@ -74,10 +74,10 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
     const client = await prisma.client.findFirst({ where: { id: clientId, orgId } });
     if (!client) throw AppError.notFound('Client not found');
 
-    // Build unified summary if not cached, then fetch the full record
-    await getOrBuildUnifiedSummary(clientId);
+    // Check cache — if not present, enqueue background generation
+    const cachedSummaryText = await getCachedUnifiedSummary(clientId);
 
-    const [unifiedSummary, reports] = await Promise.all([
+    const [unifiedSummaryRecord, reports] = await Promise.all([
         prisma.clientDocumentSummary.findUnique({
             where: { clientId },
             select: { id: true, summaryText: true, docCount: true, modelVersion: true, generatedAt: true, updatedAt: true },
@@ -100,6 +100,11 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
         }),
     ]);
 
+    // If no cached summary, enqueue a background job to generate it
+    if (!cachedSummaryText) {
+        await enqueueUnifiedSummary(clientId, orgId);
+    }
+
     // Generate presigned view URLs per document
     const documents = await Promise.all(
         reports.map(async (r) => {
@@ -114,7 +119,8 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
         success: true,
         data: {
             clientId,
-            unifiedSummary,
+            unifiedSummary: unifiedSummaryRecord ?? null,
+            status: cachedSummaryText ? 'ready' : 'generating',
             documents,
         },
     });
@@ -131,13 +137,12 @@ export const regenerateClientDocumentSummary = asyncHandler(async (req: Authenti
     const client = await prisma.client.findFirst({ where: { id: clientId, orgId } });
     if (!client) throw AppError.notFound('Client not found');
 
-    // Delete cached summary so getOrBuildUnifiedSummary rebuilds it
+    // Delete cached summary and enqueue background rebuild
     await prisma.clientDocumentSummary.deleteMany({ where: { clientId } });
+    await enqueueUnifiedSummary(clientId, orgId);
 
-    const unifiedSummary = await getOrBuildUnifiedSummary(clientId);
-
-    res.status(200).json({
+    res.status(202).json({
         success: true,
-        data: { clientId, unifiedSummary },
+        message: 'Summary regeneration queued',
     });
 });

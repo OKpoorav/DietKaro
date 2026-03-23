@@ -1,5 +1,4 @@
 import prisma from '../utils/prisma';
-import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 
@@ -182,25 +181,32 @@ export class ChatService {
      * Get unread message counts per conversation.
      * Single query via JOIN instead of 2 sequential queries.
      */
-    async getUnreadCounts(entityId: string, entityType: 'user' | 'client', orgId: string) {
-        const conversationColumn = entityType === 'user' ? 'userId' : 'clientId';
+    async getUnreadCounts(orgId: string, entityId: string, entityType: 'user' | 'client') {
         const otherType = entityType === 'user' ? 'client' : 'user';
 
-        const counts = await prisma.$queryRaw<Array<{ conversationId: string; unreadCount: number }>>`
-            SELECT m."conversationId", COUNT(*)::int AS "unreadCount"
-            FROM "Message" m
-            INNER JOIN "Conversation" c ON c.id = m."conversationId"
-            WHERE c."orgId" = ${orgId}
-              AND c.${Prisma.raw(`"${conversationColumn}"`)} = ${entityId}
-              AND m."senderType"::text = ${otherType}
-              AND m.status::text != 'read'
-            GROUP BY m."conversationId"
-        `;
-
-        return counts.map(c => ({
-            conversationId: c.conversationId,
-            unreadCount: Number(c.unreadCount),
-        }));
+        if (entityType === 'user') {
+            return prisma.$queryRaw<Array<{ conversationId: string; unreadCount: number }>>`
+                SELECT m."conversationId", COUNT(*)::int AS "unreadCount"
+                FROM "Message" m
+                INNER JOIN "Conversation" c ON c.id = m."conversationId"
+                WHERE c."orgId" = ${orgId}
+                  AND c."userId" = ${entityId}
+                  AND m."senderType"::text = ${otherType}
+                  AND m.status::text != 'read'
+                GROUP BY m."conversationId"
+            `;
+        } else {
+            return prisma.$queryRaw<Array<{ conversationId: string; unreadCount: number }>>`
+                SELECT m."conversationId", COUNT(*)::int AS "unreadCount"
+                FROM "Message" m
+                INNER JOIN "Conversation" c ON c.id = m."conversationId"
+                WHERE c."orgId" = ${orgId}
+                  AND c."clientId" = ${entityId}
+                  AND m."senderType"::text = ${otherType}
+                  AND m.status::text != 'read'
+                GROUP BY m."conversationId"
+            `;
+        }
     }
 
     /**
@@ -223,7 +229,7 @@ export class ChatService {
                     client: { select: { id: true, fullName: true, profilePhotoUrl: true } },
                 },
             }),
-            this.getUnreadCounts(entityId, entityType, orgId),
+            this.getUnreadCounts(orgId, entityId, entityType),
         ]);
 
         const countMap = new Map(unreadCounts.map(c => [c.conversationId, c.unreadCount]));

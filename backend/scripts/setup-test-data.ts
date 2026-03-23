@@ -25,8 +25,8 @@ async function main() {
     if (!org) {
         org = await prisma.organization.create({
             data: {
-                name: 'Diet Karo Clinic',
-                email: 'admin@dietkaro.com',
+                name: 'Health Practix Clinic',
+                email: 'admin@healthpractix.com',
                 isActive: true,
             },
         });
@@ -41,7 +41,7 @@ async function main() {
         user = await prisma.user.create({
             data: {
                 clerkUserId,
-                email: 'dietitian@dietkaro.com',
+                email: 'dietitian@healthpractix.com',
                 fullName: 'Test Dietitian',
                 role: 'owner',
                 orgId: org.id,

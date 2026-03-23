@@ -4,6 +4,9 @@ import { createWeightLog, listWeightLogs } from '../controllers/weightLog.contro
 import { requireAuth, requireRole } from '../middleware/auth.middleware';
 import { requireActiveSubscription, requireClientCapacity } from '../middleware/subscription.middleware';
 import { writeOperationLimiter } from '../middleware/rateLimiter';
+import { validateBody } from '../middleware/validation.middleware';
+import { createClientSchema, updateClientSchema } from '../schemas/client.schema';
+import { createWeightLogSchema } from '../schemas/weightLog.schema';
 import { AuthenticatedRequest } from '../types/auth.types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
@@ -18,17 +21,17 @@ const router = Router();
 router.use(requireAuth);
 router.use(requireActiveSubscription);
 
-router.post('/', writeOperationLimiter, requireClientCapacity, createClient);
+router.post('/', writeOperationLimiter, requireClientCapacity, validateBody(createClientSchema), createClient);
 router.get('/', listClients);
 router.get('/:id', getClient);
-router.patch('/:id', writeOperationLimiter, updateClient);
+router.patch('/:id', writeOperationLimiter, validateBody(updateClientSchema), updateClient);
 router.delete('/:id', writeOperationLimiter, requireRole('admin', 'owner'), deleteClient);
 
 // Client progress analytics
 router.get('/:id/progress', getClientProgress);
 
 // Client weight logs
-router.post('/:clientId/weight-logs', writeOperationLimiter, createWeightLog);
+router.post('/:clientId/weight-logs', writeOperationLimiter, validateBody(createWeightLogSchema), createWeightLog);
 router.get('/:clientId/weight-logs', listWeightLogs);
 
 // ============ MEDICAL SUMMARY ============

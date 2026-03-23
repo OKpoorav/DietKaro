@@ -6,6 +6,7 @@ import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta, buildDateFilter, safeSortBy } from '../utils/queryFilters';
 import { validationEngine } from './validationEngine.service';
 import { labService } from './lab.service';
+import { emailService } from './email.service';
 import type { MedicalSummary } from '../types/medical.types';
 import type { CreateClientInput, UpdateClientInput, ClientListQuery, ClientProgressQuery } from '../schemas/client.schema';
 
@@ -104,6 +105,14 @@ export class ClientService {
         });
 
         logger.info('Client created', { clientId: client.id, orgId, referralSource: data.referralSource, referredBy: referredByClientId });
+
+        // Fire welcome email — fetch org name, don't await to avoid blocking the response
+        prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }).then((org) => {
+            emailService.sendClientWelcome(client.email, client.fullName, org?.name || 'HealthPractix');
+        }).catch((err) => {
+            logger.warn('Failed to send welcome email', { clientId: client.id, error: (err as Error).message });
+        });
+
         return client;
     }
 
@@ -140,6 +149,14 @@ export class ClientService {
                 include: {
                     primaryDietitian: { select: { id: true, fullName: true } },
                     medicalProfile: true,
+                    preferences: {
+                        select: {
+                            breakfastTime: true,
+                            lunchTime: true,
+                            dinnerTime: true,
+                            snackTime: true,
+                        },
+                    },
                 },
             }),
             prisma.bodyMeasurement.findFirst({

@@ -129,12 +129,16 @@ export interface OTPRequestResponse {
 
 export interface Notification {
     id: string;
-    type: 'feedback' | 'reminder' | 'weight' | 'system';
+    type: string;
+    category?: string;
     title: string;
     message?: string;
-    timestamp: string;
-    read: boolean;
-    avatar?: string;
+    createdAt: string;
+    isRead: boolean;
+    deepLink?: string;
+    relatedEntityType?: string;
+    relatedEntityId?: string;
+    deliveryStatus?: string;
 }
 
 export interface Report {

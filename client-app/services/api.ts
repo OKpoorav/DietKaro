@@ -244,6 +244,21 @@ export const adherenceApi = {
         api.get<ApiResponse<ComplianceHistory>>('/client/adherence/history', { params: { days } }),
 };
 
+// Notifications API
+export const notificationsApi = {
+    list: () =>
+        api.get<ApiResponse<any[]>>('/client/notifications'),
+
+    markRead: (id: string) =>
+        api.patch<ApiResponse<void>>(`/client/notifications/${id}/read`),
+};
+
+// Device Token API
+export const deviceApi = {
+    registerToken: (token: string) =>
+        api.post<ApiResponse<void>>('/client/device-token', { token }),
+};
+
 // Chat API
 export const chatApi = {
     getConversations: () =>

@@ -19,7 +19,7 @@ const s3Client = new S3Client({
     forcePathStyle: true
 });
 
-const BUCKET = process.env.S3_BUCKET || 'dietkaro-media';
+const BUCKET = process.env.S3_BUCKET || 'healthpractix-media';
 
 const ALLOWED_PREFIXES = ['meal-photos', 'weight-photos', 'reports', 'profile-photos'];
 
@@ -98,6 +98,53 @@ router.get('/client/:prefix/:orgId/:entityId/:filename',
             }
 
             if (req.client.orgId !== orgId) {
+                return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+            }
+
+            const key = `${prefix}/${orgId}/${entityId}/${filename}`;
+            await serveFromS3(key, res);
+        } catch (error: any) {
+            if (error.name === 'NoSuchKey') {
+                return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Image not found' } });
+            }
+            logger.error('Media fetch failed', { error: error.message });
+            res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch image' } });
+        }
+    }
+);
+
+/**
+ * GET /media/:prefix/:orgId/:entityId/:filename
+ * Universal route — tries Clerk auth first, falls back to client JWT auth.
+ * This is the URL format stored in the database.
+ */
+router.get('/:prefix/:orgId/:entityId/:filename',
+    async (req: any, res: Response, next: any) => {
+        // Try Clerk auth first (web app)
+        requireAuth(req, res, (err?: any) => {
+            if (!err && req.user) {
+                return next();
+            }
+            // Fall back to client JWT auth (mobile app)
+            requireClientAuth(req, res, (err2?: any) => {
+                if (!err2 && req.client) {
+                    return next();
+                }
+                return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+            });
+        });
+    },
+    async (req: any, res: Response) => {
+        try {
+            const { prefix, orgId, entityId, filename } = req.params;
+
+            if (!ALLOWED_PREFIXES.includes(prefix)) {
+                return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: `Invalid prefix. Allowed: ${ALLOWED_PREFIXES.join(', ')}` } });
+            }
+
+            // Verify org ownership from whichever auth method succeeded
+            const userOrgId = req.user?.organizationId || req.client?.orgId;
+            if (userOrgId !== orgId) {
                 return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
             }
 

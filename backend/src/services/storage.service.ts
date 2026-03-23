@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
-import sharp from 'sharp';
+import { processImageInWorker } from './imageWorkerPool';
 import logger from '../utils/logger';
 
 // S3/Garage Configuration
@@ -12,10 +12,14 @@ const s3Client = new S3Client({
         accessKeyId: process.env.S3_ACCESS_KEY || '',
         secretAccessKey: process.env.S3_SECRET_KEY || ''
     },
-    forcePathStyle: true // Required for Garage/MinIO
+    forcePathStyle: true, // Required for Garage/MinIO
+    requestHandler: {
+        requestTimeout: 30_000,   // 30s per request
+        connectionTimeout: 10_000, // 10s to establish connection
+    } as any,
 });
 
-const BUCKET = process.env.S3_BUCKET || 'dietkaro-media';
+const BUCKET = process.env.S3_BUCKET || 'healthpractix-media';
 
 // Default presigned URL expiration (1 hour)
 const PRESIGNED_URL_EXPIRY = 3600;
@@ -26,31 +30,17 @@ const THUMBNAIL_SIZE = 200;
 const MAX_WIDTH = 1920;
 
 /**
- * Compress image to JPEG with quality optimization
+ * Compress image to JPEG with quality optimization (offloaded to worker thread)
  */
 export async function compressImage(buffer: Buffer): Promise<Buffer> {
-    return sharp(buffer)
-        .rotate() // Auto-rotate based on EXIF
-        .resize(MAX_WIDTH, MAX_WIDTH, {
-            fit: 'inside',
-            withoutEnlargement: true
-        })
-        .jpeg({ quality: COMPRESSION_QUALITY, progressive: true })
-        .toBuffer();
+    return processImageInWorker(buffer, 'compress', { maxWidth: MAX_WIDTH, quality: COMPRESSION_QUALITY });
 }
 
 /**
- * Create thumbnail from image
+ * Create thumbnail from image (offloaded to worker thread)
  */
 export async function createThumbnail(buffer: Buffer, size: number = THUMBNAIL_SIZE): Promise<Buffer> {
-    return sharp(buffer)
-        .rotate()
-        .resize(size, size, {
-            fit: 'cover',
-            position: 'center'
-        })
-        .jpeg({ quality: 75 })
-        .toBuffer();
+    return processImageInWorker(buffer, 'thumbnail', { size });
 }
 
 /**
@@ -170,7 +160,8 @@ export async function processAndUploadImage(
         uploadToS3(thumbnailBuffer, thumbKey)
     ]);
 
-    // Generate media proxy URLs (these work without presigning)
+    // Generate media proxy URLs — stored without auth prefix
+    // The media route handles both web (Clerk) and client (JWT) auth
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
     const fullUrl = `${baseUrl}/media/${fullKey}`;
     const thumbUrl = `${baseUrl}/media/${thumbKey}`;

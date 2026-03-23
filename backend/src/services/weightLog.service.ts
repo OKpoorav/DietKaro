@@ -129,14 +129,22 @@ export class WeightLogService {
         const weightLog = await prisma.weightLog.findFirst({ where: { id: weightLogId, orgId } });
         if (!weightLog) throw AppError.notFound('Weight log not found', 'WEIGHT_LOG_NOT_FOUND');
 
-        const { StorageService } = await import('./storage.service');
+        const { StorageService, deleteFromS3 } = await import('./storage.service');
 
-        const { fullUrl, thumbUrl } = await StorageService.uploadWeightPhoto(fileBuffer, orgId, weightLogId);
+        const { fullUrl, thumbUrl, fullKey, thumbKey } = await StorageService.uploadWeightPhoto(fileBuffer, orgId, weightLogId);
 
-        const updated = await prisma.weightLog.update({
-            where: { id: weightLogId },
-            data: { progressPhotoUrl: fullUrl },
-        });
+        // Saga compensation: clean up S3 on DB failure
+        let updated;
+        try {
+            updated = await prisma.weightLog.update({
+                where: { id: weightLogId },
+                data: { progressPhotoUrl: fullUrl },
+            });
+        } catch (dbErr) {
+            logger.error('DB update failed after S3 upload, cleaning up', { weightLogId, fullKey, thumbKey });
+            await Promise.allSettled([deleteFromS3(fullKey), deleteFromS3(thumbKey)]);
+            throw dbErr;
+        }
 
         logger.info('Progress photo uploaded', { weightLogId, fullUrl, thumbUrl, originalSize: fileSize });
 

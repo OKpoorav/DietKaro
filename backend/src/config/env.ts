@@ -35,13 +35,13 @@ export const env = {
     S3_REGION: optionalEnv('S3_REGION', 'garage'),
     S3_ACCESS_KEY: optionalEnv('S3_ACCESS_KEY', ''),
     S3_SECRET_KEY: optionalEnv('S3_SECRET_KEY', ''),
-    S3_BUCKET: optionalEnv('S3_BUCKET', 'dietkaro-media'),
+    S3_BUCKET: optionalEnv('S3_BUCKET', 'healthpractix-media'),
 
     // AWS S3 (for reports)
     AWS_REGION: optionalEnv('AWS_REGION', 'ap-south-1'),
     AWS_ACCESS_KEY_ID: optionalEnv('AWS_ACCESS_KEY_ID', ''),
     AWS_SECRET_ACCESS_KEY: optionalEnv('AWS_SECRET_ACCESS_KEY', ''),
-    AWS_S3_BUCKET: optionalEnv('AWS_S3_BUCKET', 'dietconnect-uploads'),
+    AWS_S3_BUCKET: optionalEnv('AWS_S3_BUCKET', 'healthpractix-uploads'),
 
     // Frontend URL
     FRONTEND_URL: optionalEnv('FRONTEND_URL', 'http://localhost:3000'),

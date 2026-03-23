@@ -66,9 +66,9 @@ export class ClientDashboardService {
 
     async getTodayMeals(clientId: string) {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setUTCHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
         // Calculate today's day index (0=Monday, 6=Sunday)
         const jsDay = today.getDay(); // 0=Sunday, 1=Monday...
@@ -351,7 +351,7 @@ export class ClientDashboardService {
                 }
 
                 const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                today.setUTCHours(0, 0, 0, 0);
 
                 const mealStatus = (status || 'eaten') as MealLogStatus;
                 mealLog = await prisma.mealLog.upsert({

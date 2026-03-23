@@ -21,6 +21,17 @@ export function invalidateChatCache(entityId: string) {
 export const getOrCreateConversation = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
     const { clientId } = req.params;
+
+    // IDOR check: verify the user has access to this client (same org + assigned if dietitian)
+    const client = await prisma.client.findFirst({
+        where: { id: clientId, orgId: req.user.organizationId, isActive: true },
+        select: { primaryDietitianId: true },
+    });
+    if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+    if (req.user.role === 'dietitian' && client.primaryDietitianId !== req.user.id) {
+        throw AppError.forbidden('You can only message your assigned clients');
+    }
+
     const conversation = await chatService.createOrGetConversation(
         req.user.id, clientId, req.user.organizationId
     );
@@ -61,7 +72,7 @@ export const getUserUnreadCounts = asyncHandler(async (req: AuthenticatedRequest
     const key = chatCacheKey('unread', req.user.id);
     const cached = cache.get(key);
     if (cached) return res.json({ success: true, data: cached });
-    const counts = await chatService.getUnreadCounts(req.user.id, 'user', req.user.organizationId);
+    const counts = await chatService.getUnreadCounts(req.user.organizationId, req.user.id, 'user');
     const total = counts.reduce((sum, c) => sum + c.unreadCount, 0);
     const data = { conversations: counts, total };
     cache.set(key, data, 5);
@@ -117,7 +128,7 @@ export const getClientUnreadCounts = asyncHandler(async (req: ClientAuthRequest,
     const key = chatCacheKey('unread', req.client.id);
     const cached = cache.get(key);
     if (cached) return res.json({ success: true, data: cached });
-    const counts = await chatService.getUnreadCounts(req.client.id, 'client', req.client.orgId);
+    const counts = await chatService.getUnreadCounts(req.client.orgId, req.client.id, 'client');
     const total = counts.reduce((sum, c) => sum + c.unreadCount, 0);
     const data = { conversations: counts, total };
     cache.set(key, data, 5);

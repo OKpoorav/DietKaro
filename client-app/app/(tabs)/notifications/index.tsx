@@ -1,80 +1,105 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'expo-router';
-import { Settings, MessageCircle, Utensils, Scale, Award } from 'lucide-react-native';
+import { Settings, MessageCircle, Utensils, Scale, Award, Bell } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../../constants/theme';
+import { useNotifications } from '../../../hooks/useNotifications';
+import { Notification } from '../../../types';
 
-// Mock notification data - will be replaced with API integration
-const mockNotifications = [
-    {
-        id: '1',
-        type: 'feedback',
-        title: 'Dr. Sharma commented on your lunch',
-        message: 'Great portion control! Keep it up.',
-        timestamp: '2h ago',
-        read: false,
-    },
-    {
-        id: '2',
-        type: 'reminder',
-        title: "Don't forget to log your dinner",
-        message: 'You have a meal scheduled for 7:30 PM',
-        timestamp: '4h ago',
-        read: false,
-    },
-    {
-        id: '3',
-        type: 'weight',
-        title: 'Weekly weight check-in',
-        message: "It's time to log your weight!",
-        timestamp: '1d ago',
-        read: true,
-    },
-    {
-        id: '4',
-        type: 'achievement',
-        title: 'New milestone achieved! 🎉',
-        message: "You've completed 7 days streak",
-        timestamp: '2d ago',
-        read: true,
-    },
-    {
-        id: '5',
-        type: 'feedback',
-        title: 'Dr. Sharma approved your meal plan',
-        message: 'Your breakfast choices look perfect',
-        timestamp: '3d ago',
-        read: true,
-    },
-];
-
-const getNotificationIcon = (type: string) => {
-    switch (type) {
+const getNotificationIcon = (notification: Notification) => {
+    const key = notification.category || notification.type;
+    switch (key) {
+        case 'chat_message':
         case 'feedback':
             return MessageCircle;
+        case 'meal_reminder':
         case 'reminder':
             return Utensils;
+        case 'meal_review':
+            return Utensils;
+        case 'diet_plan':
+        case 'plan_expiry':
+            return Bell;
+        case 'milestone':
         case 'weight':
-            return Scale;
         case 'achievement':
+            return Scale;
+        case 'compliance_alert':
             return Award;
+        case 'report_processed':
+            return Bell;
         default:
             return MessageCircle;
     }
 };
 
+function formatTimestamp(timestamp: string): string {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
+
 export default function NotificationsScreen() {
     const router = useRouter();
-    const [refreshing, setRefreshing] = useState(false);
-    const [notifications] = useState(mockNotifications);
+    const { notifications, isLoading, refetch, markAsRead } = useNotifications();
 
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        // TODO: Refetch notifications from API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setRefreshing(false);
-    }, []);
+    const handleNotificationPress = useCallback((notification: Notification) => {
+        if (!notification.isRead) {
+            markAsRead(notification.id);
+        }
+        // Navigate to deepLink if the notification includes one
+        const deepLink = notification.deepLink;
+        if (deepLink) {
+            router.push(deepLink as any);
+        }
+    }, [markAsRead, router]);
+
+    const renderNotification = ({ item }: { item: Notification }) => {
+        const IconComponent = getNotificationIcon(item);
+        return (
+            <TouchableOpacity
+                style={[
+                    styles.notificationItem,
+                    !item.isRead && styles.notificationUnread,
+                ]}
+                activeOpacity={0.7}
+                onPress={() => handleNotificationPress(item)}
+            >
+                <View style={styles.notificationIcon}>
+                    <IconComponent size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.notificationContent}>
+                    <Text
+                        style={[
+                            styles.notificationTitle,
+                            !item.isRead && styles.notificationTitleUnread,
+                        ]}
+                        numberOfLines={2}
+                    >
+                        {item.title}
+                    </Text>
+                    {item.message && (
+                        <Text style={styles.notificationMessage} numberOfLines={1}>
+                            {item.message}
+                        </Text>
+                    )}
+                    <Text style={styles.notificationTime}>
+                        {formatTimestamp(item.createdAt)}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -87,66 +112,37 @@ export default function NotificationsScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView
-                style={styles.scrollView}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={Colors.primary}
-                    />
-                }
-            >
-                {notifications.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <MessageCircle size={48} color={Colors.textSecondary} />
-                        <Text style={styles.emptyTitle}>No notifications yet</Text>
-                        <Text style={styles.emptySubtitle}>
-                            You'll see updates from your dietitian here
-                        </Text>
-                    </View>
-                ) : (
-                    <View style={styles.notificationsList}>
-                        {notifications.map((notification) => {
-                            const IconComponent = getNotificationIcon(notification.type);
-                            return (
-                                <TouchableOpacity
-                                    key={notification.id}
-                                    style={[
-                                        styles.notificationItem,
-                                        !notification.read && styles.notificationUnread,
-                                    ]}
-                                    activeOpacity={0.7}
-                                >
-                                    <View style={styles.notificationIcon}>
-                                        <IconComponent size={20} color={Colors.primary} />
-                                    </View>
-                                    <View style={styles.notificationContent}>
-                                        <Text
-                                            style={[
-                                                styles.notificationTitle,
-                                                !notification.read && styles.notificationTitleUnread,
-                                            ]}
-                                            numberOfLines={2}
-                                        >
-                                            {notification.title}
-                                        </Text>
-                                        {notification.message && (
-                                            <Text style={styles.notificationMessage} numberOfLines={1}>
-                                                {notification.message}
-                                            </Text>
-                                        )}
-                                        <Text style={styles.notificationTime}>
-                                            {notification.timestamp}
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                )}
-            </ScrollView>
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={Colors.primary} />
+                </View>
+            ) : (
+                <FlatList
+                    data={notifications}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderNotification}
+                    contentContainerStyle={
+                        notifications.length === 0 ? styles.emptyListContent : styles.notificationsList
+                    }
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={false}
+                            onRefresh={refetch}
+                            tintColor={Colors.primary}
+                        />
+                    }
+                    ListEmptyComponent={
+                        <View style={styles.emptyContainer}>
+                            <MessageCircle size={48} color={Colors.textSecondary} />
+                            <Text style={styles.emptyTitle}>No notifications yet</Text>
+                            <Text style={styles.emptySubtitle}>
+                                You'll see updates from your dietitian here
+                            </Text>
+                        </View>
+                    }
+                />
+            )}
         </SafeAreaView>
     );
 }
@@ -177,8 +173,16 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         justifyContent: 'center',
     },
-    scrollView: {
+    loadingContainer: {
         flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    notificationsList: {
+        padding: Spacing.lg,
+    },
+    emptyListContent: {
+        flexGrow: 1,
     },
     emptyContainer: {
         flex: 1,
@@ -198,9 +202,6 @@ const styles = StyleSheet.create({
         color: Colors.textSecondary,
         textAlign: 'center',
         marginTop: Spacing.sm,
-    },
-    notificationsList: {
-        padding: Spacing.lg,
     },
     notificationItem: {
         flexDirection: 'row',

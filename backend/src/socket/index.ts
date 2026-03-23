@@ -18,6 +18,11 @@ export function initializeSocket(httpServer: HttpServer): SocketServer {
     pubClient.on('error', (err) => logger.error('Socket.io Redis pub error', { error: err.message }));
     subClient.on('error', (err) => logger.error('Socket.io Redis sub error', { error: err.message }));
 
+    // Validate pub/sub connections before proceeding
+    Promise.all([pubClient.ping(), subClient.ping()]).catch((err) => {
+        logger.error('Socket.io Redis adapter unavailable at startup', { error: (err as Error).message });
+    });
+
     const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
         .split(',')
         .map(o => o.trim())
@@ -41,16 +46,22 @@ export function initializeSocket(httpServer: HttpServer): SocketServer {
     io.use(socketAuthMiddleware);
 
     io.on('connection', (socket) => {
+        const { userId, userType } = socket.data;
         logger.info('Socket connected', {
             socketId: socket.id,
-            userType: socket.data.userType,
-            userId: socket.data.userId,
+            userType,
+            userId,
         });
+
+        // Join personal room for targeted notifications
+        socket.join(`${userType}:${userId}`);
 
         registerChatHandlers(io, socket);
 
         socket.on('disconnect', (reason) => {
-            logger.info('Socket disconnected', { socketId: socket.id, reason });
+            logger.info('Socket disconnected', { socketId: socket.id, reason, userId, userType });
+            // Socket.io auto-cleans room memberships on disconnect
+            // Personal room and conversation rooms are handled automatically
         });
     });
 

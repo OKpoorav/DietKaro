@@ -153,9 +153,11 @@ app.use('/api/v1/client/reports', reportsRoutes);
 
 
 // Test-only routes (for development testing without Clerk)
-if (env.NODE_ENV === 'test') {
+// SECURITY: Double-guard — must be 'test' env AND explicitly opted-in via ENABLE_TEST_ROUTES
+if (env.NODE_ENV === 'test' && process.env.ENABLE_TEST_ROUTES === 'true') {
     const testRouter = require('./routes/test.routes').default;
     app.use('/test', testRouter);
+    logger.warn('⚠ Test routes are ENABLED — do NOT use in production');
 }
 
 // 404 handler - must be after all routes

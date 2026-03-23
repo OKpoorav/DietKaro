@@ -5,7 +5,7 @@ export default function SignInPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-emerald-800">DietConnect</h1>
+                    <h1 className="text-3xl font-bold text-emerald-800">HealthPractix</h1>
                     <p className="text-gray-600 mt-2">Sign in to your account</p>
                 </div>
                 <SignIn

@@ -62,7 +62,12 @@ export class MealLogService {
             where.status = status;
         }
 
-        if (dateFilter) where.scheduledDate = dateFilter;
+        // Never show future meal logs — cap at end of today unless caller passed an earlier dateTo
+        const endOfToday = new Date();
+        endOfToday.setUTCHours(23, 59, 59, 999);
+        const lte = query.dateTo ? new Date(query.dateTo) : endOfToday;
+        where.scheduledDate = dateFilter ? { ...(dateFilter as object), lte } : { lte };
+
         if (userRole === 'dietitian') where.client = { primaryDietitianId: userId };
 
         const [mealLogs, total] = await prisma.$transaction([
@@ -265,6 +270,20 @@ export class MealLogService {
 
         logger.info('Meal log reviewed', { mealLogId: updated.id, reviewerId: userId });
 
+        // Notify client about meal review
+        try {
+            const { notificationService: notifSvc } = require('./notification.service');
+            await notifSvc.sendNotification(
+                mealLog.clientId, 'client', orgId,
+                `Your dietitian reviewed your meal`,
+                data.dietitianFeedback?.substring(0, 100) || 'Your meal was reviewed',
+                { entityType: 'meal_log', entityId: mealLogId, deepLink: `/meals/${mealLogId}` },
+                'meal_review'
+            );
+        } catch (notifErr) {
+            logger.warn('Failed to send meal review notification', { error: (notifErr as Error).message });
+        }
+
         return {
             id: updated.id,
             status: updated.status,
@@ -280,24 +299,54 @@ export class MealLogService {
         const mealLog = await prisma.mealLog.findFirst({ where: { id: mealLogId, orgId } });
         if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
 
-        const { StorageService } = await import('./storage.service');
+        const { StorageService, deleteFromS3 } = await import('./storage.service');
 
-        const { fullUrl, thumbUrl } = await StorageService.uploadMealPhoto(fileBuffer, orgId, mealLogId);
+        // Upload to S3 first
+        const { fullUrl, thumbUrl, fullKey, thumbKey } = await StorageService.uploadMealPhoto(fileBuffer, orgId, mealLogId);
 
-        const updated = await prisma.mealLog.update({
-            where: { id: mealLogId },
-            data: {
-                mealPhotoUrl: fullUrl,
-                mealPhotoSmallUrl: thumbUrl,
-                photoUploadedAt: new Date(),
-                ...(mealLog.status === 'pending' && { status: 'eaten', loggedAt: new Date() }),
-            },
-        });
+        // Update DB — if this fails, clean up orphaned S3 objects
+        let updated;
+        try {
+            updated = await prisma.mealLog.update({
+                where: { id: mealLogId },
+                data: {
+                    mealPhotoUrl: fullUrl,
+                    mealPhotoSmallUrl: thumbUrl,
+                    photoUploadedAt: new Date(),
+                    ...(mealLog.status === 'pending' && { status: 'eaten', loggedAt: new Date() }),
+                },
+            });
+        } catch (dbErr) {
+            // Saga compensation: delete orphaned S3 objects
+            logger.error('DB update failed after S3 upload, cleaning up', { mealLogId, fullKey, thumbKey });
+            await Promise.allSettled([deleteFromS3(fullKey), deleteFromS3(thumbKey)]);
+            throw dbErr;
+        }
 
         // Use returned result directly instead of re-fetching
         const result = await complianceService.calculateMealCompliance(updated.id);
 
         logger.info('Meal photo uploaded', { mealLogId, fullUrl, thumbUrl, originalSize: fileSize });
+
+        // Notify dietitian about new meal photo
+        try {
+            const client = await prisma.client.findUnique({
+                where: { id: mealLog.clientId },
+                select: { fullName: true, primaryDietitianId: true, orgId: true }
+            });
+            if (client?.primaryDietitianId) {
+                const { notificationService: notifSvc } = require('./notification.service');
+                await notifSvc.sendNotification(
+                    client.primaryDietitianId, 'user', client.orgId,
+                    'New meal photo to review',
+                    `${client.fullName} uploaded a photo for their meal`,
+                    { entityType: 'meal_log', entityId: mealLogId, deepLink: '/dashboard/reviews' },
+                    'meal_review'
+                );
+            }
+        } catch (notifErr) {
+            logger.warn('Failed to send meal photo notification', { error: (notifErr as Error).message });
+        }
 
         return {
             id: updated.id,

@@ -40,3 +40,11 @@ export const assignTemplateToClient = asyncHandler(async (req: AuthenticatedRequ
     const newPlan = await dietPlanService.assignTemplateToClient(req.params.id, req.body, req.user.organizationId, req.user.id);
     res.status(201).json({ success: true, data: newPlan });
 });
+
+export const extendDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+    const { extensionStartDate } = req.body;
+    if (!extensionStartDate) throw AppError.badRequest('extensionStartDate is required');
+    const data = await dietPlanService.extendPlan(req.params.id, req.user.organizationId, extensionStartDate);
+    res.status(200).json({ success: true, data });
+});

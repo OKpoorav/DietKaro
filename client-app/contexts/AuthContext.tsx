@@ -1,7 +1,8 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { authStore } from '../store/authStore';
-import { clientAuthApi, setForceLogoutHandler } from '../services/api';
+import { clientAuthApi, deviceApi, setForceLogoutHandler } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
+import { registerForPushNotifications, setupNotificationResponseListener } from '../services/notifications';
 import { Client } from '../types';
 
 interface AuthContextValue {
@@ -16,10 +17,22 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+async function registerPushToken() {
+    try {
+        const token = await registerForPushNotifications();
+        if (token) {
+            await deviceApi.registerToken(token);
+        }
+    } catch (error) {
+        console.error('Failed to register push token:', error);
+    }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [client, setClient] = useState<Client | null>(null);
+    const notificationListenerRef = useRef<{ remove: () => void } | null>(null);
 
     useEffect(() => {
         checkAuth();
@@ -28,6 +41,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setClient(null);
             setIsAuthenticated(false);
         });
+
+        // Set up notification tap listener
+        notificationListenerRef.current = setupNotificationResponseListener();
+        return () => {
+            notificationListenerRef.current?.remove();
+        };
     }, []);
 
     const checkAuth = async () => {
@@ -41,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setIsAuthenticated(true);
                 await authStore.updateLastActivity();
                 connectSocket();
+                registerPushToken();
             } else if (token && isExpired) {
                 await authStore.removeToken();
                 setIsAuthenticated(false);
@@ -67,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setClient(clientData);
         setIsAuthenticated(true);
         connectSocket();
+        registerPushToken();
     }, []);
 
     const logout = useCallback(async () => {

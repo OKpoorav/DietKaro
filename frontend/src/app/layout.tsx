@@ -16,7 +16,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "DietConnect - Nutrition Practice Management",
+  title: "HealthPractix - Nutrition Practice Management",
   description: "Professional diet planning and client management for dietitians",
 };
 

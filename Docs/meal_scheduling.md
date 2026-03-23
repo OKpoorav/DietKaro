@@ -1,7 +1,7 @@
 # Meal Scheduling Logic
 
 ## Overview
-Meals in DietKaro can be scheduled using two different approaches depending on the context.
+Meals in HealthPractix can be scheduled using two different approaches depending on the context.
 
 ## Fields
 | Field | Type | Usage |

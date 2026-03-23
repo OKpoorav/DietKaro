@@ -52,7 +52,7 @@ export const getReferralCode = asyncHandler(async (req: ClientAuthRequest, res: 
     }
 
     // Generate share message
-    const shareMessage = `Hey! I'm using DietKaro for my nutrition journey and it's been amazing! 🥗\n\nUse my referral code: ${client.referralCode}\n\nDownload the app and start your health journey today!`;
+    const shareMessage = `Hey! I'm using HealthPractix for my nutrition journey and it's been amazing! 🥗\n\nUse my referral code: ${client.referralCode}\n\nDownload the app and start your health journey today!`;
 
     res.status(200).json({
         success: true,

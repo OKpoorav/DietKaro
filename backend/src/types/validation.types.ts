@@ -1,6 +1,6 @@
 /**
  * Diet Validation Engine Types
- * Part of DietKaro real-time validation system
+ * Part of HealthPractix real-time validation system
  */
 
 // ============ ENUMS ============

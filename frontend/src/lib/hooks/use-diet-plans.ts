@@ -195,6 +195,21 @@ interface AssignTemplateInput {
     name?: string;
 }
 
+export function useExtendDietPlan() {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, extensionStartDate }: { id: string; extensionStartDate: string }) => {
+            const { data } = await api.post(`/diet-plans/${id}/extend`, { extensionStartDate });
+            return data.data;
+        },
+        onSuccess: (_, { id }) => {
+            queryClient.invalidateQueries({ queryKey: ['diet-plans', id] });
+        },
+    });
+}
+
 export function useAssignTemplate() {
     const api = useApiClient();
     const queryClient = useQueryClient();

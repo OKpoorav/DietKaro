@@ -187,6 +187,36 @@ export class DietPlanService {
         if (!plan) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
         if (!plan.clientId) throw AppError.badRequest('Cannot publish a template');
 
+        // Cancel pending meal logs from any existing active plan that overlap with the new plan's date range.
+        // Cutoff = max(today, newPlan.startDate) so already-completed logs are never touched.
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        const newPlanStart = new Date(plan.startDate);
+        newPlanStart.setUTCHours(0, 0, 0, 0);
+        const cutoffDate = newPlanStart > today ? newPlanStart : today;
+
+        const oldActivePlans = await prisma.dietPlan.findMany({
+            where: { clientId: plan.clientId, isActive: true, id: { not: planId } },
+            select: { id: true, meals: { select: { id: true } } },
+        });
+
+        if (oldActivePlans.length > 0) {
+            const oldMealIds = oldActivePlans.flatMap(p => p.meals.map(m => m.id));
+            if (oldMealIds.length > 0) {
+                await prisma.mealLog.deleteMany({
+                    where: {
+                        mealId: { in: oldMealIds },
+                        scheduledDate: { gte: cutoffDate },
+                        status: MealLogStatus.pending,
+                    },
+                });
+                logger.info('Cancelled pending meal logs from old plan(s)', {
+                    oldPlanIds: oldActivePlans.map(p => p.id),
+                    cutoffDate,
+                });
+            }
+        }
+
         // Build meal logs
         const mealLogsToCreate: {
             orgId: string;
@@ -393,6 +423,135 @@ export class DietPlanService {
         logger.info('Template assigned to client', { templateId, newPlanId: newPlan.id, clientId });
         return newPlan;
     }
+
+    async extendPlan(planId: string, orgId: string, extensionStartDate: string) {
+        const plan = await prisma.dietPlan.findFirst({
+            where: { id: planId, orgId, isActive: true },
+            include: {
+                meals: {
+                    orderBy: [{ mealDate: 'asc' }, { dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
+                    include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }] } },
+                },
+                client: { select: { id: true } },
+            },
+        });
+
+        if (!plan) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
+        if (!plan.clientId) throw AppError.badRequest('Cannot extend a template');
+        if (plan.meals.length === 0) throw AppError.badRequest('Plan has no meals to extend');
+
+        // Build a sorted list of unique source dates (day 1, day 2, …)
+        const planStart = new Date(plan.startDate);
+        const sourceDates = Array.from(
+            new Set(
+                plan.meals.map(m => {
+                    const d = m.mealDate ? new Date(m.mealDate) : (() => {
+                        const base = new Date(planStart);
+                        base.setUTCDate(base.getUTCDate() + (m.dayOfWeek ?? 0));
+                        return base;
+                    })();
+                    d.setUTCHours(0, 0, 0, 0);
+                    return d.toISOString().slice(0, 10);
+                })
+            )
+        ).sort();
+
+        const extStart = new Date(extensionStartDate);
+        extStart.setUTCHours(0, 0, 0, 0);
+
+        // Map each source date → new extension date
+        const dateMapping = new Map<string, Date>();
+        sourceDates.forEach((srcKey, i) => {
+            const newDate = new Date(extStart);
+            newDate.setUTCDate(newDate.getUTCDate() + i);
+            dateMapping.set(srcKey, newDate);
+        });
+
+        const newEndDate = new Date(extStart);
+        newEndDate.setUTCDate(newEndDate.getUTCDate() + sourceDates.length - 1);
+
+        // Clone meals with new dates
+        const newMealLogs: { orgId: string; clientId: string; mealId: string; scheduledDate: Date; scheduledTime: string | null; status: MealLogStatus }[] = [];
+
+        await prisma.$transaction(async (tx) => {
+            for (const meal of plan.meals) {
+                const srcDate = meal.mealDate ? new Date(meal.mealDate) : (() => {
+                    const base = new Date(planStart);
+                    base.setUTCDate(base.getUTCDate() + (meal.dayOfWeek ?? 0));
+                    return base;
+                })();
+                srcDate.setUTCHours(0, 0, 0, 0);
+                const newMealDate = dateMapping.get(srcDate.toISOString().slice(0, 10));
+                if (!newMealDate) continue;
+
+                const newMeal = await tx.meal.create({
+                    data: {
+                        dietPlan: { connect: { id: planId } },
+                        mealDate: newMealDate,
+                        dayOfWeek: null,
+                        sequenceNumber: meal.sequenceNumber,
+                        mealType: meal.mealType,
+                        timeOfDay: meal.timeOfDay,
+                        name: meal.name,
+                        description: meal.description,
+                        instructions: meal.instructions,
+                        servingSizeNotes: meal.servingSizeNotes,
+                        foodItems: meal.foodItems.length ? {
+                            create: meal.foodItems.map(fi => ({
+                                foodId: fi.foodId,
+                                quantityG: fi.quantityG,
+                                notes: fi.notes,
+                                sortOrder: fi.sortOrder,
+                                optionGroup: fi.optionGroup,
+                                optionLabel: fi.optionLabel,
+                            })),
+                        } : undefined,
+                    },
+                });
+
+                newMealLogs.push({
+                    orgId: plan.orgId,
+                    clientId: plan.clientId!,
+                    mealId: newMeal.id,
+                    scheduledDate: newMealDate,
+                    scheduledTime: meal.timeOfDay,
+                    status: MealLogStatus.pending,
+                });
+            }
+
+            // Extend the plan's end date
+            await tx.dietPlan.update({
+                where: { id: planId },
+                data: { endDate: newEndDate },
+            });
+        });
+
+        // Create meal logs in batches
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < newMealLogs.length; i += BATCH_SIZE) {
+            await prisma.$transaction(
+                newMealLogs.slice(i, i + BATCH_SIZE).map(log =>
+                    prisma.mealLog.upsert({
+                        where: { clientId_mealId_scheduledDate: { clientId: log.clientId, mealId: log.mealId, scheduledDate: log.scheduledDate } },
+                        create: log,
+                        update: {},
+                    })
+                )
+            );
+        }
+
+        invalidateClientCache(plan.clientId!);
+
+        try {
+            getIO().to(`client:${plan.clientId}`).emit('plan:published', { planId, planName: plan.name });
+        } catch (err) {
+            logger.warn('Socket emit for plan:extended failed', { err });
+        }
+
+        logger.info('Diet plan extended', { planId, extensionStartDate, daysAdded: sourceDates.length, newEndDate });
+        return { planId, extensionStartDate, daysAdded: sourceDates.length, newEndDate };
+    }
 }
 
 export const dietPlanService = new DietPlanService();
+

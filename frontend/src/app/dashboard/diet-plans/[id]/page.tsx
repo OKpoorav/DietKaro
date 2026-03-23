@@ -1,9 +1,9 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useDietPlan, usePublishDietPlan, useUpdateDietPlan } from '@/lib/hooks/use-diet-plans';
+import { useDietPlan, usePublishDietPlan, useUpdateDietPlan, useExtendDietPlan } from '@/lib/hooks/use-diet-plans';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
@@ -150,8 +150,11 @@ export default function DietPlanDetailPage() {
     const publishMutation = usePublishDietPlan();
     const updateMutation = useUpdateDietPlan();
 
+    const extendMutation = useExtendDietPlan();
     const [isEditingName, setIsEditingName] = useState(false);
     const [editedName, setEditedName] = useState('');
+    const [showExtendModal, setShowExtendModal] = useState(false);
+    const [extensionStartDate, setExtensionStartDate] = useState('');
 
     const handlePublish = async () => {
         if (!plan) return;
@@ -204,6 +207,29 @@ export default function DietPlanDetailPage() {
             toast.error('Failed to get print view');
         }
     };
+
+    const handleExtend = async () => {
+        if (!extensionStartDate) return;
+        try {
+            await extendMutation.mutateAsync({ id: planId, extensionStartDate });
+            await refetch();
+            setShowExtendModal(false);
+            setExtensionStartDate('');
+            toast.success('Plan extended successfully');
+        } catch {
+            toast.error('Failed to extend plan');
+        }
+    };
+
+    // Default extension start date to day after current end date
+    const defaultExtensionDate = plan?.endDate
+        ? new Date(new Date(plan.endDate).getTime() + 86400000).toISOString().slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+
+    // Number of unique days in the plan (for preview)
+    const planDayCount = plan?.meals
+        ? new Set(plan.meals.map((m: any) => m.mealDate?.slice(0, 10) ?? 'x')).size
+        : 0;
 
     if (isLoading) {
         return (
@@ -290,6 +316,19 @@ export default function DietPlanDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    {plan.status === 'active' && (
+                        <button
+                            onClick={() => {
+                                setExtensionStartDate(defaultExtensionDate);
+                                setShowExtendModal(true);
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                            title="Extend plan"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            Extend
+                        </button>
+                    )}
                     <button
                         onClick={handleDownloadPdf}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -396,6 +435,60 @@ export default function DietPlanDetailPage() {
                 )}
                 </ErrorBoundary>
             </div>
+
+            {/* Extend Modal */}
+            {showExtendModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1">Extend Plan</h3>
+                        <p className="text-sm text-gray-500 mb-5">
+                            The existing {planDayCount}-day meal rotation will be repeated starting from the date you choose.
+                            Day 1 → selected date, Day 2 → next day, and so on.
+                        </p>
+
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Extension start date
+                        </label>
+                        <input
+                            type="date"
+                            value={extensionStartDate}
+                            min={new Date().toISOString().slice(0, 10)}
+                            onChange={e => setExtensionStartDate(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none mb-2"
+                        />
+
+                        {extensionStartDate && planDayCount > 0 && (
+                            <p className="text-xs text-gray-400 mb-5">
+                                Will add meals from{' '}
+                                <span className="font-medium text-gray-600">
+                                    {new Date(extensionStartDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                                {' '}to{' '}
+                                <span className="font-medium text-gray-600">
+                                    {new Date(new Date(extensionStartDate + 'T00:00:00').getTime() + (planDayCount - 1) * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                                {' '}({planDayCount} day{planDayCount !== 1 ? 's' : ''})
+                            </p>
+                        )}
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setShowExtendModal(false)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleExtend}
+                                disabled={!extensionStartDate || extendMutation.isPending}
+                                className="px-4 py-2 text-sm font-medium text-white bg-brand hover:bg-brand/90 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {extendMutation.isPending ? 'Extending…' : 'Extend Plan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

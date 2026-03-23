@@ -11,17 +11,19 @@ import {
     bulkAutoTagFoods
 } from '../controllers/foodItem.controller';
 import { requireAuth } from '../middleware/auth.middleware';
+import { validateBody } from '../middleware/validation.middleware';
+import { createFoodItemSchema, updateFoodItemSchema } from '../schemas/foodItem.schema';
 
 const router = Router();
 
 router.use(requireAuth);
 
 // Food Items CRUD
-router.post('/', createFoodItem);
+router.post('/', validateBody(createFoodItemSchema), createFoodItem);
 router.get('/', listFoodItems);
 router.get('/base-ingredients', listBaseIngredients);
 router.get('/:id', getFoodItem);
-router.patch('/:id', updateFoodItem);
+router.patch('/:id', validateBody(updateFoodItemSchema), updateFoodItem);
 router.delete('/:id', deleteFoodItem);
 
 // Tagging endpoints

@@ -163,7 +163,7 @@ export default function ProfileScreen() {
                     <MenuItem
                         icon={HelpCircle}
                         title="Help & Support"
-                        onPress={() => toast.showToast({ title: 'Help', message: 'Contact us at support@dietconnect.com', variant: 'info' })}
+                        onPress={() => toast.showToast({ title: 'Help', message: 'Contact us at support@healthpractix.com', variant: 'info' })}
                     />
                 </View>
 

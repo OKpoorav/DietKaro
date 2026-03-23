@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
 import { clerkClient, getAuth } from '@clerk/express';
 import logger from '../utils/logger';
+import { emailService } from '../services/email.service';
 
 export const listTeamMembers = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
@@ -93,6 +94,16 @@ export const inviteMember = asyncHandler(async (req: AuthenticatedRequest, res: 
     const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/join?token=${token}`;
 
     logger.info('Invitation created', { email, inviteLink });
+
+    // Send invite email — fire and forget
+    Promise.all([
+        prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }),
+        prisma.user.findUnique({ where: { id: req.user.id }, select: { fullName: true } }),
+    ]).then(([org, inviter]) => {
+        emailService.sendTeamInvite(email, inviteLink, role, org?.name || 'HealthPractix', inviter?.fullName || 'Your team');
+    }).catch((err) => {
+        logger.warn('Failed to send team invite email', { email, error: (err as Error).message });
+    });
 
     res.status(200).json({
         success: true,

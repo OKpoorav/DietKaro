@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { AddClientModal } from '@/components/modals/add-client-modal';
 import { useClients, useCreateClient, Client } from '@/lib/hooks/use-clients';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -28,6 +29,7 @@ export default function ClientsPage() {
     const [showAddClientModal, setShowAddClientModal] = useState(false);
 
     const router = useRouter();
+    const { canDeleteClient } = usePermissions();
     const debouncedSearch = useDebouncedValue(search, 300);
 
     // API hook
@@ -215,9 +217,11 @@ export default function ClientsPage() {
                                                     <MessageSquare className="w-4 h-4" />
                                                     Message
                                                 </button>
-                                                <button className="text-gray-500 hover:text-gray-700 p-1">
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </button>
+                                                {canDeleteClient && (
+                                                    <button className="text-gray-500 hover:text-gray-700 p-1">
+                                                        <MoreVertical className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

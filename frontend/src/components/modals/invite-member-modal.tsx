@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { useInviteMember } from '@/lib/hooks/use-team';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { Loader2, Mail, Check, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -13,6 +14,7 @@ interface InviteMemberModalProps {
 
 export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
     const inviteMutation = useInviteMember();
+    const { canInviteAdmin } = usePermissions();
 
     const [email, setEmail] = useState('');
     const [role, setRole] = useState('dietitian');
@@ -54,7 +56,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
             {!inviteLink ? (
                 <form onSubmit={handleSubmit} className="space-y-4 p-4">
                     <p className="text-sm text-gray-500">
-                        Send an invitation to a new team member. They will receive an email (simulated) or you can copy the link.
+                        Send an invitation to a new team member. They will receive an email with the invite link.
                     </p>
 
                     <div>
@@ -79,7 +81,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
                             onChange={(e) => setRole(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                         >
-                            <option value="admin">Admin</option>
+                            {canInviteAdmin && <option value="admin">Admin</option>}
                             <option value="dietitian">Dietitian</option>
                         </select>
                     </div>
@@ -110,7 +112,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
                     <div className="text-center">
                         <h3 className="text-lg font-medium text-gray-900">Invitation Ready!</h3>
                         <p className="text-sm text-gray-500 mt-1">
-                            Share this link with <strong>{email}</strong> to join the team.
+                            An email has been sent to <strong>{email}</strong>. You can also share the link below directly.
                         </p>
                     </div>
 

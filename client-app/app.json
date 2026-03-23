@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "DietConnect",
-    "slug": "dietconnect-client",
+    "name": "HealthPractix",
+    "slug": "healthpractix-client",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "dietconnect",
+    "scheme": "healthpractix",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dietconnect.client"
+      "bundleIdentifier": "com.healthpractix.client"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#17cf54"
       },
-      "package": "com.dietconnect.client",
+      "package": "com.healthpractix.client",
       "edgeToEdgeEnabled": true
     },
     "web": {

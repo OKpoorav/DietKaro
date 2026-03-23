@@ -36,7 +36,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     const transporter = createTransporter();
 
     const mailOptions = {
-        from: process.env.EMAIL_FROM || '"DietKaro" <noreply@dietkaro.com>',
+        from: process.env.EMAIL_FROM || '"HealthPractix" <noreply@healthpractix.com>',
         to: options.to,
         subject: options.subject,
         html: options.html,
@@ -80,7 +80,7 @@ export function generateDietPlanEmailHtml(
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #111827; max-width: 600px; margin: 0 auto; padding: 20px;">
     <div style="text-align: center; padding: 20px 0;">
-        <h1 style="color: #17cf54; margin: 0;">🥗 DietKaro</h1>
+        <h1 style="color: #17cf54; margin: 0;">🥗 HealthPractix</h1>
     </div>
     
     <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin: 20px 0;">
@@ -106,7 +106,7 @@ export function generateDietPlanEmailHtml(
     </div>
     
     <div style="text-align: center; padding: 20px 0; color: #9ca3af; font-size: 12px;">
-        <p>This email was sent by DietKaro on behalf of ${dietitianName}</p>
+        <p>This email was sent by HealthPractix on behalf of ${dietitianName}</p>
         <p>If you have questions, contact your dietitian or reply to this email.</p>
     </div>
 </body>

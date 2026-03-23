@@ -10,12 +10,14 @@ import {
 } from 'lucide-react';
 import { useTeam, TeamMember } from '@/lib/hooks/use-team';
 import { InviteMemberModal } from '@/components/modals/invite-member-modal';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useState } from 'react';
 
 // ...
 
 export default function TeamPage() {
     const { data: team, isLoading, error } = useTeam();
+    const { canInviteTeam } = usePermissions();
     const [showInviteModal, setShowInviteModal] = useState(false);
 
     const getRoleBadgeColor = (role: string) => {
@@ -39,13 +41,15 @@ export default function TeamPage() {
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">Team</h1>
                     <p className="text-[#4e9767] mt-1">Manage your team members and their roles.</p>
                 </div>
-                <button
-                    onClick={() => setShowInviteModal(true)}
-                    className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    Invite Team Member
-                </button>
+                {canInviteTeam && (
+                    <button
+                        onClick={() => setShowInviteModal(true)}
+                        className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Invite Team Member
+                    </button>
+                )}
             </div>
 
             {/* Loading */}

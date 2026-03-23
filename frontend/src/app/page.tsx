@@ -50,7 +50,7 @@ const features = [
 
 const testimonials = [
   {
-    quote: "Diet Karo cut my administrative time in half. The meal planning tool is intuitive and my clients love the mobile app. It's a game changer.",
+    quote: "Health Practix cut my administrative time in half. The meal planning tool is intuitive and my clients love the mobile app. It's a game changer.",
     name: 'Dr. Priya Sharma',
     role: 'Clinical Dietician',
     avatar: 'PS',
@@ -93,7 +93,7 @@ export default async function HomePage() {
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand/20 text-brand">
                 <Leaf className="w-5 h-5" />
               </div>
-              <span className="text-lg font-bold tracking-tight">Diet Karo</span>
+              <span className="text-lg font-bold tracking-tight">Health Practix</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-sm font-medium hover:text-brand transition-colors">Features</a>
@@ -304,7 +304,7 @@ export default async function HomePage() {
                 Ready to modernize your practice?
               </h2>
               <p className="text-white/80 text-lg">
-                Join thousands of health professionals using Diet Karo to deliver better care.
+                Join thousands of health professionals using Health Practix to deliver better care.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Link
@@ -339,7 +339,7 @@ export default async function HomePage() {
                 <div className="w-6 h-6 rounded bg-brand/20 text-brand flex items-center justify-center">
                   <Leaf className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-lg">Diet Karo</span>
+                <span className="font-bold text-lg">Health Practix</span>
               </div>
               <p className="text-sm text-[#0e1b12]/60">
                 The all-in-one platform for nutrition professionals to manage clients, plans, and progress.
@@ -367,7 +367,7 @@ export default async function HomePage() {
           </div>
           <div className="border-t border-[#e7f3eb] pt-8 text-center">
             <p className="text-sm text-[#0e1b12]/40">
-              © 2025 Diet Karo. All rights reserved.
+              © 2025 Health Practix. All rights reserved.
             </p>
           </div>
         </div>

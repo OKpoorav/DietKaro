@@ -62,7 +62,7 @@ export default function LoginScreen() {
                     <View style={styles.iconContainer}>
                         <Phone size={32} color={Colors.primary} />
                     </View>
-                    <Text style={styles.title}>Welcome to DietConnect</Text>
+                    <Text style={styles.title}>Welcome to HealthPractix</Text>
                     <Text style={styles.subtitle}>
                         Enter your phone number to get started with your personalized diet plan
                     </Text>
