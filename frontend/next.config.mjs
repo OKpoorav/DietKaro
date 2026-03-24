@@ -6,6 +6,9 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
 
+  // Skip static prerendering — all pages are dynamic (auth-gated)
+  experimental: { missingSuspenseWithCSRBailout: false },
+
   // Strict mode catches React bugs early
   reactStrictMode: true,
 
