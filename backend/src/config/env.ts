@@ -38,7 +38,7 @@ function requireInProd(name: string, devFallback: string, description?: string):
 // Validate at import time — crashes early if critical vars are missing
 export const env = {
     // Server
-    PORT: parseInt(optionalEnv('PORT', '3000'), 10),
+    PORT: parseInt(optionalEnv('PORT', '3001'), 10),
     NODE_ENV,
 
     // Database (required)
