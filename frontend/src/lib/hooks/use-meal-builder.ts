@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useApiClient } from '../api/use-api-client';
-import { useCreateDietPlan, usePublishDietPlan, CreateDietPlanInput } from './use-diet-plans';
+import { useCreateDietPlan, usePublishDietPlan, useUpdateDietPlan, CreateDietPlanInput } from './use-diet-plans';
 import { toast } from 'sonner';
 import type { LocalMeal, LocalFoodItem, DayNutrition, ClientData, FoodItemData } from '../types/diet-plan.types';
 
@@ -12,6 +12,7 @@ export type { LocalMeal, LocalFoodItem, DayNutrition };
 interface UseMealBuilderOptions {
     clientId: string | null;
     isTemplateMode: boolean;
+    editId?: string | null; // If set, load existing plan/template for editing
     client: ClientData | null | undefined;
     onSaved: (isTemplate: boolean, published: boolean) => void;
 }
@@ -39,10 +40,13 @@ export const getDates = (startDate: Date, days: number) => {
     });
 };
 
-export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: UseMealBuilderOptions) {
+export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSaved }: UseMealBuilderOptions) {
     const api = useApiClient();
     const createMutation = useCreateDietPlan();
+    const updateMutation = useUpdateDietPlan();
     const publishMutation = usePublishDietPlan();
+
+    const isEditMode = !!editId;
 
     // State
     const [startDate, setStartDate] = useState(new Date());
@@ -57,6 +61,7 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
     const [activeOptionGroup, setActiveOptionGroup] = useState<number>(0);
     const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
     const [numDays, setNumDays] = useState(isTemplateMode ? 7 : 1);
+    const [editLoading, setEditLoading] = useState(!!editId);
 
     const planDates = getDates(startDate, numDays);
     const currentMeals = useMemo(() => weeklyMeals[selectedDayIndex] || [], [weeklyMeals, selectedDayIndex]);
@@ -293,6 +298,79 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         fat: Number(client?.targetFatsG) || 70,
     }));
 
+    // Load existing plan/template for editing
+    useEffect(() => {
+        if (!editId) return;
+        let cancelled = false;
+
+        async function loadExisting() {
+            setEditLoading(true);
+            try {
+                const { data } = await api.get(`/diet-plans/${editId}`);
+                const plan = data.data;
+                if (cancelled) return;
+
+                setPlanName(plan.name || '');
+                setPlanDescription(plan.description || '');
+                if (plan.startDate) setStartDate(new Date(plan.startDate));
+
+                if (plan.meals?.length) {
+                    const mealsByDay: Record<number, any[]> = {};
+                    let minDay = Infinity;
+
+                    plan.meals.forEach((tm: any) => {
+                        const d = typeof tm.dayOfWeek === 'string' ? parseInt(tm.dayOfWeek) : (tm.dayOfWeek ?? 0);
+                        if (d < minDay) minDay = d;
+                        if (!mealsByDay[d]) mealsByDay[d] = [];
+                        mealsByDay[d].push(tm);
+                    });
+                    if (minDay === Infinity) minDay = 0;
+
+                    const newWeeklyMeals: Record<number, LocalMeal[]> = {};
+                    Object.entries(mealsByDay).forEach(([dayStr, dayMeals]) => {
+                        const normalizedDay = parseInt(dayStr) - minDay;
+                        newWeeklyMeals[normalizedDay] = dayMeals.map((tm: any) => {
+                            const localFoods: LocalFoodItem[] = tm.foodItems?.map((f: any) => {
+                                const ratio = (f.quantityG || 100) / 100;
+                                return {
+                                    id: f.foodItem.id,
+                                    tempId: makeId(),
+                                    name: f.foodItem.name,
+                                    quantity: f.notes || `${f.quantityG}g`,
+                                    quantityValue: f.quantityG || 100,
+                                    calories: f.foodItem.calories * ratio,
+                                    protein: (Number(f.foodItem.proteinG) || 0) * ratio,
+                                    carbs: (Number(f.foodItem.carbsG) || 0) * ratio,
+                                    fat: (Number(f.foodItem.fatsG) || 0) * ratio,
+                                    optionGroup: f.optionGroup ?? 0,
+                                    optionLabel: f.optionLabel ?? undefined,
+                                };
+                            }) || [];
+                            return { id: makeId(), name: tm.name || tm.mealType, type: tm.mealType, time: tm.timeOfDay, foods: localFoods };
+                        });
+                    });
+
+                    setWeeklyMeals(newWeeklyMeals);
+                    const dayKeys = Object.keys(newWeeklyMeals).map(Number);
+                    setNumDays(Math.max(...dayKeys) + 1);
+                }
+
+                if (plan.targetCalories) setTargets(t => ({ ...t, calories: plan.targetCalories }));
+                if (plan.targetProteinG) setTargets(t => ({ ...t, protein: plan.targetProteinG }));
+                if (plan.targetCarbsG) setTargets(t => ({ ...t, carbs: plan.targetCarbsG }));
+                if (plan.targetFatsG) setTargets(t => ({ ...t, fat: plan.targetFatsG }));
+            } catch {
+                toast.error('Failed to load plan for editing');
+            } finally {
+                if (!cancelled) setEditLoading(false);
+            }
+        }
+
+        loadExisting();
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editId]);
+
     // Apply template
     const applyTemplate = useCallback(async (templateId: string) => {
         if (!confirm('This will replace all current meal entries with the selected template. Continue?')) return;
@@ -448,31 +526,50 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         endDate.setDate(endDate.getDate() + numDays - 1);
 
         try {
-            const createdPlan = await createMutation.mutateAsync({
-                clientId: clientId || undefined,
-                name: planName,
-                description: planDescription,
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
-                targetCalories: targets.calories,
-                targetProteinG: targets.protein,
-                targetCarbsG: targets.carbs,
-                targetFatsG: targets.fat,
-                meals: apiMeals,
-                options: isTemplateMode ? { saveAsTemplate: true } : undefined,
-            });
+            if (isEditMode && editId) {
+                // Update existing plan/template
+                await updateMutation.mutateAsync({
+                    id: editId,
+                    name: planName,
+                    description: planDescription,
+                    startDate: startDate.toISOString(),
+                    endDate: endDate.toISOString(),
+                    targetCalories: targets.calories,
+                    targetProteinG: targets.protein,
+                    targetCarbsG: targets.carbs,
+                    targetFatsG: targets.fat,
+                    meals: apiMeals,
+                });
 
-            if (publish && createdPlan?.id) {
-                await publishMutation.mutateAsync(createdPlan.id);
+                toast.success(isTemplateMode ? 'Template Updated!' : 'Diet Plan Updated!');
+                onSaved(isTemplateMode, false);
+            } else {
+                const createdPlan = await createMutation.mutateAsync({
+                    clientId: clientId || undefined,
+                    name: planName,
+                    description: planDescription,
+                    startDate: startDate.toISOString(),
+                    endDate: endDate.toISOString(),
+                    targetCalories: targets.calories,
+                    targetProteinG: targets.protein,
+                    targetCarbsG: targets.carbs,
+                    targetFatsG: targets.fat,
+                    meals: apiMeals,
+                    options: isTemplateMode ? { saveAsTemplate: true } : undefined,
+                });
+
+                if (publish && createdPlan?.id) {
+                    await publishMutation.mutateAsync(createdPlan.id);
+                }
+
+                toast.success(
+                    isTemplateMode
+                        ? (publish ? 'Template Published!' : 'Template Saved!')
+                        : (publish ? 'Diet Plan Published!' : 'Draft Saved!')
+                );
+
+                onSaved(isTemplateMode, publish);
             }
-
-            toast.success(
-                isTemplateMode
-                    ? (publish ? 'Template Published!' : 'Template Saved!')
-                    : (publish ? 'Diet Plan Published!' : 'Draft Saved!')
-            );
-
-            onSaved(isTemplateMode, publish);
         } catch (error) {
             toast.error('Failed to save plan');
         }
@@ -519,6 +616,8 @@ export function useMealBuilder({ clientId, isTemplateMode, client, onSaved }: Us
         save,
 
         // Mutation states
-        isSaving: createMutation.isPending,
+        isSaving: createMutation.isPending || updateMutation.isPending,
+        isEditMode,
+        editLoading,
     };
 }

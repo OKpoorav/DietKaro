@@ -25,7 +25,7 @@ const logger = winston.createLogger({
         timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         errors({ stack: true })
     ),
-    defaultMeta: { service: 'diet-connect-api' },
+    defaultMeta: { service: 'healthpractix-api' },
     transports: [
         // Console transport with colors
         new winston.transports.Console({

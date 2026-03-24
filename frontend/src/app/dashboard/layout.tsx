@@ -1,6 +1,6 @@
 'use client';
 
-import { UserButton, useUser } from '@clerk/nextjs';
+import { UserButton, useUser, useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -23,6 +23,8 @@ import { SocketProvider } from '@/lib/socket/socket-provider';
 import { useUnreadCounts } from '@/lib/hooks/use-chat';
 import { usePermissions } from '../../lib/hooks/use-permissions';
 import { NotificationDropdown } from '@/components/notification-dropdown';
+import { useProfile } from '@/lib/hooks/use-profile';
+import { useClerk } from '@clerk/nextjs';
 
 type PermissionKey = 'canViewTeam' | 'canViewAnalytics' | 'canViewReferrals';
 
@@ -42,14 +44,34 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
-    const { user } = useUser();
+    const { user, isLoaded: isClerkLoaded } = useUser();
+    const { signOut } = useClerk();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const permissions = usePermissions();
+    const { error: profileError, isLoading: profileLoading } = useProfile();
 
     const filteredNavigation = useMemo(
         () => navigation.filter((item) => !item.permission || permissions[item.permission]),
         [permissions]
     );
+
+    // If Clerk session exists but user has no DB record, show a setup screen
+    const isNotRegistered = profileError && (profileError as any)?.response?.data?.error?.code === 'USER_NOT_REGISTERED';
+
+    if (!isClerkLoaded || profileLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-gray-500 text-sm">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isNotRegistered) {
+        return <NotRegisteredScreen user={user} signOut={signOut} />;
+    }
 
     return (
         <SocketProvider>
@@ -168,6 +190,117 @@ export default function DashboardLayout({
             </div>
         </div>
         </SocketProvider>
+    );
+}
+
+function NotRegisteredScreen({ user, signOut }: { user: any; signOut: (opts: any) => Promise<void> }) {
+    const [showCreate, setShowCreate] = useState(false);
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100 text-center">
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-amber-600" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to HealthPractix</h1>
+                <p className="text-gray-500 mb-6">
+                    {showCreate
+                        ? 'Set up your practice to get started.'
+                        : 'You can create a new practice or join an existing team via invitation.'
+                    }
+                </p>
+                <p className="text-sm text-gray-400 mb-6">
+                    Signed in as <strong>{user?.primaryEmailAddress?.emailAddress}</strong>
+                </p>
+
+                {!showCreate ? (
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => setShowCreate(true)}
+                            className="w-full px-4 py-3 text-sm font-bold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors"
+                        >
+                            Create New Practice
+                        </button>
+                        <p className="text-xs text-gray-400">
+                            Or wait for an invitation link from your team admin
+                        </p>
+                        <button
+                            onClick={() => signOut({ redirectUrl: '/' })}
+                            className="w-full px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 mt-4"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
+                ) : (
+                    <OrgCreationForm onBack={() => setShowCreate(false)} signOut={signOut} />
+                )}
+            </div>
+        </div>
+    );
+}
+
+function OrgCreationForm({ onBack, signOut }: { onBack: () => void; signOut: (opts: any) => Promise<void> }) {
+    const [orgName, setOrgName] = useState('');
+    const [creating, setCreating] = useState(false);
+    const [error, setError] = useState('');
+    const { getToken } = useAuth();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!orgName.trim()) return;
+        setCreating(true);
+        setError('');
+
+        try {
+            const token = await getToken();
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/v1/organizations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ name: orgName.trim() }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error?.message || 'Failed to create organization');
+            window.location.reload();
+        } catch (err: any) {
+            setError(err.message);
+            setCreating(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 text-left">
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Practice / Clinic Name</label>
+                <input
+                    type="text"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    placeholder="e.g. NutriCare Clinic"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-brand focus:border-brand"
+                    required
+                    autoFocus
+                />
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <button
+                type="submit"
+                disabled={creating || !orgName.trim()}
+                className="w-full px-4 py-3 text-sm font-bold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors disabled:opacity-50"
+            >
+                {creating ? 'Creating...' : 'Create Practice'}
+            </button>
+            <div className="flex gap-2">
+                <button type="button" onClick={onBack} className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
+                    Back
+                </button>
+                <button type="button" onClick={() => signOut({ redirectUrl: '/' })} className="flex-1 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100">
+                    Sign Out
+                </button>
+            </div>
+        </form>
     );
 }
 

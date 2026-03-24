@@ -26,15 +26,36 @@ export interface DashboardStats {
     }[];
 }
 
-export function useDashboardStats() {
+export function useDashboardStats(dietitianId?: string | null) {
     const api = useApiClient();
 
     return useQuery({
-        queryKey: ['dashboard', 'stats'],
+        queryKey: ['dashboard', 'stats', dietitianId || 'all'],
         queryFn: async () => {
-            const { data } = await api.get('/dashboard/stats');
+            const params = dietitianId ? `?dietitianId=${dietitianId}` : '';
+            const { data } = await api.get(`/dashboard/stats${params}`);
             return data.data as DashboardStats;
         },
-        staleTime: 30 * 1000, // Refresh every 30 seconds
+        staleTime: 30 * 1000,
+    });
+}
+
+export function useDietitianAnalytics() {
+    const api = useApiClient();
+    return useQuery({
+        queryKey: ['dashboard', 'dietitian-analytics'],
+        queryFn: async () => {
+            const { data } = await api.get('/dashboard/dietitian-analytics');
+            return data.data.dietitians as Array<{
+                id: string;
+                fullName: string;
+                email: string;
+                profilePhotoUrl: string | null;
+                clientCount: number;
+                activePlanCount: number;
+                pendingReviewCount: number;
+                adherencePercent: number;
+            }>;
+        },
     });
 }

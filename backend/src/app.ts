@@ -14,6 +14,11 @@ import { env } from './config/env';
 
 const app = express();
 
+// Trust reverse proxy (nginx, load balancer) — required for rate limiter, req.ip, secure cookies
+if (env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+}
+
 // Request ID — first middleware, before everything else
 app.use(requestIdMiddleware);
 
@@ -57,8 +62,21 @@ const corsOptions: cors.CorsOptions = {
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 app.use(cors(corsOptions));
-app.use(helmet());
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(helmet({
+    contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false, // CSP in prod only
+    crossOriginEmbedderPolicy: false, // Allow loading images from S3/CDN
+    hsts: env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true } : false,
+}));
+
+// Logging — structured JSON in production, readable format in dev
+if (env.NODE_ENV === 'production') {
+    app.use(morgan('combined', {
+        stream: { write: (msg: string) => logger.info(msg.trim()) },
+        skip: (req) => req.path === '/health' || req.path === '/readiness',
+    }));
+} else {
+    app.use(morgan('dev'));
+}
 
 // Global rate limiting on all /api routes
 app.use('/api/', apiLimiter);

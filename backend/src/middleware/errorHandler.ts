@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, ErrorRequestHandler } from 'express';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
+import { env } from '../config/env';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 
@@ -77,16 +78,15 @@ export const errorHandler: ErrorRequestHandler = (
 
     // Handle unknown errors (programming errors)
     const statusCode = 500;
-    const message = process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : err.message;
+    const isProduction = env.NODE_ENV === 'production';
+    const message = isProduction ? 'Internal server error' : err.message;
 
     return res.status(statusCode).json({
         success: false,
         error: {
             code: 'INTERNAL_ERROR',
             message,
-            ...(process.env.NODE_ENV !== 'production' ? { stack: err.stack } : {})
+            ...(!isProduction ? { stack: err.stack } : {})
         }
     });
 };

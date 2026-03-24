@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const createDietPlanSchema = z.object({
-    clientId: z.string().uuid('Invalid client ID'),
+    clientId: z.string().uuid('Invalid client ID').optional(),
     name: z.string().min(2, 'Plan name must be at least 2 characters'),
     description: z.string().optional(),
-    startDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid start date'),
+    startDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid start date').optional(),
     endDate: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid end date').optional(),
     targetCalories: z.number().min(500).max(10000).optional(),
     targetProteinG: z.number().min(0).max(500).optional(),

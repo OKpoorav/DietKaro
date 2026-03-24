@@ -29,7 +29,7 @@ export class DietPlanService {
                 endDate = new Date(Math.max(...mealDates.map(d => d.getTime())));
             } else {
                 const maxDow = data.meals.reduce((max, m) => Math.max(max, m.dayOfWeek ?? 0), 0);
-                if (maxDow > 0) {
+                if (maxDow > 0 && data.startDate) {
                     endDate = new Date(data.startDate);
                     endDate.setDate(endDate.getDate() + maxDow);
                 }
@@ -43,7 +43,7 @@ export class DietPlanService {
                 creator: { connect: { id: userId } },
                 name: data.name,
                 description: data.description,
-                startDate: new Date(data.startDate),
+                startDate: data.startDate ? new Date(data.startDate) : new Date(),
                 endDate,
                 targetCalories: data.targetCalories,
                 targetProteinG: data.targetProteinG,
@@ -52,7 +52,7 @@ export class DietPlanService {
                 targetFiberG: data.targetFiberG,
                 notesForClient: data.notesForClient,
                 internalNotes: data.internalNotes,
-                status: 'draft',
+                status: isTemplate ? 'active' : 'draft',
                 isTemplate,
                 templateCategory: data.options?.templateCategory,
                 meals: data.meals?.length
@@ -110,7 +110,7 @@ export class DietPlanService {
         return dietPlan;
     }
 
-    async listPlans(orgId: string, query: DietPlanListQuery) {
+    async listPlans(orgId: string, query: DietPlanListQuery, userRole: string = 'owner', userId: string = '') {
         const { clientId, status, isTemplate } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
 
@@ -118,6 +118,20 @@ export class DietPlanService {
         if (clientId) where.clientId = clientId;
         if (status) where.status = status as Prisma.EnumDietPlanStatusFilter;
         if (isTemplate !== undefined) where.isTemplate = isTemplate === 'true';
+
+        // Dietitians see: their assigned clients' plans + org templates they created OR that are published
+        if (userRole === 'dietitian') {
+            if (isTemplate === 'true') {
+                // Templates: show own drafts + all published templates in the org
+                where.OR = [
+                    { creator: { id: userId } },
+                    { status: 'active' },
+                ];
+            } else {
+                // Client plans: only for their assigned clients
+                where.client = { primaryDietitianId: userId };
+            }
+        }
 
         const [plans, total] = await prisma.$transaction([
             prisma.dietPlan.findMany({
@@ -165,6 +179,54 @@ export class DietPlanService {
         if (data.targetFiberG !== undefined) updateData.targetFiberG = data.targetFiberG;
         if (data.notesForClient !== undefined) updateData.notesForClient = data.notesForClient;
         if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
+
+        // If meals are provided, replace all existing meals atomically
+        if (data.meals?.length) {
+            const updated = await prisma.$transaction(async (tx) => {
+                // Delete existing meals and their food items
+                const existingMeals = await tx.meal.findMany({ where: { dietPlan: { id: planId } }, select: { id: true } });
+                if (existingMeals.length > 0) {
+                    await tx.mealFoodItem.deleteMany({ where: { mealId: { in: existingMeals.map(m => m.id) } } });
+                    await tx.meal.deleteMany({ where: { dietPlan: { id: planId } } });
+                }
+
+                // Create new meals
+                for (let i = 0; i < data.meals!.length; i++) {
+                    const meal = data.meals![i];
+                    await tx.meal.create({
+                        data: {
+                            dietPlan: { connect: { id: planId } },
+                            dayOfWeek: meal.dayOfWeek,
+                            mealDate: meal.mealDate ? new Date(meal.mealDate) : null,
+                            sequenceNumber: i,
+                            mealType: meal.mealType,
+                            timeOfDay: meal.timeOfDay,
+                            name: meal.name,
+                            description: meal.description,
+                            instructions: meal.instructions,
+                            foodItems: meal.foodItems?.length ? {
+                                create: meal.foodItems.map((fi, j) => ({
+                                    foodId: fi.foodId,
+                                    quantityG: fi.quantityG,
+                                    notes: fi.notes,
+                                    sortOrder: j,
+                                    optionGroup: fi.optionGroup ?? 0,
+                                    optionLabel: fi.optionLabel,
+                                })),
+                            } : undefined,
+                        },
+                    });
+                }
+
+                return tx.dietPlan.update({
+                    where: { id: planId },
+                    data: updateData,
+                });
+            });
+
+            logger.info('Diet plan updated with meals', { planId: updated.id, mealCount: data.meals!.length });
+            return updated;
+        }
 
         const updated = await prisma.dietPlan.update({
             where: { id: planId },

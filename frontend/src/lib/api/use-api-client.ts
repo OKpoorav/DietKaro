@@ -36,9 +36,18 @@ export function useApiClient(): AxiosInstance {
         instance.interceptors.response.use(
             (response) => response,
             (error) => {
-                if (error.response?.status === 401) {
-                    window.location.href = '/sign-in';
+                const errorCode = error.response?.data?.error?.code;
+                const status = error.response?.status;
+
+                if (status === 401 && errorCode === 'UNAUTHORIZED') {
+                    // No Clerk session — redirect to sign-in (but not if already there)
+                    if (!window.location.pathname.startsWith('/sign-in') && !window.location.pathname.startsWith('/join')) {
+                        window.location.href = '/sign-in';
+                    }
                 }
+                // USER_NOT_REGISTERED: Clerk session exists but no DB user.
+                // Don't redirect — the page will handle this state.
+
                 const message =
                     error.response?.data?.error?.message ||
                     error.message ||

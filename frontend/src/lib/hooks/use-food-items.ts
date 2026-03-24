@@ -11,6 +11,7 @@ export interface FoodItem {
     category: string;
     subCategory?: string;
     servingSize: string;
+    servingUnit: string;
     isGlobal: boolean;
     isVerified: boolean;
     isBaseIngredient: boolean;
@@ -91,6 +92,7 @@ export interface CreateFoodItemInput {
     category: string;
     subCategory?: string;
     servingSizeG: number;
+    servingUnit?: string;
     calories: number;
     proteinG: number;
     carbsG: number;

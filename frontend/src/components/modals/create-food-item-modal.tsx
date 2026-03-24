@@ -51,6 +51,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
         brand: '',
         category: 'Grains',
         servingSizeG: 100,
+        servingUnit: 'g',
         calories: 0,
         proteinG: 0,
         carbsG: 0,
@@ -97,6 +98,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                 brand: initialData.brand || '',
                 category: initialData.category,
                 servingSizeG: parseFloat(initialData.servingSize) || 100,
+                servingUnit: initialData.servingUnit || 'g',
                 calories: initialData.nutrition.calories,
                 proteinG: initialData.nutrition.proteinG || 0,
                 carbsG: initialData.nutrition.carbsG || 0,
@@ -124,6 +126,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                 brand: '',
                 category: 'Grains',
                 servingSizeG: 100,
+                servingUnit: 'g',
                 calories: 0,
                 proteinG: 0,
                 carbsG: 0,
@@ -236,18 +239,40 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Serving Size (g)</label>
-                        <div className="relative">
-                            <input
-                                required
-                                type="number"
-                                min="1"
-                                value={formData.servingSizeG}
-                                onChange={(e) => updateField('servingSizeG', e.target.value)}
-                                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 placeholder:text-gray-400"
-                                placeholder="100"
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">g</span>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Serving Size</label>
+                        <input
+                            required
+                            type="number"
+                            min="1"
+                            value={formData.servingSizeG}
+                            onChange={(e) => updateField('servingSizeG', e.target.value)}
+                            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 placeholder:text-gray-400 mb-2"
+                            placeholder="100"
+                        />
+                        <div className="flex flex-wrap gap-1">
+                            {([
+                                { unit: 'g',      title: '1 g = 1 gram' },
+                                { unit: 'ml',     title: '1 ml = 1 millilitre' },
+                                { unit: 'oz',     title: '1 oz ≈ 29.6 ml' },
+                                { unit: 'cup',    title: '1 cup = 240 ml' },
+                                { unit: 'tbsp',   title: '1 tbsp = 15 ml' },
+                                { unit: 'tsp',    title: '1 tsp = 5 ml' },
+                                { unit: 'piece',  title: 'One whole piece / unit' },
+                            ] as const).map(({ unit, title }) => (
+                                <button
+                                    key={unit}
+                                    type="button"
+                                    title={title}
+                                    onClick={() => setFormData(prev => ({ ...prev, servingUnit: unit }))}
+                                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                                        (formData.servingUnit || 'g') === unit
+                                            ? 'bg-brand text-white border-brand'
+                                            : 'bg-white text-gray-500 border-gray-200 hover:border-brand hover:text-brand'
+                                    }`}
+                                >
+                                    {unit}
+                                </button>
+                            ))}
                         </div>
                     </div>
                     <div>

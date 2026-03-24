@@ -34,6 +34,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "https://api.healthpractix.com/api/v1",
+      "eas": {
+        "projectId": "your-eas-project-id"
+      }
     }
   }
 }

@@ -19,7 +19,9 @@ export const getDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: R
 
 export const listDietPlans = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const { plans, meta } = await dietPlanService.listPlans(req.user.organizationId, req.query as unknown as DietPlanListQuery);
+    const { plans, meta } = await dietPlanService.listPlans(
+        req.user.organizationId, req.query as unknown as DietPlanListQuery, req.user.role, req.user.id
+    );
     res.status(200).json({ success: true, data: plans, meta });
 });
 

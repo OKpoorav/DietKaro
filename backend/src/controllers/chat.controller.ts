@@ -88,6 +88,7 @@ export const initiateClientConversation = asyncHandler(async (req: ClientAuthReq
         select: { primaryDietitianId: true },
     });
     if (!client) throw AppError.notFound('Client not found');
+    if (!client.primaryDietitianId) throw AppError.badRequest('No dietitian assigned to your profile yet');
     const conversation = await chatService.createOrGetConversation(
         client.primaryDietitianId, req.client.id, req.client.orgId
     );

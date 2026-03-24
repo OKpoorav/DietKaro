@@ -6,8 +6,8 @@ import { createOrganizationSchema } from '../schemas/organization.schema';
 
 const router = Router();
 
-// Protected route for creating new organizations (during onboarding)
-router.post('/', requireAuth, validateBody(createOrganizationSchema), createOrganization);
+// Org creation — uses Clerk auth directly (user may not have DB record yet)
+router.post('/', validateBody(createOrganizationSchema), createOrganization);
 
 // Protected routes
 router.get('/', requireAuth, getOrganization);

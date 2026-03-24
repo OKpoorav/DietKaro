@@ -21,5 +21,6 @@ export function usePermissions() {
         canDeleteClient: role === 'owner' || role === 'admin',
         canManageInvoices: role === 'owner' || role === 'admin',
         canClearValidationCache: role === 'owner' || role === 'admin',
+        canRemoveMember: role === 'owner' || role === 'admin',
     };
 }

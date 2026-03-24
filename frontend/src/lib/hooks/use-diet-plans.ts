@@ -55,6 +55,7 @@ export interface DietPlan {
         fullName: string;
     };
     meals?: Meal[];
+    mealCount?: number;
 }
 
 interface PaginatedResponse<T> {
@@ -161,7 +162,7 @@ export function useUpdateDietPlan() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({ id, ...planData }: Partial<DietPlan> & { id: string }) => {
+        mutationFn: async ({ id, ...planData }: { id: string } & Record<string, unknown>) => {
             const { data } = await api.patch(`/diet-plans/${id}`, planData);
             return data.data;
         },

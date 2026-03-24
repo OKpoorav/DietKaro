@@ -2,23 +2,39 @@
 
 import {
     Plus,
-    MoreVertical,
+    Trash2,
     Mail,
     Phone,
     Users,
     Loader2,
 } from 'lucide-react';
-import { useTeam, TeamMember } from '@/lib/hooks/use-team';
+import { useTeam, useRemoveMember, TeamMember } from '@/lib/hooks/use-team';
 import { InviteMemberModal } from '@/components/modals/invite-member-modal';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import { useProfile } from '@/lib/hooks/use-profile';
 import { useState } from 'react';
 
 // ...
 
 export default function TeamPage() {
     const { data: team, isLoading, error } = useTeam();
-    const { canInviteTeam } = usePermissions();
+    const { canInviteTeam, canRemoveMember, isOwner, isAdmin } = usePermissions();
+    const { data: profile } = useProfile();
+    const removeMember = useRemoveMember();
     const [showInviteModal, setShowInviteModal] = useState(false);
+
+    const canRemoveThisMember = (member: TeamMember) => {
+        if (!canRemoveMember) return false;
+        if (member.id === profile?.id) return false;
+        if (isOwner) return true;
+        if (isAdmin) return member.role.toLowerCase() === 'dietitian';
+        return false;
+    };
+
+    const handleRemoveMember = (member: TeamMember) => {
+        if (!window.confirm(`Are you sure you want to remove ${member.name} from the team?`)) return;
+        removeMember.mutate(member.id);
+    };
 
     const getRoleBadgeColor = (role: string) => {
         switch (role.toLowerCase()) {
@@ -97,9 +113,15 @@ export default function TeamPage() {
                                         </span>
                                     </div>
                                 </div>
-                                <button className="text-gray-400 hover:text-gray-600">
-                                    <MoreVertical className="w-5 h-5" />
-                                </button>
+                                {canRemoveThisMember(member) && (
+                                    <button
+                                        onClick={() => handleRemoveMember(member)}
+                                        className="text-gray-400 hover:text-red-600 transition-colors"
+                                        title="Remove member"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
 
                             {member.specialization && (
@@ -130,6 +152,15 @@ export default function TeamPage() {
                                 <button className="flex-1 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
                                     Message
                                 </button>
+                                {canRemoveThisMember(member) && (
+                                    <button
+                                        onClick={() => handleRemoveMember(member)}
+                                        disabled={removeMember.isPending}
+                                        className="flex-1 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}

@@ -271,6 +271,7 @@ model FoodItem {
   category            String
   subCategory         String?
   servingSizeG        Decimal              @default(100) @db.Decimal(6, 2)
+  servingUnit         String               @default("g")
   calories            Int
   proteinG            Decimal?             @db.Decimal(5, 1)
   carbsG              Decimal?             @db.Decimal(5, 1)

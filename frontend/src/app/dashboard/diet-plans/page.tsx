@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, Send, LayoutTemplate, Users, X, ChevronRight } from 'lucide-react';
+import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, Send, LayoutTemplate, Users, X, ChevronRight, UtensilsCrossed } from 'lucide-react';
 import { useDietPlans, usePublishDietPlan, useAssignTemplate } from '@/lib/hooks/use-diet-plans';
 import { useClients } from '@/lib/hooks/use-clients';
 import { useState, useRef, useEffect } from 'react';
@@ -210,11 +210,14 @@ export default function DietPlansPage() {
                                         {openMenuId === plan.id && (
                                             <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                                                 <Link
-                                                    href={`/dashboard/diet-plans/${plan.id}`}
+                                                    href={isTemplateView
+                                                        ? `/dashboard/diet-plans/new?template=true&editId=${plan.id}`
+                                                        : `/dashboard/diet-plans/${plan.id}`
+                                                    }
                                                     className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                                                 >
                                                     <Edit className="w-4 h-4" />
-                                                    Edit Plan
+                                                    {isTemplateView ? 'Edit Template' : 'Edit Plan'}
                                                 </Link>
                                                 {!isActive && (
                                                     <button
@@ -242,19 +245,37 @@ export default function DietPlansPage() {
                                 </div>
 
                                 <div className="space-y-3 mb-6">
-                                    <div className="flex items-center text-sm text-gray-600 gap-2">
-                                        <Calendar className="w-4 h-4 text-gray-400" />
-                                        <span>
-                                            {new Date(plan.startDate).toLocaleDateString()}
-                                            {plan.endDate ? ` - ${new Date(plan.endDate).toLocaleDateString()}` : ''}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                            {isActive ? 'Active' : 'Draft'}
-                                        </span>
-                                    </div>
+                                    {isTemplateView ? (
+                                        <div className="flex items-center text-sm text-gray-600 gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <UtensilsCrossed className="w-4 h-4 text-gray-400" />
+                                                <span>{plan.mealCount || 0} meals</span>
+                                            </div>
+                                            {plan.endDate && plan.startDate && (
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="w-4 h-4 text-gray-400" />
+                                                    <span>
+                                                        {Math.max(1, Math.ceil((new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center text-sm text-gray-600 gap-2">
+                                                <Calendar className="w-4 h-4 text-gray-400" />
+                                                <span>
+                                                    {new Date(plan.startDate).toLocaleDateString()}
+                                                    {plan.endDate ? ` - ${new Date(plan.endDate).toLocaleDateString()}` : ''}
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    {isActive ? 'Active' : 'Draft'}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="pt-4 border-t border-gray-100 flex gap-2">
@@ -312,7 +333,7 @@ export default function DietPlansPage() {
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none text-gray-900"
                                 />
                             </div>
 
@@ -328,7 +349,7 @@ export default function DietPlansPage() {
                                         placeholder="Search clients..."
                                         value={clientSearch}
                                         onChange={(e) => setClientSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none text-gray-900"
                                     />
                                 </div>
                                 <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">

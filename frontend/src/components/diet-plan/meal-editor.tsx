@@ -1,8 +1,32 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
+
+const HOUSEHOLD_UNITS: { label: string; gramsEach: number | null; tooltip: string }[] = [
+    { label: 'g',              gramsEach: 1,    tooltip: '1 gram' },
+    { label: 'ml',             gramsEach: 1,    tooltip: '1 millilitre (≈ 1 g water)' },
+    { label: 'tsp',            gramsEach: 5,    tooltip: '1 tsp = 5 ml' },
+    { label: 'tbsp',           gramsEach: 15,   tooltip: '1 tbsp = 15 ml / ~15 g' },
+    { label: 'katori (S)',     gramsEach: 100,  tooltip: 'Small katori = 100 ml' },
+    { label: 'katori (M)',     gramsEach: 150,  tooltip: 'Medium katori = 150 ml' },
+    { label: 'katori (L)',     gramsEach: 250,  tooltip: 'Large katori = 250 ml' },
+    { label: 'cup (Indian)',   gramsEach: 200,  tooltip: 'Indian cup = 200 ml' },
+    { label: 'glass (S)',      gramsEach: 150,  tooltip: 'Small glass = 150 ml' },
+    { label: 'glass',          gramsEach: 250,  tooltip: 'Standard glass = 250 ml' },
+    { label: 'mug',            gramsEach: 300,  tooltip: 'Coffee mug = 300 ml' },
+    { label: 'cup (tea)',      gramsEach: 135,  tooltip: 'Tea / coffee cup = 135 ml' },
+    { label: 'roti',           gramsEach: 25,   tooltip: '1 roti = 25 g flour' },
+    { label: 'piece',          gramsEach: null, tooltip: '1 whole piece / unit' },
+    { label: 'serving',        gramsEach: null, tooltip: '1 standard serving' },
+];
+
+function parseQty(qty: string): { num: number; unit: string } {
+    const m = qty.trim().match(/^(\d+(?:\.\d+)?)\s*(.+)?$/);
+    if (!m) return { num: 1, unit: 'serving' };
+    return { num: parseFloat(m[1]), unit: m[2]?.trim() || 'serving' };
+}
 
 function getFoodSeverityStyles(food: LocalFoodItem) {
     switch (food.validationSeverity) {
@@ -34,25 +58,75 @@ function FoodItemRow({
     mealId,
     onRemoveFood,
     onUpdateFoodQuantity,
+    onUpdateFoodQuantityValue,
 }: {
     food: LocalFoodItem;
     mealId: string;
     onRemoveFood: (mealId: string, tempId: string) => void;
     onUpdateFoodQuantity: (mealId: string, tempId: string, val: string) => void;
+    onUpdateFoodQuantityValue: (mealId: string, tempId: string, grams: number) => void;
 }) {
     const { bgClass, iconEl } = getFoodSeverityStyles(food);
+
+    const initial = parseQty(food.quantity);
+    const [qty, setQty] = useState(initial.num);
+    const [unit, setUnit] = useState(
+        HOUSEHOLD_UNITS.some(u => u.label === initial.unit) ? initial.unit : 'serving'
+    );
+
+    // Sync if quantity string changes externally (e.g. plan load)
+    useEffect(() => {
+        const p = parseQty(food.quantity);
+        setQty(p.num);
+        setUnit(HOUSEHOLD_UNITS.some(u => u.label === p.unit) ? p.unit : 'serving');
+    }, [food.quantity]);
+
+    const applyChange = (newQty: number, newUnit: string) => {
+        const def = HOUSEHOLD_UNITS.find(u => u.label === newUnit);
+        onUpdateFoodQuantity(mealId, food.tempId, `${newQty} ${newUnit}`);
+        if (def?.gramsEach != null) {
+            onUpdateFoodQuantityValue(mealId, food.tempId, newQty * def.gramsEach);
+        }
+    };
+
+    const handleQtyChange = (val: string) => {
+        const n = Math.max(0.1, parseFloat(val) || 1);
+        setQty(n);
+        applyChange(n, unit);
+    };
+
+    const handleUnitChange = (newUnit: string) => {
+        setUnit(newUnit);
+        applyChange(qty, newUnit);
+    };
+
+    const selectedDef = HOUSEHOLD_UNITS.find(u => u.label === unit);
 
     return (
         <div>
             <div className={`flex items-center gap-2 p-2 rounded-md ${bgClass}`}>
                 {iconEl}
                 <span className="text-gray-800 text-sm font-medium flex-grow truncate">{food.name}</span>
-                <input
-                    type="text"
-                    value={food.quantity}
-                    onChange={(e) => onUpdateFoodQuantity(mealId, food.tempId, e.target.value)}
-                    className="w-24 text-sm text-right p-1 border border-gray-200 rounded-md text-gray-700 bg-white"
-                />
+                <div className="flex items-center gap-1 shrink-0">
+                    <input
+                        type="number"
+                        min="0.1"
+                        step="0.5"
+                        value={qty}
+                        onChange={(e) => handleQtyChange(e.target.value)}
+                        className="w-14 text-sm text-right px-1 py-1 border border-gray-200 rounded-md text-gray-900 bg-white"
+                    />
+                    <select
+                        value={unit}
+                        onChange={(e) => handleUnitChange(e.target.value)}
+                        title={selectedDef?.tooltip}
+                        className="text-xs px-1 py-1 border border-gray-200 rounded-md text-gray-700 bg-white cursor-pointer max-w-[108px]"
+                    >
+                        {HOUSEHOLD_UNITS.map(u => (
+                            <option key={u.label} value={u.label} title={u.tooltip}>{u.label}</option>
+                        ))}
+                    </select>
+                </div>
                 <button
                     onClick={() => onRemoveFood(mealId, food.tempId)}
                     className="p-1 text-gray-400 hover:text-red-500 transition-colors"
@@ -80,6 +154,7 @@ interface MealEditorProps {
     onOpenAddFood: (mealId: string, optionGroup?: number) => void;
     onRemoveFood: (mealId: string, tempId: string) => void;
     onUpdateFoodQuantity: (mealId: string, tempId: string, val: string) => void;
+    onUpdateFoodQuantityValue: (mealId: string, tempId: string, grams: number) => void;
     onUpdateMealField: (mealId: string, field: 'name' | 'time', value: string) => void;
     onAddAlternative?: (mealId: string) => void;
     onRemoveOption?: (mealId: string, optionGroup: number) => void;
@@ -92,6 +167,7 @@ function MealCard({
     onOpenAddFood,
     onRemoveFood,
     onUpdateFoodQuantity,
+    onUpdateFoodQuantityValue,
     onUpdateMealField,
     onAddAlternative,
     onRemoveOption,
@@ -159,6 +235,7 @@ function MealCard({
                                 mealId={meal.id}
                                 onRemoveFood={onRemoveFood}
                                 onUpdateFoodQuantity={onUpdateFoodQuantity}
+                                onUpdateFoodQuantityValue={onUpdateFoodQuantityValue}
                             />
                         ))}
                     </div>
@@ -227,6 +304,7 @@ function MealCard({
                                                 mealId={meal.id}
                                                 onRemoveFood={onRemoveFood}
                                                 onUpdateFoodQuantity={onUpdateFoodQuantity}
+                                                onUpdateFoodQuantityValue={onUpdateFoodQuantityValue}
                                             />
                                         ))}
                                     </div>
@@ -267,6 +345,7 @@ export function MealEditor({
     onOpenAddFood,
     onRemoveFood,
     onUpdateFoodQuantity,
+    onUpdateFoodQuantityValue,
     onUpdateMealField,
     onAddAlternative,
     onRemoveOption,
@@ -289,6 +368,7 @@ export function MealEditor({
                     onOpenAddFood={onOpenAddFood}
                     onRemoveFood={onRemoveFood}
                     onUpdateFoodQuantity={onUpdateFoodQuantity}
+                    onUpdateFoodQuantityValue={onUpdateFoodQuantityValue}
                     onUpdateMealField={onUpdateMealField}
                     onAddAlternative={onAddAlternative}
                     onRemoveOption={onRemoveOption}

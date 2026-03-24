@@ -23,6 +23,7 @@ function BuilderContent() {
     const router = useRouter();
     const clientId = searchParams.get('clientId');
     const isTemplateMode = searchParams.get('template') === 'true';
+    const editId = searchParams.get('editId');
 
     const { data: client, isLoading: clientLoading } = useClient(
         !isTemplateMode && clientId ? clientId : ''
@@ -35,6 +36,7 @@ function BuilderContent() {
     const builder = useMealBuilder({
         clientId,
         isTemplateMode,
+        editId,
         client,
         onSaved: (isTemplate) => {
             if (isTemplate) {
@@ -52,7 +54,7 @@ function BuilderContent() {
         return <ClientSelector />;
     }
 
-    if (!isTemplateMode && clientLoading) {
+    if ((!isTemplateMode && clientLoading) || builder.editLoading) {
         return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
     }
 
@@ -102,7 +104,7 @@ function BuilderContent() {
                             className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                         >
                             <Save className="w-4 h-4" />
-                            {builder.isSaving ? 'Saving...' : 'Save Template'}
+                            {builder.isSaving ? 'Saving...' : (builder.isEditMode ? 'Update Template' : 'Save Template')}
                         </button>
                     ) : (
                         <>
@@ -182,6 +184,7 @@ function BuilderContent() {
                             onOpenAddFood={builder.openAddFood}
                             onRemoveFood={builder.removeFood}
                             onUpdateFoodQuantity={builder.updateFoodQuantity}
+                            onUpdateFoodQuantityValue={builder.updateFoodQuantityValue}
                             onUpdateMealField={builder.updateMealField}
                             onAddAlternative={builder.addMealOption}
                             onRemoveOption={builder.removeOption}

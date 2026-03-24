@@ -75,3 +75,17 @@ export function useAcceptInvite() {
         },
     });
 }
+
+export function useRemoveMember() {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (memberId: string) => {
+            const res = await api.delete(`/team/${memberId}`);
+            return res.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['team'] });
+        },
+    });
+}

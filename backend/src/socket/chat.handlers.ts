@@ -75,8 +75,8 @@ export function registerChatHandlers(io: Server, socket: Socket) {
             const conversation = await chatService.getConversation(conversationId);
             if (conversation) {
                 const targetType = userType === 'user' ? 'client' : 'user';
-                const targetId = userType === 'user' ? conversation.clientId : conversation.userId;
-                invalidateChatCache(targetId);
+                const targetId = (userType === 'user' ? conversation.clientId : conversation.userId) ?? '';
+                if (targetId) invalidateChatCache(targetId);
                 // Notify recipient's personal room for unread badge (separate event to
                 // avoid duplicate chat:new_message when recipient is in conversation room).
                 socket.to(`${targetType}:${targetId}`).emit('chat:notification', {

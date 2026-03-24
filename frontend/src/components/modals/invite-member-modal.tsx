@@ -68,7 +68,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
                                 placeholder="colleague@example.com"
                             />
                         </div>
@@ -79,7 +79,7 @@ export function InviteMemberModal({ isOpen, onClose }: InviteMemberModalProps) {
                         <select
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-gray-900"
                         >
                             {canInviteAdmin && <option value="admin">Admin</option>}
                             <option value="dietitian">Dietitian</option>

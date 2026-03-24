@@ -7,6 +7,7 @@ export const createFoodItemSchema = z.object({
     category: z.string().min(1, 'Category is required'),
     subCategory: z.string().optional(),
     servingSizeG: z.number().positive().default(100),
+    servingUnit: z.enum(['g', 'ml', 'oz', 'cup', 'tbsp', 'tsp', 'piece', 'serving']).default('g'),
     calories: z.number().int().min(0),
     proteinG: z.number().min(0).optional(),
     carbsG: z.number().min(0).optional(),

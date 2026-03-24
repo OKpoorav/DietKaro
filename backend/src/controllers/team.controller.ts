@@ -114,6 +114,7 @@ export const inviteMember = asyncHandler(async (req: AuthenticatedRequest, res: 
                 id: invitation.id,
                 email: invitation.email,
                 status: invitation.status,
+                token: invitation.token,
             }
         }
     });
@@ -159,12 +160,24 @@ export const acceptInvite = asyncHandler(async (req: AuthenticatedRequest, res: 
         throw AppError.badRequest('Invalid or expired invitation', 'INVALID_INVITE');
     }
 
-    // 2. Check if DB User exists
+    // 2. Verify the logged-in user's email matches the invitation
+    const clerkUser = await clerkClient.users.getUser(clerkUserId);
+    const clerkEmail = clerkUser.emailAddresses[0]?.emailAddress;
+
+    if (!clerkEmail) throw AppError.badRequest('Your account has no email address', 'NO_EMAIL');
+
+    if (clerkEmail.toLowerCase() !== invitation.email.toLowerCase()) {
+        throw AppError.forbidden(
+            `This invitation was sent to ${invitation.email}. Please sign in with that email address to accept it.`,
+            'EMAIL_MISMATCH'
+        );
+    }
+
+    // 3. Check if DB User exists
     const dbUser = await prisma.user.findUnique({ where: { clerkUserId } });
 
     if (dbUser) {
-        // User exists -> Update Org/Role
-        // Optional: Check if email matches invitation.email
+        // User exists → update org/role
         await prisma.$transaction([
             prisma.user.update({
                 where: { id: dbUser.id },
@@ -180,21 +193,14 @@ export const acceptInvite = asyncHandler(async (req: AuthenticatedRequest, res: 
             })
         ]);
     } else {
-        // User DOES NOT exist -> Create new User
-        // Fetch Clerk Name + Email 
-        const clerkUser = await clerkClient.users.getUser(clerkUserId);
-        const email = clerkUser.emailAddresses[0]?.emailAddress;
-
-        if (!email) throw AppError.badRequest('Clerk user has no email', 'NO_EMAIL');
-        // if (email !== invitation.email) throw AppError.forbidden('Invite email does not match logged in user');
-
+        // User does not exist → create new user
         const fullName = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'Team Member';
 
         await prisma.$transaction([
             prisma.user.create({
                 data: {
                     clerkUserId,
-                    email,
+                    email: clerkEmail,
                     fullName,
                     role: invitation.role,
                     orgId: invitation.orgId,
@@ -211,5 +217,50 @@ export const acceptInvite = asyncHandler(async (req: AuthenticatedRequest, res: 
     res.status(200).json({
         success: true,
         message: 'Joined organization successfully'
+    });
+});
+
+export const removeMember = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+
+    const orgId = req.user.organizationId;
+    const callerRole = req.user.role;
+    const callerId = req.user.id;
+    const { memberId } = req.params;
+
+    // Find the target member
+    const member = await prisma.user.findFirst({
+        where: { id: memberId, orgId, isActive: true },
+        select: { id: true, role: true, fullName: true },
+    });
+
+    if (!member) {
+        throw AppError.notFound('Team member not found');
+    }
+
+    // Cannot remove yourself
+    if (member.id === callerId) {
+        throw AppError.forbidden('You cannot remove yourself');
+    }
+
+    // Admin can only remove dietitians — not other admins or the owner
+    if (callerRole === 'admin' && member.role !== 'dietitian') {
+        throw AppError.forbidden('Admins can only remove dietitians');
+    }
+
+    // Soft-delete the member and unassign their clients in one transaction
+    await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+            where: { id: memberId },
+            data: { isActive: false },
+        });
+        await tx.$executeRaw`UPDATE "Client" SET "primaryDietitianId" = NULL WHERE "primaryDietitianId" = ${memberId} AND "orgId" = ${orgId}`;
+    });
+
+    logger.info('Team member removed', { memberId, removedBy: callerId, memberRole: member.role });
+
+    res.status(200).json({
+        success: true,
+        message: `${member.fullName} has been removed from the team`,
     });
 });
