@@ -12,35 +12,48 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail } from 'lucide-react-native';
-import { useSignIn } from '@clerk/clerk-expo';
+import { useSignIn, useSignUp } from '@clerk/clerk-expo';
 import { useToast } from '../../components/Toast';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { signIn, isLoaded } = useSignIn();
+    const { signIn, isLoaded: signInLoaded } = useSignIn();
+    const { signUp, isLoaded: signUpLoaded } = useSignUp();
     const { showToast } = useToast();
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+    const isLoaded = signInLoaded && signUpLoaded;
 
-    const handleRequestOTP = async () => {
+    const handleSendOTP = async () => {
         if (!isValidEmail || !isLoaded) return;
 
         setIsLoading(true);
         try {
-            await signIn.create({
+            // Try sign in first (returning user)
+            await signIn!.create({
                 identifier: email.trim(),
                 strategy: 'email_code',
             });
-            router.push({
-                pathname: '/(auth)/verify',
-                params: { email: email.trim() },
-            });
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to send OTP. Please try again.';
-            showToast({ title: 'Error', message, variant: 'error' });
+            router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signIn' } });
+        } catch (signInError: unknown) {
+            // If account not found in Clerk, create one and send OTP via sign up
+            const errCode = (signInError as { code?: string })?.code ?? (signInError as { errors?: { code: string }[] })?.errors?.[0]?.code;
+            if (errCode === 'form_identifier_not_found' || errCode === 'session_exists') {
+                try {
+                    await signUp!.create({ emailAddress: email.trim() });
+                    await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
+                    router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signUp' } });
+                } catch (signUpError: unknown) {
+                    const message = signUpError instanceof Error ? signUpError.message : 'Failed to send OTP';
+                    showToast({ title: 'Error', message, variant: 'error' });
+                }
+            } else {
+                const message = signInError instanceof Error ? signInError.message : 'Failed to send OTP. Please try again.';
+                showToast({ title: 'Error', message, variant: 'error' });
+            }
         } finally {
             setIsLoading(false);
         }
@@ -80,7 +93,7 @@ export default function LoginScreen() {
 
                     <TouchableOpacity
                         style={[CommonStyles.primaryButton, !isValidEmail && CommonStyles.primaryButtonDisabled]}
-                        onPress={handleRequestOTP}
+                        onPress={handleSendOTP}
                         disabled={isLoading || !isValidEmail}
                     >
                         {isLoading ? (

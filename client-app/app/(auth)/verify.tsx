@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, ArrowLeft } from 'lucide-react-native';
-import { useSignIn, useAuth as useClerkAuth } from '@clerk/clerk-expo';
+import { useSignIn, useSignUp, useAuth as useClerkAuth } from '@clerk/clerk-expo';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/Toast';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
@@ -22,9 +22,11 @@ const RESEND_COOLDOWN = 30;
 
 export default function VerifyScreen() {
     const router = useRouter();
-    const { email } = useLocalSearchParams<{ email: string }>();
-    const { signIn, isLoaded } = useSignIn();
+    const { email, flow } = useLocalSearchParams<{ email: string; flow: 'signIn' | 'signUp' }>();
+    const { signIn, isLoaded: signInLoaded } = useSignIn();
+    const { signUp, isLoaded: signUpLoaded } = useSignUp();
     const { getToken } = useClerkAuth();
+    const isLoaded = signInLoaded && signUpLoaded;
     const { login } = useAuth();
     const { showToast } = useToast();
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
@@ -60,17 +62,21 @@ export default function VerifyScreen() {
     };
 
     const handleVerify = async (otpCode: string) => {
-        if (!isLoaded || !signIn) return;
+        if (!isLoaded) return;
 
         setIsLoading(true);
         try {
-            const result = await signIn.attemptFirstFactor({
-                strategy: 'email_code',
-                code: otpCode,
-            });
+            let status: string;
 
-            if (result.status === 'complete') {
-                // Get the Clerk session token and exchange with our backend
+            if (flow === 'signUp') {
+                const result = await signUp!.attemptEmailAddressVerification({ code: otpCode });
+                status = result.status ?? '';
+            } else {
+                const result = await signIn!.attemptFirstFactor({ strategy: 'email_code', code: otpCode });
+                status = result.status ?? '';
+            }
+
+            if (status === 'complete') {
                 const clerkToken = await getToken();
                 if (!clerkToken) throw new Error('Failed to get session token');
                 await login(clerkToken);
@@ -87,19 +93,20 @@ export default function VerifyScreen() {
     };
 
     const handleResend = useCallback(async () => {
-        if (resendTimer > 0 || !isLoaded || !signIn || !email) return;
+        if (resendTimer > 0 || !isLoaded || !email) return;
         try {
-            await signIn.create({
-                identifier: email,
-                strategy: 'email_code',
-            });
+            if (flow === 'signUp') {
+                await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
+            } else {
+                await signIn!.create({ identifier: email, strategy: 'email_code' });
+            }
             setResendTimer(RESEND_COOLDOWN);
             showToast({ title: 'OTP Sent', message: 'A new code has been sent to your email', variant: 'success' });
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to resend code';
             showToast({ title: 'Error', message, variant: 'error' });
         }
-    }, [resendTimer, email, isLoaded, signIn, showToast]);
+    }, [resendTimer, email, flow, isLoaded, signIn, signUp, showToast]);
 
     return (
         <SafeAreaView style={styles.container}>
