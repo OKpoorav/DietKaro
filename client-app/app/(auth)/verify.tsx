@@ -85,8 +85,15 @@ export default function VerifyScreen() {
             if (status === 'complete') {
                 const clerkToken = await getToken();
                 if (!clerkToken) throw new Error('Failed to get session token');
-                await login(clerkToken);
-                router.replace('/(tabs)/home');
+                try {
+                    await login(clerkToken);
+                    router.replace('/(tabs)/home');
+                } catch (backendError: unknown) {
+                    // Clerk session is valid but backend call failed — don't clear OTP
+                    const message = backendError instanceof Error ? backendError.message : 'Server error. Please try again.';
+                    showToast({ title: 'Login Failed', message, variant: 'error' });
+                }
+                return;
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Invalid or expired code';
