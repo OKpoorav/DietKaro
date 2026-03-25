@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { createClerkClient } from '@clerk/backend';
+import { createClerkClient, verifyToken } from '@clerk/backend';
 import prisma from '../utils/prisma';
 import redis from '../utils/redis';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -85,7 +85,7 @@ export const clerkLogin = asyncHandler(async (req: Request, res: Response) => {
     // Verify the Clerk JWT and get the user
     let clerkUserId: string;
     try {
-        const payload = await clerk.verifyToken(clerkToken);
+        const payload = await verifyToken(clerkToken, { secretKey: process.env.CLERK_SECRET_KEY! });
         clerkUserId = payload.sub;
     } catch {
         throw AppError.unauthorized('Invalid or expired Clerk token');
