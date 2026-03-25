@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth as useClerkAuth } from '@clerk/clerk-expo';
 import { authStore } from '../store/authStore';
 import { clientAuthApi, deviceApi, setForceLogoutHandler } from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
@@ -28,6 +29,7 @@ async function registerPushToken() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const { signOut: clerkSignOut } = useClerkAuth();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [client, setClient] = useState<Client | null>(null);
@@ -90,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await authStore.removeToken();
         setClient(null);
         setIsAuthenticated(false);
-    }, []);
+        try { await clerkSignOut(); } catch { /* ignore */ }
+    }, [clerkSignOut]);
 
     const refreshClient = useCallback(async () => {
         try {
