@@ -22,7 +22,7 @@ export default function LoginScreen() {
     const router = useRouter();
     const { signIn, isLoaded: signInLoaded } = useSignIn();
     const { signUp, isLoaded: signUpLoaded } = useSignUp();
-    const { getToken, signOut } = useClerkAuth();
+    const { isSignedIn, getToken, signOut } = useClerkAuth();
     const { login } = useAuth();
     const { showToast } = useToast();
     const [email, setEmail] = useState('');
@@ -52,6 +52,18 @@ export default function LoginScreen() {
                 throw checkError;
             }
 
+            // If already signed into Clerk, exchange existing session directly
+            if (isSignedIn) {
+                const clerkToken = await getToken();
+                if (!clerkToken) {
+                    await signOut();
+                    throw new Error('Session expired. Please try again.');
+                }
+                await login(clerkToken);
+                router.replace('/(tabs)/home');
+                return;
+            }
+
             // Try sign in first (returning user)
             try {
                 await signIn!.create({
@@ -67,15 +79,6 @@ export default function LoginScreen() {
                     await signUp!.create({ emailAddress: email.trim() });
                     await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
                     router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signUp' } });
-                } else if (errCode === 'identifier_already_signed_in' || errCode === 'session_exists') {
-                    // Already have a valid Clerk session — exchange it directly
-                    const clerkToken = await getToken();
-                    if (!clerkToken) {
-                        await signOut();
-                        throw new Error('Session expired. Please try again.');
-                    }
-                    await login(clerkToken);
-                    router.replace('/(tabs)/home');
                 } else {
                     throw signInError;
                 }
