@@ -34,33 +34,43 @@ export default function LoginScreen() {
         setIsLoading(true);
         try {
             // First check if email exists as a client in our DB
-            await clientAuthApi.checkEmail(email.trim());
+            try {
+                await clientAuthApi.checkEmail(email.trim());
+            } catch (checkError: unknown) {
+                const status = (checkError as { response?: { status?: number } })?.response?.status;
+                if (status === 404) {
+                    showToast({
+                        title: 'Account Not Found',
+                        message: 'No account found with this email. Please contact your dietitian.',
+                        variant: 'error',
+                    });
+                    return;
+                }
+                throw checkError;
+            }
 
             // Try sign in first (returning user)
-            await signIn!.create({
-                identifier: email.trim(),
-                strategy: 'email_code',
-            });
-            router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signIn' } });
-        } catch (signInError: unknown) {
-            // If account not found in Clerk, create one and send OTP via sign up
-            const clerkError = signInError as { errors?: { code: string; message: string }[]; code?: string; message?: string };
-            const errCode = clerkError?.errors?.[0]?.code ?? clerkError?.code ?? '';
-            const errMsg = clerkError?.errors?.[0]?.message ?? clerkError?.message ?? '';
-            const isNotFound = errCode === 'form_identifier_not_found' || errMsg.toLowerCase().includes('find') || errMsg.toLowerCase().includes('account');
-            if (isNotFound) {
-                try {
+            try {
+                await signIn!.create({
+                    identifier: email.trim(),
+                    strategy: 'email_code',
+                });
+                router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signIn' } });
+            } catch (signInError: unknown) {
+                // If account not found in Clerk, create one and send OTP via sign up
+                const clerkError = signInError as { errors?: { code: string; message: string }[] };
+                const errCode = clerkError?.errors?.[0]?.code ?? '';
+                if (errCode === 'form_identifier_not_found') {
                     await signUp!.create({ emailAddress: email.trim() });
                     await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
                     router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signUp' } });
-                } catch (signUpError: unknown) {
-                    const message = signUpError instanceof Error ? signUpError.message : 'Failed to send OTP';
-                    showToast({ title: 'Error', message, variant: 'error' });
+                } else {
+                    throw signInError;
                 }
-            } else {
-                const message = signInError instanceof Error ? signInError.message : 'Failed to send OTP. Please try again.';
-                showToast({ title: 'Error', message, variant: 'error' });
             }
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to send OTP. Please try again.';
+            showToast({ title: 'Error', message, variant: 'error' });
         } finally {
             setIsLoading(false);
         }
