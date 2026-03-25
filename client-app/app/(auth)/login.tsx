@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail } from 'lucide-react-native';
 import { useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { clientAuthApi } from '../../services/api';
 import { useToast } from '../../components/Toast';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
 
@@ -32,6 +33,9 @@ export default function LoginScreen() {
 
         setIsLoading(true);
         try {
+            // First check if email exists as a client in our DB
+            await clientAuthApi.checkEmail(email.trim());
+
             // Try sign in first (returning user)
             await signIn!.create({
                 identifier: email.trim(),
@@ -40,8 +44,11 @@ export default function LoginScreen() {
             router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signIn' } });
         } catch (signInError: unknown) {
             // If account not found in Clerk, create one and send OTP via sign up
-            const errCode = (signInError as { code?: string })?.code ?? (signInError as { errors?: { code: string }[] })?.errors?.[0]?.code;
-            if (errCode === 'form_identifier_not_found' || errCode === 'session_exists') {
+            const clerkError = signInError as { errors?: { code: string; message: string }[]; code?: string; message?: string };
+            const errCode = clerkError?.errors?.[0]?.code ?? clerkError?.code ?? '';
+            const errMsg = clerkError?.errors?.[0]?.message ?? clerkError?.message ?? '';
+            const isNotFound = errCode === 'form_identifier_not_found' || errMsg.toLowerCase().includes('find') || errMsg.toLowerCase().includes('account');
+            if (isNotFound) {
                 try {
                     await signUp!.create({ emailAddress: email.trim() });
                     await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });

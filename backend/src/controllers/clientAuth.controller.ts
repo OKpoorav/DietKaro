@@ -51,6 +51,27 @@ import logger from '../utils/logger';
 //     res.status(200).json({ success: true, data: { token: accessToken, accessToken, refreshToken, expiresIn: 900, client: { id: client.id, fullName: client.fullName, email: client.email, phone: client.phone, profilePhotoUrl: client.profilePhotoUrl, heightCm: client.heightCm, currentWeightKg: client.currentWeightKg, targetWeightKg: client.targetWeightKg, dietaryPreferences: client.dietaryPreferences, allergies: client.allergies, onboardingCompleted: client.onboardingCompleted, dietitian: client.primaryDietitian } } });
 // });
 
+// Pre-check: confirm email belongs to an active client before sending Clerk OTP
+export const checkClientEmail = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) throw AppError.badRequest('Email required', 'MISSING_EMAIL');
+
+    const client = await prisma.client.findFirst({
+        where: { email: email.toLowerCase().trim(), isActive: true },
+        select: { id: true },
+    });
+
+    if (!client) {
+        throw AppError.notFound(
+            'No account found with this email. Please contact your dietitian.',
+            'CLIENT_NOT_FOUND',
+        );
+    }
+
+    res.status(200).json({ success: true });
+});
+
 // Authenticate mobile client via Clerk session token → returns our backend JWT
 export const clerkLogin = asyncHandler(async (req: Request, res: Response) => {
     const { clerkToken } = req.body;

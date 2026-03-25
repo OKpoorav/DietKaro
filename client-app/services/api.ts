@@ -137,6 +137,10 @@ export const clientAuthApi = {
     // verifyOTP: (phone: string, otp: string) =>
     //     api.post<ApiResponse<{ token: string; client: Client }>>('/client-auth/verify-otp', { phone, otp }),
 
+    // Pre-check: verify email exists as a client before sending Clerk OTP
+    checkEmail: (email: string) =>
+        api.post<ApiResponse<null>>('/client-auth/check-email', { email }),
+
     // Exchanges a Clerk session token for a backend JWT
     clerkLogin: (clerkToken: string) =>
         api.post<ApiResponse<{ token: string; accessToken: string; refreshToken: string; expiresIn: number; client: Client }>>('/client-auth/clerk-login', { clerkToken }),
