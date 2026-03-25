@@ -23,8 +23,8 @@ const RESEND_COOLDOWN = 30;
 export default function VerifyScreen() {
     const router = useRouter();
     const { email, flow } = useLocalSearchParams<{ email: string; flow: 'signIn' | 'signUp' }>();
-    const { signIn, isLoaded: signInLoaded } = useSignIn();
-    const { signUp, isLoaded: signUpLoaded } = useSignUp();
+    const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
+    const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
     const { getToken } = useClerkAuth();
     const isLoaded = signInLoaded && signUpLoaded;
     const { login } = useAuth();
@@ -71,9 +71,15 @@ export default function VerifyScreen() {
             if (flow === 'signUp') {
                 const result = await signUp!.attemptEmailAddressVerification({ code: otpCode });
                 status = result.status ?? '';
+                if (status === 'complete') {
+                    await setSignUpActive!({ session: result.createdSessionId });
+                }
             } else {
                 const result = await signIn!.attemptFirstFactor({ strategy: 'email_code', code: otpCode });
                 status = result.status ?? '';
+                if (status === 'complete') {
+                    await setSignInActive!({ session: result.createdSessionId });
+                }
             }
 
             if (status === 'complete') {

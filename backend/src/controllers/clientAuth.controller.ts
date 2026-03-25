@@ -92,16 +92,18 @@ export const clerkLogin = asyncHandler(async (req: Request, res: Response) => {
     }
 
     const clerkUser = await clerk.users.getUser(clerkUserId);
-    const email = clerkUser.emailAddresses.find(
+    const rawEmail = clerkUser.emailAddresses.find(
         (e) => e.id === clerkUser.primaryEmailAddressId,
     )?.emailAddress;
 
-    if (!email) {
+    if (!rawEmail) {
         throw AppError.badRequest('No email found in Clerk account', 'NO_EMAIL');
     }
 
+    const email = rawEmail.toLowerCase().trim();
+
     const client = await prisma.client.findFirst({
-        where: { email, isActive: true },
+        where: { email: { equals: email, mode: 'insensitive' }, isActive: true },
         include: {
             primaryDietitian: {
                 select: { fullName: true, email: true },
