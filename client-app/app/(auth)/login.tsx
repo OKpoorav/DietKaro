@@ -12,8 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail } from 'lucide-react-native';
-import { useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { useSignIn, useSignUp, useAuth as useClerkAuth } from '@clerk/clerk-expo';
 import { clientAuthApi } from '../../services/api';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/Toast';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
 
@@ -21,6 +22,8 @@ export default function LoginScreen() {
     const router = useRouter();
     const { signIn, isLoaded: signInLoaded } = useSignIn();
     const { signUp, isLoaded: signUpLoaded } = useSignUp();
+    const { getToken, signOut } = useClerkAuth();
+    const { login } = useAuth();
     const { showToast } = useToast();
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -57,13 +60,22 @@ export default function LoginScreen() {
                 });
                 router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signIn' } });
             } catch (signInError: unknown) {
-                // If account not found in Clerk, create one and send OTP via sign up
                 const clerkError = signInError as { errors?: { code: string; message: string }[] };
                 const errCode = clerkError?.errors?.[0]?.code ?? '';
                 if (errCode === 'form_identifier_not_found') {
+                    // First-time Clerk user — sign up and send OTP
                     await signUp!.create({ emailAddress: email.trim() });
                     await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
                     router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signUp' } });
+                } else if (errCode === 'identifier_already_signed_in' || errCode === 'session_exists') {
+                    // Already have a valid Clerk session — exchange it directly
+                    const clerkToken = await getToken();
+                    if (!clerkToken) {
+                        await signOut();
+                        throw new Error('Session expired. Please try again.');
+                    }
+                    await login(clerkToken);
+                    router.replace('/(tabs)/home');
                 } else {
                     throw signInError;
                 }
