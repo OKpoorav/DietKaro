@@ -58,7 +58,7 @@ export const checkClientEmail = asyncHandler(async (req: Request, res: Response)
     if (!email) throw AppError.badRequest('Email required', 'MISSING_EMAIL');
 
     const client = await prisma.client.findFirst({
-        where: { email: email.toLowerCase().trim(), isActive: true },
+        where: { email: { equals: email.toLowerCase().trim(), mode: 'insensitive' }, isActive: true },
         select: { id: true },
     });
 
