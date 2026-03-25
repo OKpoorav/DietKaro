@@ -131,11 +131,15 @@ api.interceptors.response.use(
 
 // Client Auth API - uses /client-auth endpoints
 export const clientAuthApi = {
-    requestOTP: (phone: string) =>
-        api.post<ApiResponse<{ message: string }>>('/client-auth/request-otp', { phone }),
+    // TODO: Re-enable phone OTP when SMS delivery is set up
+    // requestOTP: (phone: string) =>
+    //     api.post<ApiResponse<{ message: string }>>('/client-auth/request-otp', { phone }),
+    // verifyOTP: (phone: string, otp: string) =>
+    //     api.post<ApiResponse<{ token: string; client: Client }>>('/client-auth/verify-otp', { phone, otp }),
 
-    verifyOTP: (phone: string, otp: string) =>
-        api.post<ApiResponse<{ token: string; client: Client }>>('/client-auth/verify-otp', { phone, otp }),
+    // Exchanges a Clerk session token for a backend JWT
+    clerkLogin: (clerkToken: string) =>
+        api.post<ApiResponse<{ token: string; accessToken: string; refreshToken: string; expiresIn: number; client: Client }>>('/client-auth/clerk-login', { clerkToken }),
 
     getProfile: () =>
         api.get<ApiResponse<Client>>('/client-auth/me'),

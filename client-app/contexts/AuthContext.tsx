@@ -9,9 +9,8 @@ interface AuthContextValue {
     isAuthenticated: boolean;
     isLoading: boolean;
     client: Client | null;
-    login: (phone: string, otp: string) => Promise<void>;
+    login: (clerkToken: string) => Promise<void>;
     logout: () => Promise<void>;
-    requestOTP: (phone: string) => Promise<void>;
     refreshClient: () => Promise<void>;
 }
 
@@ -42,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAuthenticated(false);
         });
 
-        // Set up notification tap listener
         notificationListenerRef.current = setupNotificationResponseListener();
         return () => {
             notificationListenerRef.current?.remove();
@@ -72,12 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const requestOTP = useCallback(async (phone: string) => {
-        await clientAuthApi.requestOTP(phone);
-    }, []);
-
-    const login = useCallback(async (phone: string, otp: string) => {
-        const response = await clientAuthApi.verifyOTP(phone, otp);
+    // Exchanges a Clerk session token for our backend JWT
+    const login = useCallback(async (clerkToken: string) => {
+        const response = await clientAuthApi.clerkLogin(clerkToken);
         const { token, refreshToken, client: clientData } = response.data.data;
 
         await authStore.setToken(token);
@@ -114,9 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         client,
         login,
         logout,
-        requestOTP,
         refreshClient,
-    }), [isAuthenticated, isLoading, client, login, logout, requestOTP, refreshClient]);
+    }), [isAuthenticated, isLoading, client, login, logout, refreshClient]);
 
     return (
         <AuthContext.Provider value={value}>

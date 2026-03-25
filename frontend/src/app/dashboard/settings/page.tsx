@@ -13,6 +13,8 @@ import {
     Check,
     Loader2
 } from 'lucide-react';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { useClerk } from '@clerk/nextjs';
 import { useProfile, useUpdateProfile } from '@/lib/hooks/use-profile';
 import { toast } from 'sonner';
@@ -160,12 +162,12 @@ export default function SettingsPage() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                        <input
-                                            type="tel"
+                                        <PhoneInput
+                                            international
+                                            defaultCountry="IN"
                                             value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                            placeholder="+1 234 567 8900"
+                                            onChange={(value) => setFormData({ ...formData, phone: value || '' })}
+                                            className="phone-input-field"
                                         />
                                     </div>
                                     <div className="md:col-span-2">

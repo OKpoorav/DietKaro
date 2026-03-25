@@ -25,3 +25,33 @@ body {
     text-wrap: balance;
   }
 }
+
+/* react-phone-number-input custom styles */
+.phone-input-field {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: white;
+  padding: 0 0.75rem;
+  gap: 0.5rem;
+}
+.phone-input-field:focus-within {
+  outline: none;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.15);
+}
+.phone-input-field .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.phone-input-field .PhoneInputInput {
+  flex: 1;
+  padding: 0.625rem 0;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  color: #111827;
+  background: transparent;
+}

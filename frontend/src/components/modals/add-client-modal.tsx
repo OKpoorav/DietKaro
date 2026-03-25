@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { User, Phone, Mail, Calendar, Target, AlertCircle } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle } from 'lucide-react';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 interface AddClientModalProps {
     isOpen: boolean;
@@ -94,18 +96,13 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Phone Number *
                             </label>
-                            <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    required
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                    placeholder="+91 98765 43210"
-                                />
-                            </div>
+                            <PhoneInput
+                                international
+                                defaultCountry="IN"
+                                value={formData.phone}
+                                onChange={(value) => setFormData({ ...formData, phone: value || '' })}
+                                className="phone-input-field"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">

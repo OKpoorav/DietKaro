@@ -12,9 +12,9 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, ArrowLeft } from 'lucide-react-native';
+import { useSignIn, useAuth as useClerkAuth } from '@clerk/clerk-expo';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/Toast';
-import { normalizeError } from '../../utils/errorHandler';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
 
 const OTP_LENGTH = 6;
@@ -22,8 +22,10 @@ const RESEND_COOLDOWN = 30;
 
 export default function VerifyScreen() {
     const router = useRouter();
-    const { phone } = useLocalSearchParams<{ phone: string }>();
-    const { login, requestOTP } = useAuth();
+    const { email } = useLocalSearchParams<{ email: string }>();
+    const { signIn, isLoaded } = useSignIn();
+    const { getToken } = useClerkAuth();
+    const { login } = useAuth();
     const { showToast } = useToast();
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [isLoading, setIsLoading] = useState(false);
@@ -58,15 +60,25 @@ export default function VerifyScreen() {
     };
 
     const handleVerify = async (otpCode: string) => {
-        if (!phone) return;
+        if (!isLoaded || !signIn) return;
 
         setIsLoading(true);
         try {
-            await login(phone, otpCode);
-            router.replace('/(tabs)/home');
+            const result = await signIn.attemptFirstFactor({
+                strategy: 'email_code',
+                code: otpCode,
+            });
+
+            if (result.status === 'complete') {
+                // Get the Clerk session token and exchange with our backend
+                const clerkToken = await getToken();
+                if (!clerkToken) throw new Error('Failed to get session token');
+                await login(clerkToken);
+                router.replace('/(tabs)/home');
+            }
         } catch (error: unknown) {
-            const appError = normalizeError(error);
-            showToast({ title: appError.title, message: appError.message, variant: 'error' });
+            const message = error instanceof Error ? error.message : 'Invalid or expired code';
+            showToast({ title: 'Invalid Code', message, variant: 'error' });
             setOtp(Array(OTP_LENGTH).fill(''));
             inputRefs.current[0]?.focus();
         } finally {
@@ -75,16 +87,19 @@ export default function VerifyScreen() {
     };
 
     const handleResend = useCallback(async () => {
-        if (resendTimer > 0 || !phone) return;
+        if (resendTimer > 0 || !isLoaded || !signIn || !email) return;
         try {
-            await requestOTP(phone);
+            await signIn.create({
+                identifier: email,
+                strategy: 'email_code',
+            });
             setResendTimer(RESEND_COOLDOWN);
-            showToast({ title: 'OTP Sent', message: 'A new code has been sent to your phone', variant: 'success' });
+            showToast({ title: 'OTP Sent', message: 'A new code has been sent to your email', variant: 'success' });
         } catch (error: unknown) {
-            const appError = normalizeError(error);
-            showToast({ title: appError.title, message: appError.message, variant: 'error' });
+            const message = error instanceof Error ? error.message : 'Failed to resend code';
+            showToast({ title: 'Error', message, variant: 'error' });
         }
-    }, [resendTimer, phone, requestOTP, showToast]);
+    }, [resendTimer, email, isLoaded, signIn, showToast]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -100,10 +115,10 @@ export default function VerifyScreen() {
                     <View style={styles.iconContainer}>
                         <ShieldCheck size={32} color={Colors.primary} />
                     </View>
-                    <Text style={styles.title}>Verify OTP</Text>
+                    <Text style={styles.title}>Check your email</Text>
                     <Text style={styles.subtitle}>
                         Enter the 6-digit code sent to{'\n'}
-                        <Text style={styles.phone}>+91 {phone}</Text>
+                        <Text style={styles.emailText}>{email}</Text>
                     </Text>
                 </View>
 
@@ -190,7 +205,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
     },
-    phone: {
+    emailText: {
         color: Colors.text,
         fontWeight: FontWeights.semibold,
     },

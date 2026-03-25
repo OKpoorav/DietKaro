@@ -11,42 +11,36 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Phone } from 'lucide-react-native';
-import { useAuth } from '../../hooks/useAuth';
+import { Mail } from 'lucide-react-native';
+import { useSignIn } from '@clerk/clerk-expo';
 import { useToast } from '../../components/Toast';
-import { normalizeError } from '../../utils/errorHandler';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../constants/theme';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { requestOTP } = useAuth();
+    const { signIn, isLoaded } = useSignIn();
     const { showToast } = useToast();
-    const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const isValidPhone = /^\d{10}$/.test(phone);
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
     const handleRequestOTP = async () => {
-        if (!isValidPhone) {
-            showToast({ title: 'Invalid Phone', message: 'Please enter a valid 10-digit phone number', variant: 'warning' });
-            return;
-        }
+        if (!isValidEmail || !isLoaded) return;
 
         setIsLoading(true);
         try {
-            await requestOTP(phone);
+            await signIn.create({
+                identifier: email.trim(),
+                strategy: 'email_code',
+            });
             router.push({
                 pathname: '/(auth)/verify',
-                params: { phone },
+                params: { email: email.trim() },
             });
         } catch (error: unknown) {
-            const appError = normalizeError(error);
-            showToast({
-                title: appError.title,
-                message: appError.message,
-                variant: 'error',
-                action: appError.isRetryable ? { label: 'Retry', onPress: handleRequestOTP } : undefined,
-            });
+            const message = error instanceof Error ? error.message : 'Failed to send OTP. Please try again.';
+            showToast({ title: 'Error', message, variant: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -60,39 +54,39 @@ export default function LoginScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.iconContainer}>
-                        <Phone size={32} color={Colors.primary} />
+                        <Mail size={32} color={Colors.primary} />
                     </View>
                     <Text style={styles.title}>Welcome to HealthPractix</Text>
                     <Text style={styles.subtitle}>
-                        Enter your phone number to get started with your personalized diet plan
+                        Enter your email address to get started with your personalized diet plan
                     </Text>
                 </View>
 
                 <View style={styles.form}>
-                    <Text style={styles.label}>Phone Number</Text>
+                    <Text style={styles.label}>Email Address</Text>
                     <View style={styles.inputContainer}>
-                        <Text style={styles.prefix}>+91</Text>
                         <TextInput
                             style={styles.input}
-                            value={phone}
-                            onChangeText={setPhone}
-                            placeholder="9876543210"
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholder="you@example.com"
                             placeholderTextColor={Colors.textSecondary}
-                            keyboardType="phone-pad"
-                            maxLength={10}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoComplete="email"
                             autoFocus
                         />
                     </View>
 
                     <TouchableOpacity
-                        style={[CommonStyles.primaryButton, !isValidPhone && CommonStyles.primaryButtonDisabled]}
+                        style={[CommonStyles.primaryButton, !isValidEmail && CommonStyles.primaryButtonDisabled]}
                         onPress={handleRequestOTP}
-                        disabled={isLoading || !isValidPhone}
+                        disabled={isLoading || !isValidEmail}
                     >
                         {isLoading ? (
                             <ActivityIndicator color={Colors.text} />
                         ) : (
-                            <Text style={CommonStyles.primaryButtonText}>Get OTP</Text>
+                            <Text style={CommonStyles.primaryButtonText}>Send OTP</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -159,19 +153,13 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.md,
         backgroundColor: Colors.surface,
         marginBottom: Spacing.xxl,
-    },
-    prefix: {
         paddingHorizontal: Spacing.lg,
-        fontSize: FontSizes.lg,
-        color: Colors.text,
-        fontWeight: FontWeights.medium,
     },
     input: {
         flex: 1,
         height: 56,
-        fontSize: FontSizes.xl,
+        fontSize: FontSizes.lg,
         color: Colors.text,
-        letterSpacing: 1,
     },
     footer: {
         fontSize: FontSizes.xs,

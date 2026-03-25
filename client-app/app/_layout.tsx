@@ -4,6 +4,9 @@ import NetInfo from '@react-native-community/netinfo';
 import { ToastProvider } from '../components/Toast';
 import { AuthProvider } from '../contexts/AuthContext';
 import { normalizeError } from '../utils/errorHandler';
+import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
+import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
 // Tell react-query about actual network state so it pauses
 // mutations when offline and replays them on reconnect.
@@ -33,14 +36,32 @@ const queryClient = new QueryClient({
     },
 });
 
+const tokenCache = {
+    async getToken(key: string) {
+        return SecureStore.getItemAsync(key);
+    },
+    async saveToken(key: string, value: string) {
+        return SecureStore.setItemAsync(key, value);
+    },
+    async clearToken(key: string) {
+        return SecureStore.deleteItemAsync(key);
+    },
+};
+
+const clerkPublishableKey = Constants.expoConfig?.extra?.clerkPublishableKey as string;
+
 export default function RootLayout() {
     return (
-        <QueryClientProvider client={queryClient}>
-            <ToastProvider>
-                <AuthProvider>
-                    <Slot />
-                </AuthProvider>
-            </ToastProvider>
-        </QueryClientProvider>
+        <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
+            <ClerkLoaded>
+                <QueryClientProvider client={queryClient}>
+                    <ToastProvider>
+                        <AuthProvider>
+                            <Slot />
+                        </AuthProvider>
+                    </ToastProvider>
+                </QueryClientProvider>
+            </ClerkLoaded>
+        </ClerkProvider>
     );
 }
