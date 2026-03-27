@@ -118,33 +118,17 @@ export default function ReportsScreen() {
     const uploadFile = async (uri: string, fileName: string, fileType: string) => {
         setUploading(true);
         try {
-            // Get presigned URL
-            const urlResponse = await api.post('/client/reports/upload-url', {
-                fileName,
-                fileType,
-                reportType: 'other',
-            });
+            const formData = new FormData();
+            formData.append('file', { uri, name: fileName, type: fileType } as any);
+            formData.append('reportType', 'other');
 
-            const { uploadUrl, key } = urlResponse.data.data;
-
-            // Upload to S3
-            const fileResponse = await fetch(uri);
-            const blob = await fileResponse.blob();
-
-            await fetch(uploadUrl, {
-                method: 'PUT',
-                body: blob,
-                headers: {
-                    'Content-Type': fileType,
+            await api.post('/client/reports/upload', formData, {
+                timeout: 120000,
+                transformRequest: (data, headers) => {
+                    // Let React Native XHR set Content-Type with the correct multipart boundary
+                    if (headers) delete headers['Content-Type'];
+                    return data;
                 },
-            });
-
-            // Save report metadata
-            await api.post('/client/reports', {
-                key,
-                fileName,
-                fileType,
-                reportType: 'other',
             });
 
             toast.showToast({ title: 'Success', message: 'Report uploaded successfully!', variant: 'success' });

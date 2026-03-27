@@ -34,7 +34,13 @@ export function initializeSocket(httpServer: HttpServer): SocketServer {
 
     io = new SocketServer(httpServer, {
         cors: {
-            origin: allowedOrigins,
+            // Use a function (not an array) so requests with no Origin header
+            // (React Native / mobile apps) are allowed, matching app.ts CORS behavior.
+            origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+                if (!origin) return callback(null, true); // mobile apps, curl
+                if (allowedOrigins.includes(origin)) return callback(null, true);
+                callback(null, false);
+            },
             methods: ['GET', 'POST'],
             credentials: true,
         },

@@ -4,7 +4,8 @@ import { ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
-import { getPresignedPutUrl, deleteFromS3 } from '../services/storage.service';
+import { getPresignedPutUrl, deleteFromS3, uploadToS3 } from '../services/storage.service';
+import { REPORT_MIMES, validateFileContent } from '../middleware/upload.middleware';
 import { enqueueDocumentProcessing } from '../jobs/queue';
 
 /**
@@ -140,6 +141,59 @@ export const createReport = asyncHandler(async (req: ClientAuthRequest, res: Res
         success: true,
         data: report,
     });
+});
+
+/**
+ * Direct multipart upload for mobile clients.
+ * Avoids presigned URLs which use internal Docker hostname (minio:9000) unreachable from mobile.
+ */
+export const uploadReportDirect = asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    if (!req.file) throw AppError.badRequest('No file provided');
+
+    await validateFileContent(req.file.buffer, REPORT_MIMES);
+
+    const reportType = (req.body.reportType as string) || 'other';
+    const notes = req.body.notes as string | undefined;
+    const originalName = req.file.originalname || 'file';
+
+    const timestamp = Date.now();
+    const sanitizedFileName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `reports/${req.client.orgId}/${req.client.id}/${timestamp}-${sanitizedFileName}`;
+
+    await uploadToS3(req.file.buffer, key, req.file.mimetype);
+
+    const fileTypeLabel = req.file.mimetype.startsWith('image/') ? 'image'
+        : req.file.mimetype === 'application/pdf' ? 'pdf'
+        : 'other';
+
+    const report = await prisma.clientReport.create({
+        data: {
+            orgId: req.client.orgId,
+            clientId: req.client.id,
+            fileName: originalName,
+            fileUrl: key,
+            fileType: fileTypeLabel,
+            mimeType: req.file.mimetype,
+            s3Key: key,
+            reportType,
+            notes,
+        },
+    });
+
+    logger.info('Client report uploaded (direct)', {
+        clientId: req.client.id,
+        reportId: report.id,
+        reportType,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+    });
+
+    enqueueDocumentProcessing(report.id).catch((err) =>
+        logger.error('Failed to enqueue document processing', { reportId: report.id, error: err.message }),
+    );
+
+    res.status(201).json({ success: true, data: report });
 });
 
 /**
