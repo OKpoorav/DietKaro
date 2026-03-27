@@ -82,7 +82,8 @@ if (env.NODE_ENV === 'production') {
 app.use('/api/', apiLimiter);
 
 // Clerk middleware - only for admin/dietitian routes (NOT client mobile app routes)
-app.use(/^\/api\/v1\/(?!client)/, clerkMiddleware());
+// Excludes /api/v1/client and /api/v1/client-auth but NOT /api/v1/clients (dietitian route)
+app.use(/^\/api\/v1\/(?!client(?!s))/, clerkMiddleware());
 
 // Health check (liveness)
 app.get('/health', (req, res) => {
