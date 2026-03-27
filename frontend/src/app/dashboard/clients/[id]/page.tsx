@@ -8,6 +8,7 @@ import {
     Send,
     Utensils,
     Flag,
+    Settings,
     TrendingDown,
     TrendingUp,
     Loader2,
@@ -27,6 +28,7 @@ import { useWeeklyAdherence, useComplianceHistory } from '@/lib/hooks/use-compli
 import { useMealLogs } from '@/lib/hooks/use-meal-logs';
 import { getInitials, calculateAge } from '@/lib/utils/formatters';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
+import { EditClientModal, type EditClientFormData } from '@/components/modals/edit-client-modal';
 
 // ============ TYPES ============
 
@@ -83,6 +85,28 @@ export default function ClientProfilePage() {
     const { data: mealLogsData, isLoading: mealLogsLoading } = useMealLogs({ clientId, pageSize: 20 });
     const { data: complianceHistory } = useComplianceHistory(clientId, 30);
     const updateClient = useUpdateClient();
+
+    // Edit client modal state
+    const [editClientOpen, setEditClientOpen] = useState(false);
+
+    const handleEditClient = (data: EditClientFormData) => {
+        const parseList = (s: string) => s.split(',').map(v => v.trim()).filter(Boolean);
+        updateClient.mutate({
+            id: clientId,
+            fullName: data.fullName,
+            email: data.email,
+            phone: data.phone,
+            dateOfBirth: data.dateOfBirth || undefined,
+            gender: (data.gender as 'male' | 'female' | 'other') || undefined,
+            heightCm: data.heightCm ? Number(data.heightCm) : undefined,
+            currentWeightKg: data.currentWeightKg ? Number(data.currentWeightKg) : undefined,
+            targetWeightKg: data.targetWeightKg ? Number(data.targetWeightKg) : undefined,
+            allergies: parseList(data.allergies),
+            medicalConditions: parseList(data.medicalConditions),
+        } as Parameters<typeof updateClient.mutate>[0], {
+            onSuccess: () => setEditClientOpen(false),
+        });
+    };
 
     // Editable nutrition targets state
     const [editingTargets, setEditingTargets] = useState(false);
@@ -151,6 +175,13 @@ export default function ClientProfilePage() {
                         <span className="text-sm font-medium">Back to Clients</span>
                     </Link>
                     <div className="flex gap-2">
+                        <button
+                            onClick={() => setEditClientOpen(true)}
+                            className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Edit Client
+                        </button>
                         <Link
                             href={`/dashboard/diet-plans/new?clientId=${clientId}`}
                             className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors"
@@ -762,6 +793,14 @@ export default function ClientProfilePage() {
                     </div>
                 )}
             </section>
+
+            <EditClientModal
+                isOpen={editClientOpen}
+                onClose={() => setEditClientOpen(false)}
+                client={client}
+                onSubmit={handleEditClient}
+                isLoading={updateClient.isPending}
+            />
         </div>
     );
 }
