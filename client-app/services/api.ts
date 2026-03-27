@@ -170,7 +170,7 @@ export const mealLogsApi = {
 
     uploadPhoto: (mealId: string, formData: FormData) =>
         api.post<ApiResponse<{ url: string }>>(`/client/meals/${mealId}/photo`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': undefined }, // Let React Native set multipart/form-data with boundary automatically
             timeout: 60000,
         }),
 };
