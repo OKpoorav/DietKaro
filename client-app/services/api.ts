@@ -170,8 +170,12 @@ export const mealLogsApi = {
 
     uploadPhoto: (mealId: string, formData: FormData) =>
         api.post<ApiResponse<{ url: string }>>(`/client/meals/${mealId}/photo`, formData, {
-            headers: { 'Content-Type': undefined }, // Let React Native set multipart/form-data with boundary automatically
             timeout: 60000,
+            transformRequest: (data, headers) => {
+                // Delete Content-Type so React Native XHR sets it automatically with the correct boundary
+                if (headers) delete headers['Content-Type'];
+                return data;
+            },
         }),
 };
 
