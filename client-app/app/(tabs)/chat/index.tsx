@@ -10,6 +10,7 @@ import {
     Platform,
     ActivityIndicator,
     SafeAreaView,
+    RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -30,6 +31,8 @@ export default function ChatTab() {
     const {
         data,
         isLoading: loadingMessages,
+        refetch: refetchMessages,
+        isRefetching,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
@@ -140,6 +143,13 @@ export default function ChatTab() {
                         renderItem={renderMessage}
                         contentContainerStyle={styles.messagesList}
                         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefetching}
+                                onRefresh={refetchMessages}
+                                tintColor="#17cf54"
+                            />
+                        }
                         onStartReached={() => {
                             if (hasNextPage && !isFetchingNextPage) fetchNextPage();
                         }}

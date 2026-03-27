@@ -88,7 +88,14 @@ export function useChatSocket(conversationId: string | null) {
         const socket = getSocket();
         if (!socket) return;
 
+        // Join immediately (socket.io buffers this if still connecting)
         socket.emit('chat:join', { conversationId });
+
+        // Re-join after reconnects (socket gets new connection ID, leaves all rooms)
+        const handleReconnect = () => {
+            socket.emit('chat:join', { conversationId });
+        };
+        socket.on('connect', handleReconnect);
 
         const handleNewMessage = ({ message }: { message: ChatMessage }) => {
             // Optimistic prepend with dedup guard (same as frontend)
@@ -117,6 +124,9 @@ export function useChatSocket(conversationId: string | null) {
         const handleNotification = () => {
             queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
             queryClient.invalidateQueries({ queryKey: ['chat', 'unread'] });
+            // Refetch messages — notification means the other party sent something
+            // This fires even when the mobile hasn't joined the conversation room yet
+            queryClient.invalidateQueries({ queryKey: ['chat', 'messages', conversationId] });
         };
 
         const handleTyping = ({ fullName }: { fullName: string }) => setTypingUser(fullName);
@@ -129,6 +139,7 @@ export function useChatSocket(conversationId: string | null) {
 
         return () => {
             socket.emit('chat:leave', { conversationId });
+            socket.off('connect', handleReconnect);
             socket.off('chat:new_message', handleNewMessage);
             socket.off('chat:notification', handleNotification);
             socket.off('chat:user_typing', handleTyping);
