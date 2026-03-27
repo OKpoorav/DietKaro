@@ -81,9 +81,17 @@ if (env.NODE_ENV === 'production') {
 // Global rate limiting on all /api routes
 app.use('/api/', apiLimiter);
 
-// Clerk middleware - global, required for getAuth() in requireAuth
-// Mobile routes use requireClientAuth (backend JWT) which does NOT call getAuth(), so this is safe
-app.use(clerkMiddleware());
+// Clerk middleware — applied to all routes EXCEPT mobile client routes.
+// /api/v1/client  → mobile app (backend JWT, never calls getAuth)
+// /api/v1/client-auth → mobile auth (backend JWT, never calls getAuth)
+// /api/v1/clients → dietitian client management (needs Clerk)
+// Using a wrapper instead of regex because app.use(regex) is unreliable in Express 4.
+app.use((req, res, next) => {
+    const p = req.path;
+    const isMobileRoute = p.startsWith('/api/v1/client') && !p.startsWith('/api/v1/clients');
+    if (isMobileRoute) return next();
+    return clerkMiddleware()(req, res, next);
+});
 
 // Health check (liveness)
 app.get('/health', (req, res) => {
