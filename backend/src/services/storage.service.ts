@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import { processImageInWorker } from './imageWorkerPool';
@@ -20,6 +20,23 @@ const s3Client = new S3Client({
 });
 
 const BUCKET = process.env.S3_BUCKET || 'healthpractix-media';
+
+// Ensure bucket exists on startup — creates it if missing (safe for MinIO/Garage)
+async function ensureBucketExists() {
+    try {
+        await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET }));
+    } catch (err: any) {
+        if (err.name === 'NoSuchBucket' || err.$metadata?.httpStatusCode === 404 || err.$metadata?.httpStatusCode === 403) {
+            try {
+                await s3Client.send(new CreateBucketCommand({ Bucket: BUCKET }));
+                logger.info('Created S3 bucket', { bucket: BUCKET });
+            } catch (createErr: any) {
+                logger.error('Failed to create S3 bucket', { bucket: BUCKET, error: createErr.message });
+            }
+        }
+    }
+}
+ensureBucketExists();
 
 // Default presigned URL expiration (1 hour)
 const PRESIGNED_URL_EXPIRY = 3600;
