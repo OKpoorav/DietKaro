@@ -81,8 +81,8 @@ if (env.NODE_ENV === 'production') {
 // Global rate limiting on all /api routes
 app.use('/api/', apiLimiter);
 
-// Clerk middleware - adds auth info to every request
-app.use(clerkMiddleware());
+// Clerk middleware - only for admin/dietitian routes (NOT client mobile app routes)
+app.use(/^\/api\/v1\/(?!client)/, clerkMiddleware());
 
 // Health check (liveness)
 app.get('/health', (req, res) => {
