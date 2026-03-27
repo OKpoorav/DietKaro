@@ -50,7 +50,7 @@ export default function VerifyScreen() {
             inputRefs.current[index + 1]?.focus();
         }
 
-        if (newOtp.every((digit) => digit) && newOtp.join('').length === OTP_LENGTH) {
+        if (!isLoading && newOtp.every((digit) => digit) && newOtp.join('').length === OTP_LENGTH) {
             handleVerify(newOtp.join(''));
         }
     };
@@ -83,8 +83,14 @@ export default function VerifyScreen() {
             }
 
             if (status === 'complete') {
-                const clerkToken = await getToken();
-                if (!clerkToken) throw new Error('Failed to get session token');
+                // getToken() can return null briefly after setActive() on physical devices — retry
+                let clerkToken: string | null = null;
+                for (let i = 0; i < 5; i++) {
+                    clerkToken = await getToken();
+                    if (clerkToken) break;
+                    await new Promise((r) => setTimeout(r, 300));
+                }
+                if (!clerkToken) throw new Error('Failed to get session token. Please try again.');
                 try {
                     await login(clerkToken);
                     router.replace('/(tabs)/home');
