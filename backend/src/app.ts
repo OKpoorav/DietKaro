@@ -81,9 +81,9 @@ if (env.NODE_ENV === 'production') {
 // Global rate limiting on all /api routes
 app.use('/api/', apiLimiter);
 
-// Clerk middleware - only for admin/dietitian routes (NOT client mobile app routes)
-// Excludes /api/v1/client and /api/v1/client-auth but NOT /api/v1/clients (dietitian route)
-app.use(/^\/api\/v1\/(?!client(?!s))/, clerkMiddleware());
+// Clerk middleware - global, required for getAuth() in requireAuth
+// Mobile routes use requireClientAuth (backend JWT) which does NOT call getAuth(), so this is safe
+app.use(clerkMiddleware());
 
 // Health check (liveness)
 app.get('/health', (req, res) => {
