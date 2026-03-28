@@ -131,7 +131,7 @@ export default function MealDetailScreen() {
         }
     };
 
-    if (!isPendingMeal && isLoading) {
+    if (isLoading) {
         return <LoadingScreen />;
     }
 
@@ -278,6 +278,20 @@ export default function MealDetailScreen() {
                         </View>
                     )}
                 </View>
+
+                {/* Ingredients — shown for single-option meals */}
+                {!hasAlternatives && mealOptions.length === 1 && mealOptions[0].foodItems.length > 0 && (
+                    <View style={styles.optionSection}>
+                        <Text style={styles.sectionTitle}>Ingredients</Text>
+                        <View style={styles.optionCard}>
+                            {mealOptions[0].foodItems.map((fi, idx) => (
+                                <Text key={fi.id || idx} style={styles.optionFoodItem}>
+                                    • {fi.foodName}  {fi.quantityG}g  ({fi.calories} kcal)
+                                </Text>
+                            ))}
+                        </View>
+                    </View>
+                )}
 
                 {/* Option Selector — shown when meal has alternatives */}
                 {hasAlternatives && mealOptions.length > 1 && (

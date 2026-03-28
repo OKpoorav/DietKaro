@@ -11,7 +11,7 @@ export function useMealLog(mealLogId: string) {
             const { data } = await mealLogsApi.getMealLog(mealLogId);
             return data.data;
         },
-        enabled: !!mealLogId && !isPending,
+        enabled: !!mealLogId,
         staleTime: 30 * 1000,
     });
 }

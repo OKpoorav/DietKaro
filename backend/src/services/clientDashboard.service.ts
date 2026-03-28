@@ -272,6 +272,61 @@ export class ClientDashboardService {
     }
 
     async getMealLog(clientId: string, mealLogId: string) {
+        // Handle pending meals (not yet logged) — fetch the meal directly by mealId
+        if (mealLogId.startsWith('pending-')) {
+            const rawId = mealLogId.replace(/^pending-/, '');
+            // rawId may be "mealId" or "mealId-YYYY-MM-DD" — extract just the mealId (UUID)
+            const mealId = rawId.length === 36 ? rawId : rawId.substring(0, 36);
+            const meal = await prisma.meal.findFirst({
+                where: { id: mealId, dietPlan: { clientId } },
+                include: {
+                    foodItems: {
+                        orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
+                        include: { foodItem: true },
+                    },
+                },
+            });
+            if (!meal) throw AppError.notFound('Meal not found', 'MEAL_NOT_FOUND');
+            const foodItems = meal.foodItems || [];
+            const { hasAlternatives, options, defaultMacros } = buildOptionGroups(foodItems);
+            return {
+                id: mealLogId,
+                mealId: meal.id,
+                scheduledDate: null,
+                scheduledTime: meal.timeOfDay,
+                status: 'pending',
+                chosenOptionGroup: null,
+                mealPhotoUrl: null,
+                clientNotes: null,
+                dietitianFeedback: null,
+                dietitianFeedbackAt: null,
+                loggedAt: null,
+                complianceScore: null,
+                complianceColor: null,
+                meal: {
+                    id: meal.id,
+                    planId: meal.planId,
+                    mealType: meal.mealType,
+                    name: meal.name,
+                    description: meal.description,
+                    timeOfDay: meal.timeOfDay,
+                    instructions: meal.instructions,
+                    totalCalories: meal.totalCalories || defaultMacros.calories,
+                    hasAlternatives,
+                    options,
+                    foodItems: foodItems.map((fi) => ({
+                        id: fi.id,
+                        foodId: fi.foodId,
+                        foodName: fi.foodItem.name,
+                        quantityG: fi.quantityG,
+                        calories: fi.calories || Math.round((fi.foodItem.calories * Number(fi.quantityG)) / 100),
+                        optionGroup: fi.optionGroup ?? 0,
+                        optionLabel: fi.optionLabel,
+                    })),
+                },
+            };
+        }
+
         const mealLog = await prisma.mealLog.findFirst({
             where: { id: mealLogId, clientId },
             include: {
