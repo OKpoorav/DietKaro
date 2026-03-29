@@ -13,8 +13,6 @@ import { AppError } from '../errors/AppError';
 import { clientService } from '../services/client.service';
 import { labService } from '../services/lab.service';
 import prisma from '../utils/prisma';
-import { getPresignedUrl } from '../services/storage.service';
-
 const router = Router();
 
 // All client routes require authentication + active subscription
@@ -97,23 +95,24 @@ router.get('/:clientId/reports', asyncHandler(async (req: AuthenticatedRequest, 
         take: 20,
     });
 
-    // Generate presigned read URLs using Minio storage service
-    const reportsWithUrls = await Promise.all(
-        reports.map(async (r) => {
-            // s3Key is the canonical key; fileUrl may be a legacy AWS URL or also the key
-            const key = r.s3Key || (r.fileUrl.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
-            const viewUrl = key ? await getPresignedUrl(key, 3600) : r.fileUrl;
-            return {
-                id: r.id,
-                fileName: r.fileName,
-                fileType: r.fileType,
-                reportType: r.reportType,
-                notes: r.notes,
-                uploadedAt: r.uploadedAt,
-                viewUrl,
-            };
-        })
-    );
+    // Build media-proxy URLs instead of presigned S3 URLs.
+    // Presigned URLs contain the internal Docker hostname (minio:9000) which is
+    // unreachable from browsers and mobile devices. The /media route streams
+    // the file through the backend, avoiding the internal hostname issue.
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+    const reportsWithUrls = reports.map((r) => {
+        const key = r.s3Key || (r.fileUrl.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
+        const viewUrl = key ? `${baseUrl}/media/${key}` : r.fileUrl;
+        return {
+            id: r.id,
+            fileName: r.fileName,
+            fileType: r.fileType,
+            reportType: r.reportType,
+            notes: r.notes,
+            uploadedAt: r.uploadedAt,
+            viewUrl,
+        };
+    });
 
     res.status(200).json({ success: true, data: reportsWithUrls });
 }));

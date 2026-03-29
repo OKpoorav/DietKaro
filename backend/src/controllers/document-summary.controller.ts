@@ -5,7 +5,6 @@ import { AppError } from '../errors/AppError';
 import prisma from '../utils/prisma';
 import { enqueueDocumentProcessing, enqueueUnifiedSummary } from '../jobs/queue';
 import { getCachedUnifiedSummary } from '../services/document-summarizer.service';
-import { getPresignedUrl } from '../services/storage.service';
 
 // ─────────────────────────────────────────────
 // GET /api/v1/reports/:reportId/summary
@@ -105,15 +104,15 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
         await enqueueUnifiedSummary(clientId, orgId);
     }
 
-    // Generate presigned view URLs per document
-    const documents = await Promise.all(
-        reports.map(async (r) => {
-            const key = r.s3Key || (r.fileUrl?.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
-            const viewUrl = key ? await getPresignedUrl(key, 3600).catch(() => r.fileUrl) : r.fileUrl;
-            const { s3Key, fileUrl, ...rest } = r;
-            return { ...rest, viewUrl };
-        })
-    );
+    // Build media-proxy URLs instead of presigned S3 URLs to avoid
+    // exposing the internal Docker hostname (minio:9000) to clients.
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+    const documents = reports.map((r) => {
+        const key = r.s3Key || (r.fileUrl?.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
+        const viewUrl = key ? `${baseUrl}/media/${key}` : r.fileUrl;
+        const { s3Key, fileUrl, ...rest } = r;
+        return { ...rest, viewUrl };
+    });
 
     res.status(200).json({
         success: true,

@@ -32,6 +32,7 @@ export default function VerifyScreen() {
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [isLoading, setIsLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN);
+    const [isVerified, setIsVerified] = useState(false);
     const inputRefs = useRef<(TextInput | null)[]>([]);
     const isVerifyingRef = useRef(false);
     // After Clerk verifies, store the token so backend login can be retried without re-verifying
@@ -53,7 +54,7 @@ export default function VerifyScreen() {
             inputRefs.current[index + 1]?.focus();
         }
 
-        if (!isLoading && newOtp.every((digit) => digit) && newOtp.join('').length === OTP_LENGTH) {
+        if (!isLoading && !isVerified && newOtp.every((digit) => digit) && newOtp.join('').length === OTP_LENGTH) {
             handleVerify(newOtp.join(''));
         }
     };
@@ -99,6 +100,9 @@ export default function VerifyScreen() {
             }
 
             if (status === 'complete') {
+                // Mark as verified immediately so duplicate taps don't re-call Clerk
+                setIsVerified(true);
+
                 // getToken() can return null briefly after setActive() on physical devices — retry longer
                 let clerkToken: string | null = null;
                 for (let i = 0; i < 10; i++) {
@@ -114,15 +118,19 @@ export default function VerifyScreen() {
             const message = error instanceof Error ? error.message : 'Invalid or expired code';
             // Only clear OTP for Clerk errors, not backend errors
             if (!pendingClerkTokenRef.current) {
+                setIsVerified(false);
                 showToast({ title: 'Verification Failed', message, variant: 'error' });
                 setOtp(Array(OTP_LENGTH).fill(''));
                 inputRefs.current[0]?.focus();
             } else {
-                showToast({ title: 'Login Failed', message: 'Could not reach server. Tap "Verify & Continue" to retry.', variant: 'error' });
+                showToast({ title: 'Login Failed', message: 'Could not reach server. Tap "Retry Login" to try again.', variant: 'error' });
             }
         } finally {
             isVerifyingRef.current = false;
-            setIsLoading(false);
+            // Keep loading state if verified — we're navigating away
+            if (!pendingClerkTokenRef.current) {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -180,12 +188,15 @@ export default function VerifyScreen() {
                 </View>
 
                 <TouchableOpacity
-                    style={[CommonStyles.primaryButton, otp.some((d) => !d) && CommonStyles.primaryButtonDisabled]}
+                    style={[CommonStyles.primaryButton, (otp.some((d) => !d) || (isVerified && !pendingClerkTokenRef.current)) && CommonStyles.primaryButtonDisabled]}
                     onPress={() => handleVerify(otp.join(''))}
-                    disabled={isLoading || otp.some((d) => !d)}
+                    disabled={isLoading || otp.some((d) => !d) || (isVerified && !pendingClerkTokenRef.current)}
                 >
                     {isLoading ? (
-                        <ActivityIndicator color={Colors.text} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <ActivityIndicator color={Colors.text} />
+                            {isVerified && <Text style={CommonStyles.primaryButtonText}>Logging in...</Text>}
+                        </View>
                     ) : (
                         <Text style={CommonStyles.primaryButtonText}>
                         {pendingClerkTokenRef.current ? 'Retry Login' : 'Verify & Continue'}
