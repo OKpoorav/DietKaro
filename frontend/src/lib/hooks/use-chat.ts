@@ -180,11 +180,15 @@ export function useChatSocket(conversationId: string | null) {
         };
     }, [socket, conversationId, queryClient]);
 
-    const sendMessage = useCallback((content: string) => {
-        if (!socket || !conversationId) return;
+    const apiRef = useRef<ReturnType<typeof useApiClient> | null>(null);
+    const apiClient = useApiClient();
+    apiRef.current = apiClient;
+
+    const sendMessage = useCallback(async (content: string) => {
+        if (!conversationId) return;
         const tempId = crypto.randomUUID();
 
-        // Optimistic update — show message immediately before server echo
+        // Optimistic update — show message immediately
         queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
             if (!old?.pages?.[0]) return old;
             const tempMsg: Message = {
@@ -210,7 +214,44 @@ export function useChatSocket(conversationId: string | null) {
             };
         });
 
-        socket.emit('chat:send_message', { conversationId, content, tempId });
+        if (socket?.connected) {
+            socket.emit('chat:send_message', { conversationId, content, tempId });
+        } else {
+            // Socket is down — send via REST so the message is persisted
+            try {
+                const { data } = await apiRef.current!.post(
+                    `/chat/conversations/${conversationId}/messages`,
+                    { content }
+                );
+                const saved = data.data as Message;
+                queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            messages: page.messages.map((m: any) =>
+                                m.id === `temp:${tempId}` ? saved : m
+                            ),
+                        })),
+                    };
+                });
+                queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+            } catch (err) {
+                console.error('Failed to send message via REST:', err);
+                // Remove the optimistic message on failure
+                queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            messages: page.messages.filter((m: any) => m.id !== `temp:${tempId}`),
+                        })),
+                    };
+                });
+            }
+        }
     }, [socket, conversationId, queryClient]);
 
     const sendTyping = useCallback(() => {

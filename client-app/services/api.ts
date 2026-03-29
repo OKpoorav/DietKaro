@@ -139,7 +139,7 @@ export const clientAuthApi = {
 
     // Pre-check: verify email exists as a client before sending Clerk OTP
     checkEmail: (email: string) =>
-        api.post<ApiResponse<null>>('/client-auth/check-email', { email }),
+        api.post<ApiResponse<{ fullName: string }>>('/client-auth/check-email', { email }),
 
     // Exchanges a Clerk session token for a backend JWT
     clerkLogin: (clerkToken: string) =>
@@ -283,6 +283,9 @@ export const chatApi = {
         api.get<any>(`/client/chat/conversations/${conversationId}/messages`, {
             params: { limit: 50, ...(cursor ? { cursor } : {}) },
         }),
+
+    sendMessage: (conversationId: string, content: string) =>
+        api.post<ApiResponse<any>>(`/client/chat/conversations/${conversationId}/messages`, { content }),
 
     getUnreadCounts: () =>
         api.get<ApiResponse<{ conversations: any[]; total: number }>>('/client/chat/unread'),

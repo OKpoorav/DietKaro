@@ -263,11 +263,12 @@ router.patch('/notifications/:id/read', asyncHandler(async (req: ClientAuthReque
 
 // ============ CHAT ============
 
-import { listClientConversations, getClientMessages, getClientUnreadCounts, initiateClientConversation } from '../controllers/chat.controller';
+import { listClientConversations, getClientMessages, getClientUnreadCounts, initiateClientConversation, sendClientMessage } from '../controllers/chat.controller';
 
 router.post('/chat/conversations/initiate', writeOperationLimiter, initiateClientConversation);
 router.get('/chat/conversations', listClientConversations);
 router.get('/chat/conversations/:conversationId/messages', getClientMessages);
+router.post('/chat/conversations/:conversationId/messages', writeOperationLimiter, sendClientMessage);
 router.get('/chat/unread', getClientUnreadCounts);
 
 export default router;

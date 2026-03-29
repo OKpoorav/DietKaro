@@ -59,7 +59,7 @@ export const checkClientEmail = asyncHandler(async (req: Request, res: Response)
 
     const client = await prisma.client.findFirst({
         where: { email: { equals: email.toLowerCase().trim(), mode: 'insensitive' }, isActive: true },
-        select: { id: true },
+        select: { id: true, fullName: true },
     });
 
     if (!client) {
@@ -69,7 +69,7 @@ export const checkClientEmail = asyncHandler(async (req: Request, res: Response)
         );
     }
 
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, data: { fullName: client.fullName } });
 });
 
 // Authenticate mobile client via Clerk session token → returns our backend JWT

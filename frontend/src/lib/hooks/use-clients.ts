@@ -186,6 +186,20 @@ export function useCreateClient() {
     });
 }
 
+export function useDeleteClient() {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (clientId: string) => {
+            await api.delete(`/clients/${clientId}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['clients'] });
+        },
+    });
+}
+
 export function useUpdateClient() {
     const api = useApiClient();
     const queryClient = useQueryClient();

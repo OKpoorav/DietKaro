@@ -13,6 +13,8 @@ import { AppError } from '../errors/AppError';
 import { clientService } from '../services/client.service';
 import { labService } from '../services/lab.service';
 import prisma from '../utils/prisma';
+import { signDownloadToken } from './media.routes';
+
 const router = Router();
 
 // All client routes require authentication + active subscription
@@ -102,7 +104,8 @@ router.get('/:clientId/reports', asyncHandler(async (req: AuthenticatedRequest, 
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
     const reportsWithUrls = reports.map((r) => {
         const key = r.s3Key || (r.fileUrl.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
-        const viewUrl = key ? `${baseUrl}/media/${key}` : r.fileUrl;
+        const token = key ? signDownloadToken(key, req.user!.organizationId) : '';
+        const viewUrl = key ? `${baseUrl}/media/${key}?token=${token}` : r.fileUrl;
         return {
             id: r.id,
             fileName: r.fileName,

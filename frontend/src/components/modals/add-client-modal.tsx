@@ -46,7 +46,6 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSubmit?.(formData);
-        onClose();
     };
 
     return (

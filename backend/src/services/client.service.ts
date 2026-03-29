@@ -35,11 +35,38 @@ export class ClientService {
         return generateReferralCode() + Date.now().toString(36).slice(-2).toUpperCase();
     }
 
-    async createClient(data: CreateClientInput, orgId: string, userId: string) {
+    async createClient(data: CreateClientInput, orgId: string, userId: string, reactivate?: boolean) {
         const existingClient = await prisma.client.findFirst({
             where: { orgId, email: data.email },
         });
         if (existingClient) {
+            if (!existingClient.isActive) {
+                if (!reactivate) {
+                    // Tell the frontend a deactivated client exists — ask for confirmation
+                    throw AppError.conflict(
+                        'A previously removed client with this email exists. Would you like to reactivate their account?',
+                        'CLIENT_DEACTIVATED',
+                    );
+                }
+                // Reactivate with updated info, preserving historical data
+                const reactivated = await prisma.client.update({
+                    where: { id: existingClient.id },
+                    data: {
+                        isActive: true,
+                        deletedAt: null,
+                        fullName: data.fullName,
+                        phone: data.phone,
+                        primaryDietitianId: data.primaryDietitianId || userId,
+                        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : existingClient.dateOfBirth,
+                        gender: data.gender || existingClient.gender,
+                        heightCm: data.heightCm ?? existingClient.heightCm,
+                        currentWeightKg: data.currentWeightKg ?? existingClient.currentWeightKg,
+                        targetWeightKg: data.targetWeightKg ?? existingClient.targetWeightKg,
+                    },
+                });
+                logger.info('Reactivated soft-deleted client', { clientId: reactivated.id, email: data.email });
+                return reactivated;
+            }
             throw AppError.conflict('A client with this email already exists', 'CLIENT_EXISTS');
         }
 

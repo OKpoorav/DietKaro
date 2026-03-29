@@ -18,7 +18,8 @@ function invalidateClientListCache(orgId: string) {
 
 export const createClient = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const client = await clientService.createClient(req.body, req.user.organizationId, req.user.id);
+    const reactivate = req.body.reactivate === true;
+    const client = await clientService.createClient(req.body, req.user.organizationId, req.user.id, reactivate);
     invalidateClientListCache(req.user.organizationId);
     res.status(201).json({ success: true, data: client });
 });

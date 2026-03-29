@@ -79,6 +79,33 @@ export const getUserUnreadCounts = asyncHandler(async (req: AuthenticatedRequest
     res.json({ success: true, data });
 });
 
+// ============ SEND MESSAGE (REST fallback for offline socket) ============
+
+export const sendUserMessage = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+    const { conversationId } = req.params;
+    const { content } = req.body;
+    if (!content || !content.trim()) throw AppError.badRequest('content is required');
+
+    const message = await chatService.sendMessage({
+        conversationId,
+        senderId: req.user.id,
+        senderType: 'user',
+        content,
+        orgId: req.user.organizationId,
+    });
+
+    invalidateChatCache(req.user.id);
+
+    // Invalidate recipient cache + attempt socket broadcast
+    const conversation = await chatService.getConversation(conversationId);
+    if (conversation?.clientId) {
+        invalidateChatCache(conversation.clientId);
+    }
+
+    res.status(201).json({ success: true, data: message });
+});
+
 // ============ CLIENT (Mobile) ENDPOINTS ============
 
 export const initiateClientConversation = asyncHandler(async (req: ClientAuthRequest, res: Response) => {
@@ -122,6 +149,30 @@ export const getClientMessages = asyncHandler(async (req: ClientAuthRequest, res
         { cursor: cursor as string, limit: limit ? Number(limit) : undefined }
     );
     res.json({ success: true, data: result.messages, meta: { hasMore: result.hasMore, nextCursor: result.nextCursor } });
+});
+
+export const sendClientMessage = asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const { conversationId } = req.params;
+    const { content } = req.body;
+    if (!content || !content.trim()) throw AppError.badRequest('content is required');
+
+    const message = await chatService.sendMessage({
+        conversationId,
+        senderId: req.client.id,
+        senderType: 'client',
+        content,
+        orgId: req.client.orgId,
+    });
+
+    invalidateChatCache(req.client.id);
+
+    const conversation = await chatService.getConversation(conversationId);
+    if (conversation?.userId) {
+        invalidateChatCache(conversation.userId);
+    }
+
+    res.status(201).json({ success: true, data: message });
 });
 
 export const getClientUnreadCounts = asyncHandler(async (req: ClientAuthRequest, res: Response) => {

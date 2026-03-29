@@ -5,6 +5,7 @@ import { AppError } from '../errors/AppError';
 import prisma from '../utils/prisma';
 import { enqueueDocumentProcessing, enqueueUnifiedSummary } from '../jobs/queue';
 import { getCachedUnifiedSummary } from '../services/document-summarizer.service';
+import { signDownloadToken } from '../routes/media.routes';
 
 // ─────────────────────────────────────────────
 // GET /api/v1/reports/:reportId/summary
@@ -109,7 +110,8 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
     const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
     const documents = reports.map((r) => {
         const key = r.s3Key || (r.fileUrl?.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
-        const viewUrl = key ? `${baseUrl}/media/${key}` : r.fileUrl;
+        const token = key ? signDownloadToken(key, orgId) : '';
+        const viewUrl = key ? `${baseUrl}/media/${key}?token=${token}` : r.fileUrl;
         const { s3Key, fileUrl, ...rest } = r;
         return { ...rest, viewUrl };
     });

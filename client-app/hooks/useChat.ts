@@ -91,20 +91,39 @@ export function useChatSocket(conversationId: string | null) {
         // Join immediately (socket.io buffers this if still connecting)
         socket.emit('chat:join', { conversationId });
 
-        // Re-join after reconnects (socket gets new connection ID, leaves all rooms)
+        // Re-join after reconnects and refetch messages (picks up anything sent via REST while offline)
         const handleReconnect = () => {
             socket.emit('chat:join', { conversationId });
+            queryClient.invalidateQueries({ queryKey: ['chat', 'messages', conversationId] });
+            queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+            queryClient.invalidateQueries({ queryKey: ['chat', 'unread'] });
         };
         socket.on('connect', handleReconnect);
 
-        const handleNewMessage = ({ message }: { message: ChatMessage }) => {
-            // Optimistic prepend with dedup guard (same as frontend)
+        const handleNewMessage = ({ message, tempId }: { message: ChatMessage; tempId?: string }) => {
             queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
                 if (!old?.pages?.[0]) return old;
+
+                // If we sent this message via socket, replace the optimistic temp entry
+                if (tempId) {
+                    const tempMsgId = `temp:${tempId}`;
+                    let replaced = false;
+                    const newPages = old.pages.map((page: any) => ({
+                        ...page,
+                        messages: page.messages.map((m: any) => {
+                            if (m.id === tempMsgId) { replaced = true; return message; }
+                            return m;
+                        }),
+                    }));
+                    if (replaced) return { ...old, pages: newPages };
+                }
+
+                // Dedup guard
                 const alreadyExists = old.pages.some((page: any) =>
                     page.messages.some((m: any) => m.id === message.id)
                 );
                 if (alreadyExists) return old;
+
                 return {
                     ...old,
                     pages: [
@@ -147,11 +166,76 @@ export function useChatSocket(conversationId: string | null) {
         };
     }, [conversationId, queryClient]);
 
-    const sendMessage = useCallback((content: string) => {
+    const sendMessage = useCallback(async (content: string) => {
+        if (!conversationId) return;
+
+        const tempId = Date.now().toString();
+
+        // Optimistic UI — show the message immediately
+        queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
+            if (!old?.pages?.[0]) return old;
+            const tempMsg: ChatMessage = {
+                id: `temp:${tempId}`,
+                conversationId,
+                senderType: 'client',
+                senderId: '',
+                content,
+                status: 'sent',
+                readAt: null,
+                createdAt: new Date().toISOString(),
+            };
+            return {
+                ...old,
+                pages: [
+                    {
+                        messages: [tempMsg, ...old.pages[0].messages],
+                        nextCursor: old.pages[0].nextCursor,
+                        hasMore: old.pages[0].hasMore,
+                    },
+                    ...old.pages.slice(1),
+                ],
+            };
+        });
+
         const socket = getSocket();
-        if (!socket || !conversationId) return;
-        socket.emit('chat:send_message', { conversationId, content, tempId: Date.now().toString() });
-    }, [conversationId]);
+        if (socket?.connected) {
+            // Socket is live — send via WebSocket (server will broadcast back)
+            socket.emit('chat:send_message', { conversationId, content, tempId });
+        } else {
+            // Socket is down — send via REST so the message is persisted
+            try {
+                const { data } = await chatApi.sendMessage(conversationId, content);
+                const saved = data.data as ChatMessage;
+                // Replace optimistic temp message with the real one
+                queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            messages: page.messages.map((m: any) =>
+                                m.id === `temp:${tempId}` ? saved : m
+                            ),
+                        })),
+                    };
+                });
+                queryClient.invalidateQueries({ queryKey: ['chat', 'conversations'] });
+            } catch (err) {
+                console.error('Failed to send message via REST:', err);
+                // Remove the optimistic message on failure
+                queryClient.setQueryData(['chat', 'messages', conversationId], (old: any) => {
+                    if (!old?.pages) return old;
+                    return {
+                        ...old,
+                        pages: old.pages.map((page: any) => ({
+                            ...page,
+                            messages: page.messages.filter((m: any) => m.id !== `temp:${tempId}`),
+                        })),
+                    };
+                });
+            }
+        }
+    }, [conversationId, queryClient]);
 
     const markRead = useCallback((messageId: string) => {
         const socket = getSocket();

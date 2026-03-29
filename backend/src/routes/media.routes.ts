@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
+import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.middleware';
 import { requireClientAuth, ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { AuthenticatedRequest } from '../types/auth.types';
@@ -22,6 +23,64 @@ const s3Client = new S3Client({
 const BUCKET = process.env.S3_BUCKET || 'healthpractix-media';
 
 const ALLOWED_PREFIXES = ['meal-photos', 'weight-photos', 'reports', 'profile-photos'];
+
+// ─── Signed download tokens ────────────────────────────────────────
+// Short-lived HMAC tokens so authenticated users can open media in a
+// new browser tab (where Clerk/JWT headers aren't available).
+const DOWNLOAD_TOKEN_SECRET = process.env.CLIENT_JWT_SECRET || 'dev-secret';
+const DOWNLOAD_TOKEN_TTL = 3600; // 1 hour
+
+/**
+ * Generate a signed download token for a given S3 key + orgId.
+ * The token encodes: key, orgId, expiry.
+ */
+export function signDownloadToken(key: string, orgId: string): string {
+    const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TOKEN_TTL;
+    const payload = `${key}:${orgId}:${expires}`;
+    const signature = crypto
+        .createHmac('sha256', DOWNLOAD_TOKEN_SECRET)
+        .update(payload)
+        .digest('hex');
+    // Base64url-encode so it's safe in query strings
+    return Buffer.from(`${payload}:${signature}`).toString('base64url');
+}
+
+/**
+ * Verify a signed download token. Returns { key, orgId } or null.
+ */
+function verifyDownloadToken(token: string): { key: string; orgId: string } | null {
+    try {
+        const decoded = Buffer.from(token, 'base64url').toString();
+        const lastColon = decoded.lastIndexOf(':');
+        if (lastColon === -1) return null;
+
+        const signature = decoded.slice(lastColon + 1);
+        const payload = decoded.slice(0, lastColon);
+
+        const expected = crypto
+            .createHmac('sha256', DOWNLOAD_TOKEN_SECRET)
+            .update(payload)
+            .digest('hex');
+
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+            return null;
+        }
+
+        // payload = key:orgId:expires
+        const parts = payload.split(':');
+        if (parts.length < 3) return null;
+
+        const expires = parseInt(parts[parts.length - 1], 10);
+        const orgId = parts[parts.length - 2];
+        const key = parts.slice(0, parts.length - 2).join(':');
+
+        if (Math.floor(Date.now() / 1000) > expires) return null;
+
+        return { key, orgId };
+    } catch {
+        return null;
+    }
+}
 
 async function serveFromS3(key: string, res: Response) {
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
@@ -115,17 +174,28 @@ router.get('/client/:prefix/:orgId/:entityId/:filename',
 
 /**
  * GET /media/:prefix/:orgId/:entityId/:filename
- * Universal route — tries Clerk auth first, falls back to client JWT auth.
+ * Universal route — tries: 1) signed download token (?token=), 2) Clerk auth, 3) client JWT.
  * This is the URL format stored in the database.
  */
 router.get('/:prefix/:orgId/:entityId/:filename',
     async (req: any, res: Response, next: any) => {
-        // Try Clerk auth first (web app)
+        // 1) Check for signed download token (new tab / unauthenticated context)
+        const token = req.query.token as string | undefined;
+        if (token) {
+            const verified = verifyDownloadToken(token);
+            if (verified) {
+                req._downloadToken = verified;
+                return next();
+            }
+            // Token provided but invalid/expired — fall through to other auth methods
+        }
+
+        // 2) Try Clerk auth (web app)
         requireAuth(req, res, (err?: any) => {
             if (!err && req.user) {
                 return next();
             }
-            // Fall back to client JWT auth (mobile app)
+            // 3) Fall back to client JWT auth (mobile app)
             requireClientAuth(req, res, (err2?: any) => {
                 if (!err2 && req.client) {
                     return next();
@@ -142,13 +212,21 @@ router.get('/:prefix/:orgId/:entityId/:filename',
                 return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: `Invalid prefix. Allowed: ${ALLOWED_PREFIXES.join(', ')}` } });
             }
 
-            // Verify org ownership from whichever auth method succeeded
-            const userOrgId = req.user?.organizationId || req.client?.orgId;
-            if (userOrgId !== orgId) {
-                return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+            const key = `${prefix}/${orgId}/${entityId}/${filename}`;
+
+            if (req._downloadToken) {
+                // Token-based auth: verify the token was signed for this exact key + org
+                if (req._downloadToken.key !== key || req._downloadToken.orgId !== orgId) {
+                    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Token does not match requested resource' } });
+                }
+            } else {
+                // Session-based auth: verify org ownership
+                const userOrgId = req.user?.organizationId || req.client?.orgId;
+                if (userOrgId !== orgId) {
+                    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+                }
             }
 
-            const key = `${prefix}/${orgId}/${entityId}/${filename}`;
             await serveFromS3(key, res);
         } catch (error: any) {
             if (error.name === 'NoSuchKey') {

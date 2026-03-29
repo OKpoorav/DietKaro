@@ -77,19 +77,45 @@ export default function VerifyScreen() {
         isVerifyingRef.current = true;
         setIsLoading(true);
         try {
-            // If Clerk already verified but backend failed, skip re-verification and retry backend
-            if (pendingClerkTokenRef.current) {
-                await completeBackendLogin(pendingClerkTokenRef.current);
+            // If Clerk already verified, skip re-verification — just retry token + backend login
+            if (isVerified || pendingClerkTokenRef.current) {
+                if (pendingClerkTokenRef.current) {
+                    await completeBackendLogin(pendingClerkTokenRef.current);
+                } else {
+                    // Email verified but token retrieval failed last time — retry getting token
+                    let clerkToken: string | null = null;
+                    for (let i = 0; i < 15; i++) {
+                        clerkToken = await getToken();
+                        if (clerkToken) break;
+                        await new Promise((r) => setTimeout(r, 500));
+                    }
+                    if (!clerkToken) throw new Error('Failed to get session token. Please try again.');
+                    pendingClerkTokenRef.current = clerkToken;
+                    await completeBackendLogin(clerkToken);
+                }
                 return;
             }
 
             let status: string;
+            let sessionId: string | null = null;
 
             if (flow === 'signUp') {
                 const result = await signUp!.attemptEmailAddressVerification({ code: otpCode });
                 status = result.status ?? '';
-                if (status === 'complete') {
-                    await setSignUpActive!({ session: result.createdSessionId });
+                sessionId = result.createdSessionId;
+
+                // If Clerk needs more fields (e.g. name), fill them so signUp completes
+                if (status === 'missing_requirements') {
+                    const updated = await signUp!.update({
+                        firstName: email?.split('@')[0] ?? 'User',
+                        lastName: '.',
+                    });
+                    status = updated.status ?? '';
+                    sessionId = updated.createdSessionId;
+                }
+
+                if (status === 'complete' && sessionId) {
+                    await setSignUpActive!({ session: sessionId });
                 }
             } else {
                 const result = await signIn!.attemptFirstFactor({ strategy: 'email_code', code: otpCode });
@@ -100,12 +126,12 @@ export default function VerifyScreen() {
             }
 
             if (status === 'complete') {
-                // Mark as verified immediately so duplicate taps don't re-call Clerk
+                // Mark as verified immediately — never re-call Clerk after this point
                 setIsVerified(true);
 
                 // getToken() can return null briefly after setActive() on physical devices — retry longer
                 let clerkToken: string | null = null;
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < 15; i++) {
                     clerkToken = await getToken();
                     if (clerkToken) break;
                     await new Promise((r) => setTimeout(r, 500));
@@ -113,22 +139,23 @@ export default function VerifyScreen() {
                 if (!clerkToken) throw new Error('Failed to get session token. Please try again.');
                 pendingClerkTokenRef.current = clerkToken;
                 await completeBackendLogin(clerkToken);
+            } else {
+                throw new Error(`Verification incomplete (status: ${status}). Please try again or contact support.`);
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Invalid or expired code';
-            // Only clear OTP for Clerk errors, not backend errors
-            if (!pendingClerkTokenRef.current) {
-                setIsVerified(false);
+            if (!pendingClerkTokenRef.current && !isVerified) {
+                // Clerk verification itself failed — safe to retry with new code
                 showToast({ title: 'Verification Failed', message, variant: 'error' });
                 setOtp(Array(OTP_LENGTH).fill(''));
                 inputRefs.current[0]?.focus();
             } else {
-                showToast({ title: 'Login Failed', message: 'Could not reach server. Tap "Retry Login" to try again.', variant: 'error' });
+                // Clerk verified but token/backend failed — user can retry without re-verifying
+                showToast({ title: 'Login Failed', message: 'Could not complete login. Tap "Retry Login" to try again.', variant: 'error' });
             }
         } finally {
             isVerifyingRef.current = false;
-            // Keep loading state if verified — we're navigating away
-            if (!pendingClerkTokenRef.current) {
+            if (!isVerified) {
                 setIsLoading(false);
             }
         }
@@ -188,9 +215,9 @@ export default function VerifyScreen() {
                 </View>
 
                 <TouchableOpacity
-                    style={[CommonStyles.primaryButton, (otp.some((d) => !d) || (isVerified && !pendingClerkTokenRef.current)) && CommonStyles.primaryButtonDisabled]}
+                    style={[CommonStyles.primaryButton, (!isVerified && otp.some((d) => !d)) && CommonStyles.primaryButtonDisabled]}
                     onPress={() => handleVerify(otp.join(''))}
-                    disabled={isLoading || otp.some((d) => !d) || (isVerified && !pendingClerkTokenRef.current)}
+                    disabled={isLoading || (!isVerified && otp.some((d) => !d))}
                 >
                     {isLoading ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -199,7 +226,7 @@ export default function VerifyScreen() {
                         </View>
                     ) : (
                         <Text style={CommonStyles.primaryButtonText}>
-                        {pendingClerkTokenRef.current ? 'Retry Login' : 'Verify & Continue'}
+                        {isVerified ? 'Retry Login' : 'Verify & Continue'}
                     </Text>
                     )}
                 </TouchableOpacity>

@@ -37,8 +37,10 @@ export default function LoginScreen() {
         setIsLoading(true);
         try {
             // First check if email exists as a client in our DB
+            let clientName = '';
             try {
-                await clientAuthApi.checkEmail(email.trim());
+                const checkResponse = await clientAuthApi.checkEmail(email.trim());
+                clientName = checkResponse.data?.data?.fullName ?? '';
             } catch (checkError: unknown) {
                 const status = (checkError as { response?: { status?: number } })?.response?.status;
                 if (status === 404) {
@@ -76,9 +78,27 @@ export default function LoginScreen() {
                 const errCode = clerkError?.errors?.[0]?.code ?? '';
                 if (errCode === 'form_identifier_not_found') {
                     // First-time Clerk user — sign up and send OTP
-                    await signUp!.create({ emailAddress: email.trim() });
-                    await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
-                    router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signUp' } });
+                    try {
+                        const nameParts = clientName.trim().split(/\s+/);
+                        const firstName = nameParts[0] || email.trim().split('@')[0];
+                        const lastName = nameParts.slice(1).join(' ') || '.';
+                        await signUp!.create({ emailAddress: email.trim(), firstName, lastName });
+                        await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
+                        router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signUp' } });
+                    } catch (signUpError: unknown) {
+                        const signUpClerkError = signUpError as { errors?: { code: string; message: string }[] };
+                        const signUpErrCode = signUpClerkError?.errors?.[0]?.code ?? '';
+                        // Clerk user already exists (e.g. from a previous incomplete signup) — retry as signIn
+                        if (signUpErrCode === 'form_email_address_exists' || signUpErrCode === 'identifier_already_signed_up') {
+                            await signIn!.create({
+                                identifier: email.trim(),
+                                strategy: 'email_code',
+                            });
+                            router.push({ pathname: '/(auth)/verify', params: { email: email.trim(), flow: 'signIn' } });
+                        } else {
+                            throw signUpError;
+                        }
+                    }
                 } else {
                     throw signInError;
                 }

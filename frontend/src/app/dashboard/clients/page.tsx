@@ -8,13 +8,13 @@ import {
     Plus,
     ChevronLeft,
     ChevronRight,
-    MoreVertical,
+    Trash2,
     MessageSquare,
     Eye,
     Loader2,
 } from 'lucide-react';
 import { AddClientModal } from '@/components/modals/add-client-modal';
-import { useClients, useCreateClient, Client } from '@/lib/hooks/use-clients';
+import { useClients, useCreateClient, useDeleteClient, Client } from '@/lib/hooks/use-clients';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
 import { useRouter } from 'next/navigation';
@@ -27,12 +27,13 @@ export default function ClientsPage() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [showAddClientModal, setShowAddClientModal] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
 
     const router = useRouter();
     const { canDeleteClient } = usePermissions();
     const debouncedSearch = useDebouncedValue(search, 300);
 
-    // API hook
+    // API hooks
     const { data, isLoading, error } = useClients({
         page,
         pageSize: 20,
@@ -40,11 +41,12 @@ export default function ClientsPage() {
         status: filter !== 'all' ? filter : undefined,
     });
     const createClient = useCreateClient();
+    const deleteClient = useDeleteClient();
 
     const clients = data?.data || [];
     const meta = data?.meta;
 
-    const handleAddClient = async (clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string }) => {
+    const handleAddClient = async (clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string }, reactivate?: boolean) => {
         try {
             await createClient.mutateAsync({
                 fullName: clientData.name,
@@ -55,10 +57,38 @@ export default function ClientsPage() {
                 heightCm: clientData.height ? Number(clientData.height) : undefined,
                 currentWeightKg: clientData.weight ? Number(clientData.weight) : undefined,
                 targetWeightKg: clientData.targetWeight ? Number(clientData.targetWeight) : undefined,
-            });
+                ...(reactivate ? { reactivate: true } : {}),
+            } as any);
             setShowAddClientModal(false);
-        } catch (err) {
-            toast.error('Failed to create client');
+            toast.success(reactivate ? 'Client reactivated successfully' : 'Client added successfully');
+        } catch (err: any) {
+            const code = err?.response?.data?.error?.code;
+            const message = err?.response?.data?.error?.message || 'Failed to create client';
+
+            if (code === 'CLIENT_DEACTIVATED') {
+                // Ask for confirmation to reactivate
+                toast(message, {
+                    action: {
+                        label: 'Reactivate',
+                        onClick: () => handleAddClient(clientData, true),
+                    },
+                    duration: 10000,
+                });
+                return;
+            }
+
+            toast.error(message);
+        }
+    };
+
+    const handleDeleteClient = async (client: Client) => {
+        try {
+            await deleteClient.mutateAsync(client.id);
+            setDeleteConfirm(null);
+            toast.success(`${client.fullName} has been removed`);
+        } catch (err: any) {
+            const message = err?.response?.data?.error?.message || 'Failed to delete client';
+            toast.error(message);
         }
     };
 
@@ -218,8 +248,11 @@ export default function ClientsPage() {
                                                     Message
                                                 </button>
                                                 {canDeleteClient && (
-                                                    <button className="text-gray-500 hover:text-gray-700 p-1">
-                                                        <MoreVertical className="w-4 h-4" />
+                                                    <button
+                                                        onClick={() => setDeleteConfirm(client)}
+                                                        className="text-gray-400 hover:text-red-500 text-sm font-medium flex items-center gap-1 transition-colors"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 )}
                                             </div>
@@ -265,6 +298,34 @@ export default function ClientsPage() {
                 onClose={() => setShowAddClientModal(false)}
                 onSubmit={handleAddClient}
             />
+
+            {/* Delete Confirmation Dialog */}
+            {deleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+                        <h3 className="text-lg font-semibold text-gray-900">Remove Client</h3>
+                        <p className="mt-2 text-sm text-gray-600">
+                            Are you sure you want to remove <span className="font-medium">{deleteConfirm.fullName}</span>?
+                            Their data will be preserved and the account can be reactivated later.
+                        </p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteClient(deleteConfirm)}
+                                disabled={deleteClient.isPending}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+                            >
+                                {deleteClient.isPending ? 'Removing...' : 'Remove'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
