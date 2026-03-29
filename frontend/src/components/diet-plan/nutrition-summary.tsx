@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { AlertTriangle, Pencil, Check } from 'lucide-react';
+import { AlertTriangle, Pencil, Check, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { DayNutrition } from '@/lib/types/diet-plan.types';
 
@@ -36,6 +36,8 @@ interface NutritionSummaryProps {
     hasAllergyWarning: boolean;
     onTargetsChange?: (targets: NutritionTargets) => void;
     client?: ClientMeasurements | null;
+    hideCaloriesFromClient?: boolean;
+    onHideCaloriesChange?: (hide: boolean) => void;
 }
 
 const FIELD_CONFIG: { key: keyof NutritionTargets; label: string; unit: string; min: number; max: number }[] = [
@@ -45,7 +47,7 @@ const FIELD_CONFIG: { key: keyof NutritionTargets; label: string; unit: string; 
     { key: 'fat', label: 'Fat', unit: 'g', min: 0, max: 500 },
 ];
 
-export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onTargetsChange, client }: NutritionSummaryProps) {
+export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onTargetsChange, client, hideCaloriesFromClient, onHideCaloriesChange }: NutritionSummaryProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<NutritionTargets>(targets);
 
@@ -99,6 +101,15 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                     <h3 className="text-gray-900 font-medium">Daily Summary</h3>
                     <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500">Target: {targets.calories} Kcal</span>
+                        {onHideCaloriesChange && (
+                            <button
+                                onClick={() => onHideCaloriesChange(!hideCaloriesFromClient)}
+                                title={hideCaloriesFromClient ? 'Calories hidden from client — click to show' : 'Click to hide calories from client'}
+                                className={`p-1 rounded transition-colors ${hideCaloriesFromClient ? 'text-orange-500 bg-orange-50 hover:bg-orange-100' : 'text-gray-400 hover:bg-gray-100'}`}
+                            >
+                                <EyeOff className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                         {onTargetsChange && (
                             editing ? (
                                 <button
@@ -121,6 +132,11 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                     </div>
                 </div>
 
+                {hideCaloriesFromClient && (
+                    <p className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded mb-3">
+                        Calories hidden from client
+                    </p>
+                )}
                 {editing ? (
                     <div className="space-y-3">
                         {FIELD_CONFIG.map(({ key, label, unit, min, max }) => (

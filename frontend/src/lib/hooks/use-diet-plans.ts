@@ -89,6 +89,7 @@ export interface CreateDietPlanInput {
     targetFatsG?: number;
     notesForClient?: string;
     internalNotes?: string;
+    hideCaloriesFromClient?: boolean;
     meals?: {
         dayOfWeek?: number;
         mealDate?: string;

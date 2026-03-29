@@ -209,9 +209,10 @@ model DietPlan {
   targetCarbsG     Decimal?           @db.Decimal(5, 1)
   targetFatsG      Decimal?           @db.Decimal(5, 1)
   targetFiberG     Decimal?           @db.Decimal(5, 1)
-  notesForClient   String?
-  internalNotes    String?
-  status           DietPlanStatus     @default(draft)
+  notesForClient            String?
+  internalNotes             String?
+  hideCaloriesFromClient    Boolean            @default(false)
+  status                    DietPlanStatus     @default(draft)
   isTemplate       Boolean            @default(false)
   templateCategory String?
   visibility       DietPlanVisibility @default(private)

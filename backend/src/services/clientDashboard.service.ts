@@ -134,6 +134,7 @@ export class ClientDashboardService {
                     totalProteinG: Number(meal.totalProteinG) || defaultMacros.protein,
                     totalCarbsG: Number(meal.totalCarbsG) || defaultMacros.carbs,
                     totalFatsG: Number(meal.totalFatsG) || defaultMacros.fats,
+                    hideCaloriesFromClient: activePlan.hideCaloriesFromClient,
                     hasAlternatives,
                     options,
                     foodItems: foodItems.map((fi) => ({
@@ -250,6 +251,7 @@ export class ClientDashboardService {
                         totalProteinG: Number(meal.totalProteinG) || defaultMacros.protein,
                         totalCarbsG: Number(meal.totalCarbsG) || defaultMacros.carbs,
                         totalFatsG: Number(meal.totalFatsG) || defaultMacros.fats,
+                        hideCaloriesFromClient: activePlan.hideCaloriesFromClient,
                         hasAlternatives,
                         options,
                         foodItems: foodItems.map((fi) => ({
@@ -280,6 +282,7 @@ export class ClientDashboardService {
             const meal = await prisma.meal.findFirst({
                 where: { id: mealId, dietPlan: { clientId } },
                 include: {
+                    dietPlan: { select: { hideCaloriesFromClient: true } },
                     foodItems: {
                         orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }],
                         include: { foodItem: true },
@@ -312,6 +315,7 @@ export class ClientDashboardService {
                     timeOfDay: meal.timeOfDay,
                     instructions: meal.instructions,
                     totalCalories: meal.totalCalories || defaultMacros.calories,
+                    hideCaloriesFromClient: meal.dietPlan?.hideCaloriesFromClient ?? false,
                     hasAlternatives,
                     options,
                     foodItems: foodItems.map((fi) => ({
@@ -332,6 +336,7 @@ export class ClientDashboardService {
             include: {
                 meal: {
                     include: {
+                        dietPlan: { select: { hideCaloriesFromClient: true } },
                         foodItems: { include: { foodItem: true } },
                     },
                 },
@@ -368,6 +373,7 @@ export class ClientDashboardService {
                 timeOfDay: mealLog.meal.timeOfDay,
                 instructions: mealLog.meal.instructions,
                 totalCalories: mealLog.meal.totalCalories,
+                hideCaloriesFromClient: mealLog.meal.dietPlan?.hideCaloriesFromClient ?? false,
                 hasAlternatives,
                 options,
                 foodItems: foodItems.map((fi) => ({

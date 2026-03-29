@@ -49,6 +49,7 @@ export interface Meal {
     totalProteinG?: number;
     totalCarbsG?: number;
     totalFatsG?: number;
+    hideCaloriesFromClient?: boolean;
     hasAlternatives?: boolean;
     options?: MealOption[];
     foodItems: MealFoodItem[];

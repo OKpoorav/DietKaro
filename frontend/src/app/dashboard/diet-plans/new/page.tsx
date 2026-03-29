@@ -200,6 +200,8 @@ function BuilderContent() {
                     hasAllergyWarning={builder.hasAllergyWarning}
                     onTargetsChange={builder.setTargets}
                     client={client}
+                    hideCaloriesFromClient={builder.hideCaloriesFromClient}
+                    onHideCaloriesChange={builder.setHideCaloriesFromClient}
                 />
             </main>
 

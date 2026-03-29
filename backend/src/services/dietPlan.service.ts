@@ -52,6 +52,7 @@ export class DietPlanService {
                 targetFiberG: data.targetFiberG,
                 notesForClient: data.notesForClient,
                 internalNotes: data.internalNotes,
+                hideCaloriesFromClient: data.hideCaloriesFromClient ?? false,
                 status: isTemplate ? 'active' : 'draft',
                 isTemplate,
                 templateCategory: data.options?.templateCategory,
@@ -179,6 +180,7 @@ export class DietPlanService {
         if (data.targetFiberG !== undefined) updateData.targetFiberG = data.targetFiberG;
         if (data.notesForClient !== undefined) updateData.notesForClient = data.notesForClient;
         if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
+        if (data.hideCaloriesFromClient !== undefined) updateData.hideCaloriesFromClient = data.hideCaloriesFromClient;
 
         // If meals are provided, replace all existing meals atomically
         if (data.meals?.length) {

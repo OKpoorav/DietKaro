@@ -194,9 +194,11 @@ export default function MealDetailScreen() {
                                     You chose: {mealOptions.find(o => o.optionGroup === currentMealLog.chosenOptionGroup)?.label
                                         || `Option ${String.fromCharCode(65 + (currentMealLog.chosenOptionGroup ?? 0))}`}
                                 </Text>
-                                <Text style={styles.chosenOptionCalories}>
-                                    {mealOptions.find(o => o.optionGroup === currentMealLog.chosenOptionGroup)?.totalCalories ?? 0} kcal
-                                </Text>
+                                {!mealLog?.meal?.hideCaloriesFromClient && (
+                                    <Text style={styles.chosenOptionCalories}>
+                                        {mealOptions.find(o => o.optionGroup === currentMealLog.chosenOptionGroup)?.totalCalories ?? 0} kcal
+                                    </Text>
+                                )}
                             </View>
                         )}
                     </View>
@@ -324,9 +326,11 @@ export default function MealDetailScreen() {
                                             ]}>
                                                 {option.label || `Option ${String.fromCharCode(65 + option.optionGroup)}`}
                                             </Text>
-                                            <Text style={styles.optionCalories}>
-                                                {option.totalCalories} kcal
-                                            </Text>
+                                            {!mealLog?.meal?.hideCaloriesFromClient && (
+                                                <Text style={styles.optionCalories}>
+                                                    {option.totalCalories} kcal
+                                                </Text>
+                                            )}
                                         </View>
                                     </View>
                                     <View style={styles.optionFoods}>

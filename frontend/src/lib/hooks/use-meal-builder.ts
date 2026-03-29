@@ -60,6 +60,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const [activeMealId, setActiveMealId] = useState<string | null>(null);
     const [activeOptionGroup, setActiveOptionGroup] = useState<number>(0);
     const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
+    const [hideCaloriesFromClient, setHideCaloriesFromClient] = useState(false);
     const [numDays, setNumDays] = useState(isTemplateMode ? 7 : 1);
     const [editLoading, setEditLoading] = useState(!!editId);
 
@@ -124,7 +125,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             })
         }));
         setShowAddFoodModal(false);
-    }, [activeMealId, selectedDayIndex, client]);
+    }, [activeMealId, activeOptionGroup, selectedDayIndex, client]);
 
     const removeFood = useCallback((mealId: string, tempId: string) => {
         setWeeklyMeals(prev => ({
@@ -359,6 +360,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 if (plan.targetProteinG) setTargets(t => ({ ...t, protein: plan.targetProteinG }));
                 if (plan.targetCarbsG) setTargets(t => ({ ...t, carbs: plan.targetCarbsG }));
                 if (plan.targetFatsG) setTargets(t => ({ ...t, fat: plan.targetFatsG }));
+                setHideCaloriesFromClient(plan.hideCaloriesFromClient ?? false);
             } catch {
                 toast.error('Failed to load plan for editing');
             } finally {
@@ -538,6 +540,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetProteinG: targets.protein,
                     targetCarbsG: targets.carbs,
                     targetFatsG: targets.fat,
+                    hideCaloriesFromClient,
                     meals: apiMeals,
                 });
 
@@ -554,6 +557,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetProteinG: targets.protein,
                     targetCarbsG: targets.carbs,
                     targetFatsG: targets.fat,
+                    hideCaloriesFromClient,
                     meals: apiMeals,
                     options: isTemplateMode ? { saveAsTemplate: true } : undefined,
                 });
@@ -573,7 +577,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         } catch (error) {
             toast.error('Failed to save plan');
         }
-    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets]);
+    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient]);
 
     const hasAllergyWarning = currentMeals.some(m => m.foods.some(f => f.hasWarning));
 
@@ -596,6 +600,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         dayNutrition,
         targets,
         setTargets,
+        hideCaloriesFromClient,
+        setHideCaloriesFromClient,
         hasAllergyWarning,
 
         // Actions

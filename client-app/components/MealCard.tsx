@@ -50,11 +50,15 @@ export function MealCard({ mealLog }: MealCardProps) {
 
             {/* Macros */}
             <View style={styles.macrosRow}>
-                <View style={styles.macroItem}>
-                    <Text style={styles.macroValue}>{meal.totalCalories || 0}</Text>
-                    <Text style={styles.macroLabel}>kcal</Text>
-                </View>
-                <View style={styles.macroDot} />
+                {!meal.hideCaloriesFromClient && (
+                    <>
+                        <View style={styles.macroItem}>
+                            <Text style={styles.macroValue}>{meal.totalCalories || 0}</Text>
+                            <Text style={styles.macroLabel}>kcal</Text>
+                        </View>
+                        <View style={styles.macroDot} />
+                    </>
+                )}
                 <View style={styles.macroItem}>
                     <Text style={styles.macroValue}>{meal.totalProteinG || 0}g</Text>
                     <Text style={styles.macroLabel}>protein</Text>

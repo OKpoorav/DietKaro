@@ -33,6 +33,9 @@ export default function VerifyScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN);
     const inputRefs = useRef<(TextInput | null)[]>([]);
+    const isVerifyingRef = useRef(false);
+    // After Clerk verifies, store the token so backend login can be retried without re-verifying
+    const pendingClerkTokenRef = useRef<string | null>(null);
 
     // Resend countdown timer
     useEffect(() => {
@@ -61,11 +64,24 @@ export default function VerifyScreen() {
         }
     };
 
-    const handleVerify = async (otpCode: string) => {
-        if (!isLoaded) return;
+    const completeBackendLogin = async (clerkToken: string) => {
+        await login(clerkToken);
+        pendingClerkTokenRef.current = null;
+        router.replace('/(tabs)/home');
+    };
 
+    const handleVerify = async (otpCode: string) => {
+        if (!isLoaded || isVerifyingRef.current) return;
+
+        isVerifyingRef.current = true;
         setIsLoading(true);
         try {
+            // If Clerk already verified but backend failed, skip re-verification and retry backend
+            if (pendingClerkTokenRef.current) {
+                await completeBackendLogin(pendingClerkTokenRef.current);
+                return;
+            }
+
             let status: string;
 
             if (flow === 'signUp') {
@@ -83,30 +99,29 @@ export default function VerifyScreen() {
             }
 
             if (status === 'complete') {
-                // getToken() can return null briefly after setActive() on physical devices — retry
+                // getToken() can return null briefly after setActive() on physical devices — retry longer
                 let clerkToken: string | null = null;
-                for (let i = 0; i < 5; i++) {
+                for (let i = 0; i < 10; i++) {
                     clerkToken = await getToken();
                     if (clerkToken) break;
-                    await new Promise((r) => setTimeout(r, 300));
+                    await new Promise((r) => setTimeout(r, 500));
                 }
                 if (!clerkToken) throw new Error('Failed to get session token. Please try again.');
-                try {
-                    await login(clerkToken);
-                    router.replace('/(tabs)/home');
-                } catch (backendError: unknown) {
-                    // Clerk session is valid but backend call failed — don't clear OTP
-                    const message = backendError instanceof Error ? backendError.message : 'Server error. Please try again.';
-                    showToast({ title: 'Login Failed', message, variant: 'error' });
-                }
-                return;
+                pendingClerkTokenRef.current = clerkToken;
+                await completeBackendLogin(clerkToken);
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Invalid or expired code';
-            showToast({ title: 'Invalid Code', message, variant: 'error' });
-            setOtp(Array(OTP_LENGTH).fill(''));
-            inputRefs.current[0]?.focus();
+            // Only clear OTP for Clerk errors, not backend errors
+            if (!pendingClerkTokenRef.current) {
+                showToast({ title: 'Verification Failed', message, variant: 'error' });
+                setOtp(Array(OTP_LENGTH).fill(''));
+                inputRefs.current[0]?.focus();
+            } else {
+                showToast({ title: 'Login Failed', message: 'Could not reach server. Tap "Verify & Continue" to retry.', variant: 'error' });
+            }
         } finally {
+            isVerifyingRef.current = false;
             setIsLoading(false);
         }
     };
@@ -172,7 +187,9 @@ export default function VerifyScreen() {
                     {isLoading ? (
                         <ActivityIndicator color={Colors.text} />
                     ) : (
-                        <Text style={CommonStyles.primaryButtonText}>Verify & Continue</Text>
+                        <Text style={CommonStyles.primaryButtonText}>
+                        {pendingClerkTokenRef.current ? 'Retry Login' : 'Verify & Continue'}
+                    </Text>
                     )}
                 </TouchableOpacity>
 
