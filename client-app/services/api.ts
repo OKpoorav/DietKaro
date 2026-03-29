@@ -141,6 +141,10 @@ export const clientAuthApi = {
     checkEmail: (email: string) =>
         api.post<ApiResponse<{ fullName: string }>>('/client-auth/check-email', { email }),
 
+    // Ensures a proper Clerk user exists — fixes stuck/incomplete signups
+    ensureClerkUser: (email: string) =>
+        api.post<ApiResponse<{ existed?: boolean; created?: boolean }>>('/client-auth/ensure-clerk-user', { email }),
+
     // Exchanges a Clerk session token for a backend JWT
     clerkLogin: (clerkToken: string) =>
         api.post<ApiResponse<{ token: string; accessToken: string; refreshToken: string; expiresIn: number; client: Client }>>('/client-auth/clerk-login', { clerkToken }),

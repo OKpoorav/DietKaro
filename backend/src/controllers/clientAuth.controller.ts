@@ -51,6 +51,57 @@ import logger from '../utils/logger';
 //     res.status(200).json({ success: true, data: { token: accessToken, accessToken, refreshToken, expiresIn: 900, client: { id: client.id, fullName: client.fullName, email: client.email, phone: client.phone, profilePhotoUrl: client.profilePhotoUrl, heightCm: client.heightCm, currentWeightKg: client.currentWeightKg, targetWeightKg: client.targetWeightKg, dietaryPreferences: client.dietaryPreferences, allergies: client.allergies, onboardingCompleted: client.onboardingCompleted, dietitian: client.primaryDietitian } } });
 // });
 
+// Ensures a Clerk user exists and is properly set up for the given client email.
+// If a broken/incomplete Clerk user exists, deletes and re-creates it.
+// Called from the mobile app when the normal signIn/signUp flow gets stuck.
+export const ensureClerkUser = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    if (!email) throw AppError.badRequest('Email required', 'MISSING_EMAIL');
+
+    const client = await prisma.client.findFirst({
+        where: { email: { equals: email.toLowerCase().trim(), mode: 'insensitive' }, isActive: true },
+        select: { id: true, fullName: true },
+    });
+
+    if (!client) {
+        throw AppError.notFound('No account found with this email.', 'CLIENT_NOT_FOUND');
+    }
+
+    const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if Clerk user already exists
+    const existingUsers = await clerk.users.getUserList({ emailAddress: [normalizedEmail] });
+
+    if (existingUsers.data.length > 0) {
+        const clerkUser = existingUsers.data[0];
+        const primaryEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId);
+
+        // If user exists and email is verified, they're fine — signIn flow will work
+        if (primaryEmail?.verification?.status === 'verified') {
+            res.status(200).json({ success: true, existed: true });
+            return;
+        }
+
+        // Broken/incomplete Clerk user — delete and re-create
+        await clerk.users.deleteUser(clerkUser.id);
+        logger.info('Deleted incomplete Clerk user', { email: normalizedEmail });
+    }
+
+    // Create a fresh, fully verified Clerk user
+    const nameParts = client.fullName.trim().split(/\s+/);
+    await clerk.users.createUser({
+        emailAddress: [normalizedEmail],
+        firstName: nameParts[0] || 'User',
+        lastName: nameParts.slice(1).join(' ') || '.',
+        skipPasswordRequirement: true,
+    });
+
+    logger.info('Created Clerk user for client', { email: normalizedEmail });
+    res.status(200).json({ success: true, created: true });
+});
+
 // Pre-check: confirm email belongs to an active client before sending Clerk OTP
 export const checkClientEmail = asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;

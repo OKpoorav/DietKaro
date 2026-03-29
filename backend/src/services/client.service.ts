@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { createClerkClient } from '@clerk/backend';
 import prisma from '../utils/prisma';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError';
@@ -132,6 +133,23 @@ export class ClientService {
         });
 
         logger.info('Client created', { clientId: client.id, orgId, referralSource: data.referralSource, referredBy: referredByClientId });
+
+        // Pre-create Clerk user so mobile login always uses the signIn flow
+        if (process.env.CLERK_SECRET_KEY) {
+            const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+            const normalizedEmail = data.email.toLowerCase().trim();
+            const nameParts = data.fullName.trim().split(/\s+/);
+            clerk.users.createUser({
+                emailAddress: [normalizedEmail],
+                firstName: nameParts[0] || 'User',
+                lastName: nameParts.slice(1).join(' ') || '.',
+                skipPasswordRequirement: true,
+            }).then(() => {
+                logger.info('Pre-created Clerk user for client', { clientId: client.id, email: normalizedEmail });
+            }).catch((err) => {
+                logger.warn('Failed to pre-create Clerk user', { clientId: client.id, error: (err as Error).message });
+            });
+        }
 
         // Fire welcome email — fetch org name, don't await to avoid blocking the response
         prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }).then((org) => {
