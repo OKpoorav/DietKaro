@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useDietPlan, usePublishDietPlan, useUpdateDietPlan, useExtendDietPlan } from '@/lib/hooks/use-diet-plans';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer, RefreshCw, SquarePen } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
@@ -316,6 +316,18 @@ export default function DietPlanDetailPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            const params = new URLSearchParams({ editId: planId });
+                            if (plan.clientId) params.set('clientId', plan.clientId);
+                            router.push(`/dashboard/diet-plans/new?${params.toString()}`);
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-brand/10 hover:bg-brand/20 text-brand text-sm font-medium rounded-lg transition-colors"
+                        title="Edit plan in meal builder"
+                    >
+                        <SquarePen className="w-4 h-4" />
+                        Edit Plan
+                    </button>
                     {plan.status === 'active' && (
                         <button
                             onClick={() => {

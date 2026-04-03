@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, ThumbsDown, Goal, CalendarClock, FileText } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
@@ -23,6 +23,10 @@ interface ClientFormData {
     targetWeight: string;
     allergies: string;
     medicalConditions: string;
+    dislikes: string;
+    goal: string;
+    goalDeadline: string;
+    healthNotes: string;
 }
 
 export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProps) {
@@ -37,6 +41,10 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
         targetWeight: '',
         allergies: '',
         medicalConditions: '',
+        dislikes: '',
+        goal: '',
+        goalDeadline: '',
+        healthNotes: '',
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -219,6 +227,79 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                                 rows={3}
                                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 placeholder="Diabetes, Hypertension..."
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Preferences & Goals */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <Goal className="w-4 h-4 text-blue-500" />
+                        Preferences & Goals
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Food Dislikes
+                            </label>
+                            <textarea
+                                name="dislikes"
+                                value={formData.dislikes}
+                                onChange={handleChange}
+                                rows={3}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                placeholder="Bitter gourd, Broccoli, Tofu..."
+                            />
+                            <p className="mt-1 text-xs text-gray-400">Comma-separated list of foods the client dislikes</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Goal
+                                </label>
+                                <div className="relative">
+                                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        name="goal"
+                                        value={formData.goal}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                        placeholder="e.g. Lose 10kg, Manage diabetes..."
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Goal Deadline
+                                </label>
+                                <div className="relative">
+                                    <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="date"
+                                        name="goalDeadline"
+                                        value={formData.goalDeadline}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Additional Notes
+                        </label>
+                        <div className="relative">
+                            <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                            <textarea
+                                name="healthNotes"
+                                value={formData.healthNotes}
+                                onChange={handleChange}
+                                rows={3}
+                                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                placeholder="Any extra information about the client..."
                             />
                         </div>
                     </div>

@@ -68,7 +68,7 @@ export default function VerifyScreen() {
     const completeBackendLogin = async (clerkToken: string) => {
         await login(clerkToken);
         pendingClerkTokenRef.current = null;
-        router.replace('/(tabs)/home');
+        router.replace('/');
     };
 
     const handleVerify = async (otpCode: string) => {

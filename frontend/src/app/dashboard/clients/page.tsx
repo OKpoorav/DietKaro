@@ -46,7 +46,7 @@ export default function ClientsPage() {
     const clients = data?.data || [];
     const meta = data?.meta;
 
-    const handleAddClient = async (clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string }, reactivate?: boolean) => {
+    const handleAddClient = async (clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string; goal?: string; goalDeadline?: string; healthNotes?: string }, reactivate?: boolean) => {
         try {
             await createClient.mutateAsync({
                 fullName: clientData.name,
@@ -57,6 +57,10 @@ export default function ClientsPage() {
                 heightCm: clientData.height ? Number(clientData.height) : undefined,
                 currentWeightKg: clientData.weight ? Number(clientData.weight) : undefined,
                 targetWeightKg: clientData.targetWeight ? Number(clientData.targetWeight) : undefined,
+                dislikes: clientData.dislikes ? clientData.dislikes.split(',').map(s => s.trim()).filter(Boolean) : [],
+                goal: clientData.goal || undefined,
+                goalDeadline: clientData.goalDeadline || undefined,
+                healthNotes: clientData.healthNotes || undefined,
                 ...(reactivate ? { reactivate: true } : {}),
             } as any);
             setShowAddClientModal(false);

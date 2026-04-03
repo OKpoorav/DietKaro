@@ -100,6 +100,8 @@ model Client {
   medicalConditions     String[]
   medications           String[]
   healthNotes           String?
+  goal                  String?
+  goalDeadline          DateTime?              @db.Date
   emergencyContactName  String?
   emergencyContactPhone String?
   onboardingCompleted   Boolean                @default(false)
