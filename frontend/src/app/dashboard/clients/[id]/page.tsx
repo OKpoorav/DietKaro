@@ -197,22 +197,50 @@ export default function ClientProfilePage() {
                 </div>
 
                 {/* Profile Header */}
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-brand/20 flex items-center justify-center text-brand text-3xl md:text-4xl font-bold">
-                        {getInitials(client.fullName)}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                        <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-brand/20 flex items-center justify-center text-brand text-3xl md:text-4xl font-bold">
+                            {getInitials(client.fullName)}
+                        </div>
+                        <div className="flex flex-col justify-center">
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+                                {client.fullName}
+                            </h1>
+                            <p className="text-[#4e9767]">
+                                {age && `Age: ${age}, `}
+                                {client.gender && `Gender: ${client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}`}
+                            </p>
+                            <p className="text-[#4e9767]">
+                                {client.email} • {client.phone || 'No phone'}
+                            </p>
+                        </div>
                     </div>
-                    <div className="flex flex-col justify-center">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-                            {client.fullName}
-                        </h1>
-                        <p className="text-[#4e9767]">
-                            {age && `Age: ${age}, `}
-                            {client.gender && `Gender: ${client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}`}
-                        </p>
-                        <p className="text-[#4e9767]">
-                            {client.email} • {client.phone || 'No phone'}
-                        </p>
-                    </div>
+
+                    {/* Goal & Deadline */}
+                    {(client.goal || client.goalDeadline) && (
+                        <div className="flex flex-col gap-2 rounded-xl bg-white border border-gray-100 shadow-sm p-4 md:min-w-[280px]">
+                            {client.goal && (
+                                <div className="flex items-start gap-2">
+                                    <Target className="w-4 h-4 text-brand mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Goal</p>
+                                        <p className="text-sm font-semibold text-gray-900">{client.goal}</p>
+                                    </div>
+                                </div>
+                            )}
+                            {client.goalDeadline && (
+                                <div className="flex items-start gap-2">
+                                    <Calendar className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Target Date</p>
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {new Date(client.goalDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </header>
 

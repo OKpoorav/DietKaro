@@ -44,6 +44,10 @@ export interface Client {
         dinnerTime?: string | null;
         snackTime?: string | null;
     } | null;
+    // Goal
+    goal?: string | null;
+    goalDeadline?: string | null;
+    healthNotes?: string | null;
     // Nutrition targets
     targetCalories?: number | null;
     targetProteinG?: number | null;
