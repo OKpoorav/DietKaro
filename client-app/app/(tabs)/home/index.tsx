@@ -20,17 +20,16 @@ function buildDayPlanHtml(dateLabel: string, meals: MealLog[]): string {
 
     const mealRows = meals.map((ml) => {
         const meal = ml.meal;
-        const mealType = meal?.mealType?.charAt(0).toUpperCase() + (meal?.mealType?.slice(1) || '');
+        const mealLabel = meal?.name || meal?.mealType?.charAt(0).toUpperCase() + (meal?.mealType?.slice(1) || '');
         const ingredients = (meal?.foodItems || [])
             .map((fi: any) => `<li>${fi.foodName} &mdash; ${fi.quantityG}g</li>`)
             .join('');
         return `
         <div class="meal-block">
             <div class="meal-header">
-                <span class="meal-type">${mealType}</span>
+                <span class="meal-type">${mealLabel}</span>
                 ${ml.scheduledTime ? `<span class="meal-time">${ml.scheduledTime}</span>` : ''}
             </div>
-            <div class="meal-name">${meal?.name || ''}</div>
             <ul class="ingredients">${ingredients}</ul>
             <div class="macros">
                 ${!meal?.hideCaloriesFromClient && meal?.totalCalories ? `<span>${meal.totalCalories} kcal</span>` : ''}
@@ -100,17 +99,16 @@ function buildWeekPlanHtml(weekLabel: string, weekDates: Date[], allMeals: MealL
 
         const mealRows = meals.map((ml) => {
             const meal = ml.meal;
-            const mealType = meal?.mealType?.charAt(0).toUpperCase() + (meal?.mealType?.slice(1) || '');
+            const mealLabel = meal?.name || meal?.mealType?.charAt(0).toUpperCase() + (meal?.mealType?.slice(1) || '');
             const ingredients = (meal?.foodItems || [])
                 .map((fi: any) => `<li>${fi.foodName} &mdash; ${fi.quantityG}g</li>`)
                 .join('');
             return `
             <div class="meal-block">
                 <div class="meal-header">
-                    <span class="meal-type">${mealType}</span>
+                    <span class="meal-type">${mealLabel}</span>
                     ${ml.scheduledTime ? `<span class="meal-time">${ml.scheduledTime}</span>` : ''}
                 </div>
-                <div class="meal-name">${meal?.name || ''}</div>
                 <ul class="ingredients">${ingredients}</ul>
                 <div class="macros">
                     ${!meal?.hideCaloriesFromClient && meal?.totalCalories ? `<span>${meal.totalCalories} kcal</span>` : ''}
@@ -225,7 +223,7 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
             <View style={styles.mealInfo}>
                 <View style={styles.mealHeader}>
                     <Text style={styles.mealType}>
-                        {meal?.mealType?.charAt(0).toUpperCase() + meal?.mealType?.slice(1) || 'Meal'}
+                        {meal?.name || meal?.mealType?.charAt(0).toUpperCase() + meal?.mealType?.slice(1) || 'Meal'}
                     </Text>
                     <View style={[styles.statusBadge, { backgroundColor: statusInfo.bgColor }]}>
                         <statusInfo.icon size={12} color={statusInfo.color} />
@@ -235,16 +233,13 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
                     </View>
                 </View>
 
-                {meal?.name && meal.name.toLowerCase() !== meal.mealType?.toLowerCase() && (
+                {meal?.hasAlternatives && (
                 <View style={styles.mealNameRow}>
-                    <Text style={styles.mealName} numberOfLines={1}>{meal.name}</Text>
-                    {meal?.hasAlternatives && (
-                        <View style={styles.optionsBadge}>
-                            <Text style={styles.optionsBadgeText}>
-                                {(meal.options?.length || 2)} options
-                            </Text>
-                        </View>
-                    )}
+                    <View style={styles.optionsBadge}>
+                        <Text style={styles.optionsBadgeText}>
+                            {(meal.options?.length || 2)} options
+                        </Text>
+                    </View>
                 </View>
                 )}
 

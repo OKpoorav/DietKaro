@@ -140,7 +140,6 @@ export default function MealDetailScreen() {
     const mealPhoto = currentMealLog?.mealPhotoUrl;
     const clientNotes = currentMealLog?.clientNotes;
     const displayMealName = currentMealLog?.meal?.name || mealName || 'Meal';
-    const displayMealType = currentMealLog?.meal?.mealType || mealType || 'meal';
     const displayTime = currentMealLog?.scheduledTime || scheduledTime;
 
     if (!isPendingMeal && (currentMealLog?.status === 'eaten' || currentMealLog?.status === 'skipped' || isLoggedMeal)) {
@@ -169,7 +168,6 @@ export default function MealDetailScreen() {
 
                     {/* Meal Info */}
                     <View style={styles.mealInfoCard}>
-                        <Text style={styles.mealTypeLabel}>{displayMealType.toUpperCase()}</Text>
                         <Text style={styles.mealNameLarge}>{displayMealName}</Text>
                         {displayTime && (
                             <View style={styles.timeRow}>

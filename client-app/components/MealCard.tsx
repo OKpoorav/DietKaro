@@ -8,12 +8,25 @@ interface MealCardProps {
     mealLog: MealLog;
 }
 
-const mealTypeEmoji: Record<string, string> = {
+const mealNameEmoji: Record<string, string> = {
     breakfast: '🌅',
     lunch: '☀️',
     snack: '🍎',
     dinner: '🌙',
+    'early morning': '🌅',
+    'mid-morning': '🌤️',
+    'mid morning': '🌤️',
+    'evening snack': '🍎',
+    'post dinner': '🌙',
+    'post-dinner': '🌙',
+    'pre-workout': '💪',
+    'post-workout': '💪',
 };
+
+function getMealEmoji(meal: { name: string; mealType: string }): string {
+    const name = meal.name?.toLowerCase().trim() || '';
+    return mealNameEmoji[name] || mealNameEmoji[meal.mealType] || '🍽️';
+}
 
 export function MealCard({ mealLog }: MealCardProps) {
     const router = useRouter();
@@ -31,9 +44,9 @@ export function MealCard({ mealLog }: MealCardProps) {
         <TouchableOpacity style={styles.container} onPress={handlePress} activeOpacity={0.7}>
             <View style={styles.header}>
                 <View style={styles.mealTypeRow}>
-                    <Text style={styles.emoji}>{mealTypeEmoji[meal.mealType] || '🍽️'}</Text>
+                    <Text style={styles.emoji}>{getMealEmoji(meal)}</Text>
                     <View>
-                        <Text style={styles.mealType}>{meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}</Text>
+                        <Text style={styles.mealType}>{meal.name || meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}</Text>
                         <Text style={styles.time}>{scheduledTime || meal.timeOfDay || '--:--'}</Text>
                     </View>
                 </View>
