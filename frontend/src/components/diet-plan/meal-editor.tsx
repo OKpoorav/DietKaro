@@ -155,7 +155,7 @@ interface MealEditorProps {
     onRemoveFood: (mealId: string, tempId: string) => void;
     onUpdateFoodQuantity: (mealId: string, tempId: string, val: string) => void;
     onUpdateFoodQuantityValue: (mealId: string, tempId: string, grams: number) => void;
-    onUpdateMealField: (mealId: string, field: 'name' | 'time', value: string) => void;
+    onUpdateMealField: (mealId: string, field: 'name' | 'time' | 'type', value: string) => void;
     onAddAlternative?: (mealId: string) => void;
     onRemoveOption?: (mealId: string, optionGroup: number) => void;
     onUpdateOptionLabel?: (mealId: string, optionGroup: number, label: string) => void;

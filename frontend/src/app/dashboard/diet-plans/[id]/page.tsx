@@ -9,7 +9,15 @@ import { useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
 import { toast } from 'sonner';
 
-const MEAL_TYPE_ORDER = ['breakfast', 'lunch', 'snack', 'dinner', 'pre_workout', 'post_workout', 'other'];
+// Default column ordering — meals whose name matches get this priority, rest sorted by time
+const KNOWN_MEAL_ORDER: Record<string, number> = {
+    'breakfast': 0, 'early morning': 0,
+    'mid-morning': 1, 'mid morning': 1,
+    'lunch': 2,
+    'snack': 3, 'evening snack': 3,
+    'dinner': 4,
+    'post dinner': 5, 'post-dinner': 5,
+};
 
 function getMealDate(meal: any, startDate: string): Date {
     if (meal.mealDate) return new Date(meal.mealDate);
@@ -39,9 +47,7 @@ function MealCell({ meal }: { meal: any }) {
                     <Clock className="w-3 h-3 inline" /> {meal.timeOfDay}
                 </p>
             )}
-            {meal.name && meal.name.toLowerCase() !== meal.mealType?.toLowerCase() && (
-                <p className="text-xs font-semibold text-gray-700 mb-1 truncate">{meal.name}</p>
-            )}
+            {/* Name is already the column header — no need to repeat it */}
             {sortedGroups.map(([groupNum, foods], gIdx) => (
                 <div key={groupNum}>
                     {hasAlts && gIdx > 0 && (
@@ -68,23 +74,48 @@ function MealCell({ meal }: { meal: any }) {
 }
 
 function MealsSpreadsheet({ meals, startDate }: { meals: any[]; startDate: string }) {
-    // Build date → mealType → meal[] map
+    // Build date → mealName → meal[] map, using meal name as the column key
     const dateMap = new Map<string, Map<string, any[]>>();
-    const mealTypesFound = new Set<string>();
+    const columnSet = new Map<string, { time: string }>(); // track earliest time per column
 
     for (const meal of meals) {
         const d = getMealDate(meal, startDate);
         const key = formatDateKey(d);
-        const type = (meal.mealType || 'other').toLowerCase();
-        mealTypesFound.add(type);
+        const colName = (meal.name || meal.mealType || 'Other').trim();
+        const colKey = colName.toLowerCase();
+
+        if (!columnSet.has(colKey)) {
+            columnSet.set(colKey, { time: meal.timeOfDay || '99:99' });
+        } else if (meal.timeOfDay && meal.timeOfDay < columnSet.get(colKey)!.time) {
+            columnSet.get(colKey)!.time = meal.timeOfDay;
+        }
+
         if (!dateMap.has(key)) dateMap.set(key, new Map());
-        const typeMap = dateMap.get(key)!;
-        if (!typeMap.has(type)) typeMap.set(type, []);
-        typeMap.get(type)!.push(meal);
+        const nameMap = dateMap.get(key)!;
+        if (!nameMap.has(colKey)) nameMap.set(colKey, []);
+        nameMap.get(colKey)!.push(meal);
     }
 
     const sortedDates = Array.from(dateMap.keys()).sort();
-    const columns = MEAL_TYPE_ORDER.filter(t => mealTypesFound.has(t));
+
+    // Sort columns: known meals first by priority, then by earliest time
+    const columns = Array.from(columnSet.entries())
+        .sort(([aKey, aInfo], [bKey, bInfo]) => {
+            const aOrder = KNOWN_MEAL_ORDER[aKey] ?? 50;
+            const bOrder = KNOWN_MEAL_ORDER[bKey] ?? 50;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            return (aInfo.time || '99:99').localeCompare(bInfo.time || '99:99');
+        })
+        .map(([colKey]) => colKey);
+
+    // Build display names (capitalize first letter of each word)
+    const columnDisplayNames: Record<string, string> = {};
+    for (const meal of meals) {
+        const colKey = (meal.name || meal.mealType || 'Other').trim().toLowerCase();
+        if (!columnDisplayNames[colKey]) {
+            columnDisplayNames[colKey] = (meal.name || meal.mealType || 'Other').trim();
+        }
+    }
 
     return (
         <div className="overflow-x-auto">
@@ -96,14 +127,14 @@ function MealsSpreadsheet({ meals, startDate }: { meals: any[]; startDate: strin
                         </th>
                         {columns.map(col => (
                             <th key={col} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-r border-gray-200 min-w-[160px]">
-                                {col.replace('_', ' ')}
+                                {columnDisplayNames[col] || col}
                             </th>
                         ))}
                     </tr>
                 </thead>
                 <tbody>
                     {sortedDates.map((dateKey, rowIdx) => {
-                        const typeMap = dateMap.get(dateKey)!;
+                        const nameMap = dateMap.get(dateKey)!;
                         const date = new Date(dateKey + 'T00:00:00Z');
                         const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
                         const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -116,7 +147,7 @@ function MealsSpreadsheet({ meals, startDate }: { meals: any[]; startDate: strin
                                     <p className="text-xs text-gray-400">{dateLabel}</p>
                                 </td>
                                 {columns.map(col => {
-                                    const cellMeals = typeMap.get(col) || [];
+                                    const cellMeals = nameMap.get(col) || [];
                                     return (
                                         <td key={col} className="px-4 py-3 border-b border-r border-gray-200 align-top">
                                             {cellMeals.length > 0 ? (

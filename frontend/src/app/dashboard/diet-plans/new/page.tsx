@@ -3,7 +3,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -98,14 +98,24 @@ function BuilderContent() {
                 </div>
                 <div className="flex gap-2">
                     {isTemplateMode ? (
-                        <button
-                            onClick={() => builder.save(false)}
-                            disabled={builder.isSaving}
-                            className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
-                        >
-                            <Save className="w-4 h-4" />
-                            {builder.isSaving ? 'Saving...' : (builder.isEditMode ? 'Update Template' : 'Save Template')}
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => builder.save(false, true)}
+                                disabled={builder.isSaving}
+                                className="flex items-center gap-2 h-10 px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                            >
+                                <LayoutTemplate className="w-4 h-4" />
+                                Save as Slot Template
+                            </button>
+                            <button
+                                onClick={() => builder.save(false)}
+                                disabled={builder.isSaving}
+                                className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                            >
+                                <Save className="w-4 h-4" />
+                                {builder.isSaving ? 'Saving...' : (builder.isEditMode ? 'Update Template' : 'Save Template')}
+                            </button>
+                        </div>
                     ) : (
                         <>
                             <button
@@ -154,6 +164,7 @@ function BuilderContent() {
                             templates={templates}
                             applyingTemplateId={builder.applyingTemplateId}
                             onApplyTemplate={builder.applyTemplate}
+                            onApplyPreset={builder.applyPreset}
                         />
                     </div>
                 </aside>

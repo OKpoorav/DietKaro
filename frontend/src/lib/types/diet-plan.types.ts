@@ -66,4 +66,5 @@ export interface TemplateData {
     id: string;
     name?: string;
     checkInFrequency?: string;
+    templateCategory?: string;
 }

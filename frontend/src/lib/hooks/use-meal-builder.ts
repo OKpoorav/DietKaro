@@ -5,6 +5,7 @@ import { useApiClient } from '../api/use-api-client';
 import { useCreateDietPlan, usePublishDietPlan, useUpdateDietPlan, CreateDietPlanInput } from './use-diet-plans';
 import { toast } from 'sonner';
 import type { LocalMeal, LocalFoodItem, DayNutrition, ClientData, FoodItemData } from '../types/diet-plan.types';
+import type { MealSlotPreset } from '@/components/diet-plan/template-sidebar';
 
 // Re-export types used by components
 export type { LocalMeal, LocalFoodItem, DayNutrition };
@@ -18,6 +19,16 @@ interface UseMealBuilderOptions {
 }
 
 function makeId() { return Math.random().toString(36).substr(2, 9); }
+
+/** Infer a DB-compatible mealType from the free-form meal name. */
+function inferMealType(name: string): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
+    const n = name.toLowerCase().trim();
+    if (n.includes('breakfast') || n === 'early morning') return 'breakfast';
+    if (n.includes('lunch')) return 'lunch';
+    if (n.includes('dinner')) return 'dinner';
+    // Everything else (snack, mid-morning, post dinner, pre-workout, etc.) → snack
+    return 'snack';
+}
 
 function defaultMeals(prefs?: { breakfastTime?: string | null; lunchTime?: string | null; dinnerTime?: string | null; snackTime?: string | null } | null): LocalMeal[] {
     return [
@@ -69,18 +80,30 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
     // Handlers
     const addMeal = useCallback(() => {
+        const existing = weeklyMeals[selectedDayIndex] || [];
+        const existingTypes = new Set(existing.map(m => m.type));
+
+        const defaults: { type: LocalMeal['type']; name: string; time: string }[] = [
+            { type: 'breakfast', name: 'Breakfast', time: client?.preferences?.breakfastTime || '08:00' },
+            { type: 'lunch', name: 'Lunch', time: client?.preferences?.lunchTime || '13:00' },
+            { type: 'dinner', name: 'Dinner', time: client?.preferences?.dinnerTime || '19:30' },
+            { type: 'snack', name: 'Snack', time: client?.preferences?.snackTime || '16:00' },
+        ];
+
+        const pick = defaults.find(d => !existingTypes.has(d.type)) || defaults[3];
+
         const newMeal: LocalMeal = {
             id: Math.random().toString(36).substr(2, 9),
-            name: 'Snack',
-            type: 'snack',
-            time: '16:00',
+            name: pick.name,
+            type: pick.type,
+            time: pick.time,
             foods: []
         };
         setWeeklyMeals(prev => ({
             ...prev,
             [selectedDayIndex]: [...(prev[selectedDayIndex] || []), newMeal]
         }));
-    }, [selectedDayIndex]);
+    }, [selectedDayIndex, weeklyMeals, client]);
 
     const removeMeal = useCallback((id: string) => {
         setWeeklyMeals(prev => ({
@@ -177,7 +200,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }));
     }, [selectedDayIndex]);
 
-    const updateMealField = useCallback((mealId: string, field: 'name' | 'time', value: string) => {
+    const updateMealField = useCallback((mealId: string, field: 'name' | 'time' | 'type', value: string) => {
         setWeeklyMeals(prev => ({
             ...prev,
             [selectedDayIndex]: prev[selectedDayIndex].map(m => m.id === mealId ? { ...m, [field]: value } : m)
@@ -465,20 +488,35 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }
     }, [api, client, selectedDayIndex]);
 
-    // Save / Publish
-    const save = useCallback(async (publish: boolean) => {
+    // Apply a preset meal structure (empty slots)
+    const applyPreset = useCallback((preset: MealSlotPreset) => {
+        if (!confirm('This will replace all current meals for this day with the selected structure. Continue?')) return;
+        const newMeals: LocalMeal[] = preset.slots.map(slot => ({
+            id: Math.random().toString(36).substr(2, 9),
+            name: slot.name,
+            type: slot.type,
+            time: slot.time,
+            foods: [],
+        }));
+        setWeeklyMeals(prev => ({ ...prev, [selectedDayIndex]: newMeals }));
+        toast.success(`Applied "${preset.label}" structure`);
+    }, [selectedDayIndex]);
+
+    // Save / Publish. When slotOnly=true, strips food items and saves as slot template.
+    const save = useCallback(async (publish: boolean, slotOnly: boolean = false) => {
         const apiMeals: CreateDietPlanInput['meals'] = [];
 
         Object.entries(weeklyMeals).forEach(([dayIdx, dayMeals]) => {
             dayMeals.forEach(m => {
+                const mealType = inferMealType(m.name);
                 if (isTemplateMode) {
                     // Templates: use relative dayOfWeek index
                     apiMeals.push({
                         dayOfWeek: parseInt(dayIdx),
-                        mealType: m.type,
+                        mealType,
                         timeOfDay: m.time,
                         name: m.name,
-                        foodItems: m.foods.map(f => ({
+                        foodItems: slotOnly ? [] : m.foods.map(f => ({
                             foodId: f.id,
                             quantityG: f.quantityValue,
                             notes: f.quantity,
@@ -492,7 +530,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     mealDate.setDate(mealDate.getDate() + parseInt(dayIdx));
                     apiMeals.push({
                         mealDate: mealDate.toISOString().split('T')[0],
-                        mealType: m.type,
+                        mealType,
                         timeOfDay: m.time,
                         name: m.name,
                         foodItems: m.foods.map(f => ({
@@ -559,7 +597,10 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetFatsG: targets.fat,
                     hideCaloriesFromClient,
                     meals: apiMeals,
-                    options: isTemplateMode ? { saveAsTemplate: true } : undefined,
+                    options: isTemplateMode ? {
+                        saveAsTemplate: true,
+                        ...(slotOnly ? { templateCategory: 'slot_template' } : {}),
+                    } : undefined,
                 });
 
                 if (publish && createdPlan?.id) {
@@ -619,6 +660,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         addDay,
         removeDay,
         applyTemplate,
+        applyPreset,
         save,
 
         // Mutation states
