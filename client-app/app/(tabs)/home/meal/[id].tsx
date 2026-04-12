@@ -201,6 +201,24 @@ export default function MealDetailScreen() {
                         )}
                     </View>
 
+                    {/* Meal Description & Instructions */}
+                    {(currentMealLog?.meal?.description || currentMealLog?.meal?.instructions) && (
+                        <View style={styles.notesCard}>
+                            {currentMealLog.meal.description && (
+                                <View style={{ marginBottom: currentMealLog.meal.instructions ? 12 : 0 }}>
+                                    <Text style={styles.cardTitle}>About this meal</Text>
+                                    <Text style={styles.notesText}>{currentMealLog.meal.description}</Text>
+                                </View>
+                            )}
+                            {currentMealLog.meal.instructions && (
+                                <View>
+                                    <Text style={styles.cardTitle}>How to prepare</Text>
+                                    <Text style={styles.notesText}>{currentMealLog.meal.instructions}</Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
                     {/* Client Notes */}
                     {clientNotes && (
                         <View style={styles.notesCard}>
@@ -279,15 +297,36 @@ export default function MealDetailScreen() {
                     )}
                 </View>
 
+                {/* Meal Description & Instructions */}
+                {(mealLog?.meal?.description || mealLog?.meal?.instructions) && (
+                    <View style={styles.notesCard}>
+                        {mealLog.meal.description && (
+                            <View style={{ marginBottom: mealLog.meal.instructions ? 12 : 0 }}>
+                                <Text style={styles.cardTitle}>About this meal</Text>
+                                <Text style={styles.notesText}>{mealLog.meal.description}</Text>
+                            </View>
+                        )}
+                        {mealLog.meal.instructions && (
+                            <View>
+                                <Text style={styles.cardTitle}>How to prepare</Text>
+                                <Text style={styles.notesText}>{mealLog.meal.instructions}</Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
                 {/* Ingredients — shown for single-option meals */}
                 {!hasAlternatives && mealOptions.length === 1 && mealOptions[0].foodItems.length > 0 && (
                     <View style={styles.optionSection}>
                         <Text style={styles.sectionTitle}>Ingredients</Text>
                         <View style={styles.optionCard}>
                             {mealOptions[0].foodItems.map((fi, idx) => (
-                                <Text key={fi.id || idx} style={styles.optionFoodItem}>
-                                    • {fi.foodName}  {fi.quantityG}g  ({fi.calories} kcal)
-                                </Text>
+                                <View key={fi.id || idx}>
+                                    <Text style={styles.optionFoodItem}>
+                                        • {fi.foodName}  {fi.quantityG}g  ({fi.calories} kcal)
+                                    </Text>
+                                    {fi.notes && <Text style={styles.foodNoteText}>  {fi.notes}</Text>}
+                                </View>
                             ))}
                         </View>
                     </View>
@@ -333,9 +372,12 @@ export default function MealDetailScreen() {
                                     </View>
                                     <View style={styles.optionFoods}>
                                         {option.foodItems.map((fi, idx) => (
-                                            <Text key={fi.id || idx} style={styles.optionFoodItem}>
-                                                {fi.foodName} {fi.quantityG}g
-                                            </Text>
+                                            <View key={fi.id || idx}>
+                                                <Text style={styles.optionFoodItem}>
+                                                    {fi.foodName} {fi.quantityG}g
+                                                </Text>
+                                                {fi.notes && <Text style={styles.foodNoteText}>  {fi.notes}</Text>}
+                                            </View>
                                         ))}
                                     </View>
                                     <View style={styles.optionMacros}>
@@ -755,6 +797,13 @@ const styles = StyleSheet.create({
         fontSize: FontSizes.sm,
         color: Colors.textSecondary,
         lineHeight: 20,
+    },
+    foodNoteText: {
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+        fontStyle: 'italic',
+        marginBottom: 2,
+        opacity: 0.7,
     },
     optionMacros: {
         flexDirection: 'row',

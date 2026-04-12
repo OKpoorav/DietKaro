@@ -63,6 +63,7 @@ export interface MealFoodItem {
     calories?: number;
     optionGroup?: number;
     optionLabel?: string;
+    notes?: string;
 }
 
 export interface MealLog {
