@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, Send, LayoutTemplate, Users, X, ChevronRight, UtensilsCrossed } from 'lucide-react';
-import { useDietPlans, usePublishDietPlan, useAssignTemplate } from '@/lib/hooks/use-diet-plans';
+import { useDietPlans, usePublishDietPlan, useAssignTemplate, useDeleteDietPlan } from '@/lib/hooks/use-diet-plans';
 import { useClients } from '@/lib/hooks/use-clients';
 import { useState, useRef, useEffect } from 'react';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
@@ -35,6 +35,7 @@ export default function DietPlansPage() {
         isTemplate: isTemplateView
     });
     const publishMutation = usePublishDietPlan();
+    const deleteMutation = useDeleteDietPlan();
     const assignMutation = useAssignTemplate();
 
     // Fetch clients for assignment modal
@@ -65,12 +66,24 @@ export default function DietPlansPage() {
 
     const handlePublish = async (planId: string) => {
         try {
-            await publishMutation.mutateAsync(planId);
+            await publishMutation.mutateAsync({ id: planId });
             await refetch();
             setOpenMenuId(null);
             toast.success('Diet plan published successfully');
         } catch (err) {
             toast.error('Failed to publish diet plan');
+        }
+    };
+
+    const handleDelete = async (planId: string, planName: string) => {
+        if (!confirm(`Delete "${planName}"? This will cancel all pending meal logs.`)) return;
+        try {
+            await deleteMutation.mutateAsync(planId);
+            await refetch();
+            setOpenMenuId(null);
+            toast.success('Diet plan deleted');
+        } catch (err) {
+            toast.error('Failed to delete plan');
         }
     };
 
@@ -230,14 +243,12 @@ export default function DietPlansPage() {
                                                     </button>
                                                 )}
                                                 <button
-                                                    className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                                                    onClick={() => {
-                                                        // TODO: Add delete functionality
-                                                        setOpenMenuId(null);
-                                                    }}
+                                                    className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left disabled:opacity-50"
+                                                    disabled={deleteMutation.isPending}
+                                                    onClick={() => handleDelete(plan.id, plan.name || 'Untitled Plan')}
                                                 >
                                                     <Trash2 className="w-4 h-4" />
-                                                    Delete
+                                                    {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
                                                 </button>
                                             </div>
                                         )}

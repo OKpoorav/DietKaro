@@ -4,7 +4,8 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useApiClient } from '../api/use-api-client';
 import { useCreateDietPlan, usePublishDietPlan, useUpdateDietPlan, CreateDietPlanInput } from './use-diet-plans';
 import { toast } from 'sonner';
-import type { LocalMeal, LocalFoodItem, DayNutrition, ClientData, FoodItemData } from '../types/diet-plan.types';
+import type { LocalMeal, LocalFoodItem, DayNutrition, FoodItemData } from '../types/diet-plan.types';
+import type { Client } from './use-clients';
 import type { MealSlotPreset } from '@/components/diet-plan/template-sidebar';
 
 // Re-export types used by components
@@ -14,11 +15,24 @@ interface UseMealBuilderOptions {
     clientId: string | null;
     isTemplateMode: boolean;
     editId?: string | null; // If set, load existing plan/template for editing
-    client: ClientData | null | undefined;
+    client: Client | null | undefined;
     onSaved: (isTemplate: boolean, published: boolean) => void;
+    initialStartDate?: Date;
+    initialNumDays?: number;
+    initialPlanName?: string;
+    overlapStrategy?: 'overwrite' | 'end_previous' | 'update';
+    overlappingPlanIds?: string[];
 }
 
 function makeId() { return Math.random().toString(36).substr(2, 9); }
+
+/** Format date as YYYY-MM-DD in local timezone (avoids UTC shift from toISOString) */
+function toLocalDateStr(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
 
 /** Infer a DB-compatible mealType from the free-form meal name. */
 function inferMealType(name: string): 'breakfast' | 'lunch' | 'dinner' | 'snack' {
@@ -51,7 +65,7 @@ export const getDates = (startDate: Date, days: number) => {
     });
 };
 
-export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSaved }: UseMealBuilderOptions) {
+export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSaved, initialStartDate, initialNumDays, initialPlanName, overlapStrategy, overlappingPlanIds }: UseMealBuilderOptions) {
     const api = useApiClient();
     const createMutation = useCreateDietPlan();
     const updateMutation = useUpdateDietPlan();
@@ -59,24 +73,149 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
     const isEditMode = !!editId;
 
-    // State
-    const [startDate, setStartDate] = useState(new Date());
+    // State — use initial values from PlanSetupModal when provided
+    const [startDate, setStartDate] = useState(initialStartDate || new Date());
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-    const [planName, setPlanName] = useState(isTemplateMode ? 'New Template' : 'New Diet Plan');
+    const [planName, setPlanName] = useState(initialPlanName || (isTemplateMode ? 'New Template' : 'New Diet Plan'));
     const [planDescription, setPlanDescription] = useState('');
-    const [weeklyMeals, setWeeklyMeals] = useState<Record<number, LocalMeal[]>>(() => ({
-        0: defaultMeals(client?.preferences),
-    }));
+    const [weeklyMeals, setWeeklyMeals] = useState<Record<number, LocalMeal[]>>(() => {
+        const days = initialNumDays || (isTemplateMode ? 7 : 1);
+        const meals: Record<number, LocalMeal[]> = {};
+        for (let i = 0; i < days; i++) {
+            meals[i] = defaultMeals(client?.preferences);
+        }
+        return meals;
+    });
     const [showAddFoodModal, setShowAddFoodModal] = useState(false);
     const [activeMealId, setActiveMealId] = useState<string | null>(null);
     const [activeOptionGroup, setActiveOptionGroup] = useState<number>(0);
     const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
     const [hideCaloriesFromClient, setHideCaloriesFromClient] = useState(false);
-    const [numDays, setNumDays] = useState(isTemplateMode ? 7 : 1);
+    const [numDays, setNumDays] = useState(initialNumDays || (isTemplateMode ? 7 : 1));
     const [editLoading, setEditLoading] = useState(!!editId);
+    const [isDirty, setIsDirty] = useState(false);
+    const [clipboardDay, setClipboardDay] = useState<LocalMeal[] | null>(null);
+
+    // Sync state when PlanSetupModal results arrive (initial values only run once in useState)
+    const [setupApplied, setSetupApplied] = useState(false);
+    useEffect(() => {
+        if (setupApplied || isEditMode) return;
+        if (!initialNumDays && !initialStartDate && !initialPlanName) return;
+        setSetupApplied(true);
+
+        if (initialStartDate) setStartDate(initialStartDate);
+        if (initialPlanName) setPlanName(initialPlanName);
+        if (initialNumDays && initialNumDays > 1) {
+            setNumDays(initialNumDays);
+            setWeeklyMeals(() => {
+                const meals: Record<number, LocalMeal[]> = {};
+                for (let i = 0; i < initialNumDays; i++) {
+                    meals[i] = defaultMeals(client?.preferences);
+                }
+                return meals;
+            });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialNumDays, initialStartDate, initialPlanName]);
+
+    // "Update existing plan" strategy: fetch overlapping plan meals and copy into matching days
+    useEffect(() => {
+        if (overlapStrategy !== 'update' || !overlappingPlanIds?.length || !initialStartDate || !initialNumDays) return;
+        let cancelled = false;
+
+        async function loadOverlappingMeals() {
+            try {
+                // Fetch all overlapping plans
+                const allMeals: Record<string, LocalMeal[]> = {}; // dateStr → meals
+
+                for (const planId of overlappingPlanIds!) {
+                    const { data } = await api.get(`/diet-plans/${planId}`);
+                    const plan = data.data;
+                    if (!plan.meals?.length) continue;
+
+                    for (const tm of plan.meals) {
+                        const mealDateStr = tm.mealDate
+                            ? toLocalDateStr(new Date(tm.mealDate))
+                            : null;
+                        if (!mealDateStr) continue;
+                        if (!allMeals[mealDateStr]) allMeals[mealDateStr] = [];
+
+                        const localFoods: LocalFoodItem[] = (tm.foodItems || []).map((f: any) => {
+                            const ratio = (f.quantityG || 100) / 100;
+                            return {
+                                id: f.foodItem.id,
+                                tempId: makeId(),
+                                name: f.foodItem.name,
+                                quantity: f.notes || `${f.quantityG}g`,
+                                quantityValue: f.quantityG || 100,
+                                calories: f.foodItem.calories * ratio,
+                                protein: (Number(f.foodItem.proteinG) || 0) * ratio,
+                                carbs: (Number(f.foodItem.carbsG) || 0) * ratio,
+                                fat: (Number(f.foodItem.fatsG) || 0) * ratio,
+                                hasWarning: false,
+                                optionGroup: f.optionGroup ?? 0,
+                                optionLabel: f.optionLabel ?? undefined,
+                            };
+                        });
+
+                        allMeals[mealDateStr].push({
+                            id: makeId(),
+                            name: tm.name || tm.mealType,
+                            type: tm.mealType,
+                            time: tm.timeOfDay || '08:00',
+                            description: tm.description || '',
+                            instructions: tm.instructions || '',
+                            foods: localFoods,
+                        });
+                    }
+                }
+
+                if (cancelled) return;
+
+                // Map fetched meals into day indices based on new plan's startDate
+                const numD = initialNumDays!;
+                const startD = initialStartDate!;
+                setWeeklyMeals(prev => {
+                    const updated = { ...prev };
+                    for (let i = 0; i < numD; i++) {
+                        const dayDate = new Date(startD);
+                        dayDate.setDate(dayDate.getDate() + i);
+                        const dayStr = toLocalDateStr(dayDate);
+                        if (allMeals[dayStr]?.length) {
+                            updated[i] = allMeals[dayStr];
+                        }
+                        // Non-overlapping days keep their default meals
+                    }
+                    return updated;
+                });
+            } catch {
+                toast.error('Failed to load meals from existing plan');
+            }
+        }
+
+        loadOverlappingMeals();
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [overlapStrategy, overlappingPlanIds]);
+
+    // Warn before leaving with unsaved changes
+    useEffect(() => {
+        if (!isDirty) return;
+        const handler = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [isDirty]);
 
     const planDates = getDates(startDate, numDays);
     const currentMeals = useMemo(() => weeklyMeals[selectedDayIndex] || [], [weeklyMeals, selectedDayIndex]);
+
+    // Dirty-tracking wrapper
+    const setWeeklyMealsDirty = useCallback((updater: Parameters<typeof setWeeklyMeals>[0]) => {
+        setWeeklyMeals(updater);
+        setIsDirty(true);
+    }, []);
 
     // Handlers
     const addMeal = useCallback(() => {
@@ -99,14 +238,14 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             time: pick.time,
             foods: []
         };
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: [...(prev[selectedDayIndex] || []), newMeal]
         }));
     }, [selectedDayIndex, weeklyMeals, client]);
 
     const removeMeal = useCallback((id: string) => {
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).filter(m => m.id !== id)
         }));
@@ -138,7 +277,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             optionGroup: activeOptionGroup,
         };
 
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                 if (m.id === activeMealId) {
@@ -151,7 +290,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [activeMealId, activeOptionGroup, selectedDayIndex, client]);
 
     const removeFood = useCallback((mealId: string, tempId: string) => {
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                 if (m.id === mealId) {
@@ -163,7 +302,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [selectedDayIndex]);
 
     const updateFoodQuantity = useCallback((mealId: string, tempId: string, val: string) => {
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                 if (m.id === mealId) {
@@ -175,7 +314,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [selectedDayIndex]);
 
     const updateFoodQuantityValue = useCallback((mealId: string, tempId: string, newGrams: number) => {
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                 if (m.id !== mealId) return m;
@@ -200,8 +339,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }));
     }, [selectedDayIndex]);
 
-    const updateMealField = useCallback((mealId: string, field: 'name' | 'time' | 'type', value: string) => {
-        setWeeklyMeals(prev => ({
+    const updateMealField = useCallback((mealId: string, field: 'name' | 'time' | 'type' | 'description' | 'instructions', value: string) => {
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: prev[selectedDayIndex].map(m => m.id === mealId ? { ...m, [field]: value } : m)
         }));
@@ -221,7 +360,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
         // Auto-label existing option 0 foods as "Option A" if not already labeled
         if (newGroup === 1) {
-            setWeeklyMeals(prev => ({
+            setWeeklyMealsDirty(prev => ({
                 ...prev,
                 [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                     if (m.id !== mealId) return m;
@@ -244,7 +383,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [weeklyMeals, selectedDayIndex]);
 
     const removeOption = useCallback((mealId: string, optionGroup: number) => {
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                 if (m.id !== mealId) return m;
@@ -260,7 +399,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [selectedDayIndex]);
 
     const updateOptionLabel = useCallback((mealId: string, optionGroup: number, label: string) => {
-        setWeeklyMeals(prev => ({
+        setWeeklyMealsDirty(prev => ({
             ...prev,
             [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
                 if (m.id !== mealId) return m;
@@ -279,14 +418,14 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         if (numDays >= 7) return;
         const newIndex = numDays;
         setNumDays(prev => prev + 1);
-        setWeeklyMeals(prev => ({ ...prev, [newIndex]: defaultMeals(client?.preferences) }));
+        setWeeklyMealsDirty(prev => ({ ...prev, [newIndex]: defaultMeals(client?.preferences) }));
         setSelectedDayIndex(newIndex);
     }, [numDays, client]);
 
     const removeDay = useCallback(() => {
         if (numDays <= 1) return;
         const lastIndex = numDays - 1;
-        setWeeklyMeals(prev => {
+        setWeeklyMealsDirty(prev => {
             const next = { ...prev };
             delete next[lastIndex];
             return next;
@@ -296,6 +435,65 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }
         setNumDays(prev => prev - 1);
     }, [numDays, selectedDayIndex]);
+
+    const copyDay = useCallback(() => {
+        const meals = weeklyMeals[selectedDayIndex] || [];
+        setClipboardDay(JSON.parse(JSON.stringify(meals)));
+        toast.success('Day copied');
+    }, [weeklyMeals, selectedDayIndex]);
+
+    const pasteDay = useCallback(() => {
+        if (!clipboardDay) return;
+        // Deep clone and assign new IDs
+        const pasted: LocalMeal[] = clipboardDay.map(m => ({
+            ...m,
+            id: Math.random().toString(36).substr(2, 9),
+            foods: m.foods.map(f => ({ ...f, tempId: Math.random().toString(36).substr(2, 9) })),
+        }));
+        setWeeklyMealsDirty(prev => ({ ...prev, [selectedDayIndex]: pasted }));
+        toast.success('Day pasted');
+    }, [clipboardDay, selectedDayIndex]);
+
+    const clearDay = useCallback(() => {
+        setWeeklyMealsDirty(prev => ({ ...prev, [selectedDayIndex]: defaultMeals(client?.preferences) }));
+        toast.success('Day cleared');
+    }, [selectedDayIndex, client]);
+
+    // Bulk portion adjustment
+    const [showBulkPortionModal, setShowBulkPortionModal] = useState(false);
+
+    const bulkAdjust = useCallback((factor: number, scope: 'meal' | 'day' | 'plan') => {
+        const adjustFoods = (foods: LocalFoodItem[]): LocalFoodItem[] =>
+            foods.map(f => ({
+                ...f,
+                quantityValue: Math.round(f.quantityValue * factor / 5) * 5, // round to nearest 5g
+                calories: Math.round(f.calories * factor),
+                protein: Math.round(f.protein * factor * 10) / 10,
+                carbs: Math.round(f.carbs * factor * 10) / 10,
+                fat: Math.round(f.fat * factor * 10) / 10,
+            }));
+
+        if (scope === 'day') {
+            setWeeklyMealsDirty(prev => ({
+                ...prev,
+                [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => ({
+                    ...m, foods: adjustFoods(m.foods)
+                })),
+            }));
+        } else {
+            // entire plan
+            setWeeklyMealsDirty(prev => {
+                const updated: Record<number, LocalMeal[]> = {};
+                Object.entries(prev).forEach(([key, meals]) => {
+                    updated[parseInt(key)] = meals.map(m => ({
+                        ...m, foods: adjustFoods(m.foods)
+                    }));
+                });
+                return updated;
+            });
+        }
+        toast.success(`Portions adjusted by ${Math.round((factor - 1) * 100)}%`);
+    }, [selectedDayIndex]);
 
     // Nutrition calculation — only count option 0 for day totals (client eats one option)
     const dayNutrition = useMemo<DayNutrition>(() => {
@@ -322,6 +520,30 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         fat: Number(client?.targetFatsG) || 70,
     }));
 
+    // Auto-save drafts to sessionStorage every 30 seconds
+    useEffect(() => {
+        if (!isDirty || !clientId || isTemplateMode) return;
+        const key = `diet-plan-draft-${clientId}`;
+        const timer = setInterval(() => {
+            try {
+                const draft = JSON.stringify({
+                    weeklyMeals,
+                    planName,
+                    planDescription,
+                    startDate: startDate.toISOString(),
+                    numDays,
+                    targets,
+                    hideCaloriesFromClient,
+                    savedAt: Date.now(),
+                });
+                sessionStorage.setItem(key, draft);
+            } catch { /* sessionStorage full or unavailable */ }
+        }, 30000);
+        return () => clearInterval(timer);
+    }, [isDirty, clientId, isTemplateMode, weeklyMeals, planName, planDescription, startDate, numDays, targets, hideCaloriesFromClient]);
+
+    // Clear draft on successful save
+
     // Load existing plan/template for editing
     useEffect(() => {
         if (!editId) return;
@@ -340,15 +562,29 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
                 if (plan.meals?.length) {
                     const mealsByDay: Record<number, any[]> = {};
-                    let minDay = Infinity;
+                    const planStartDate = plan.startDate ? new Date(plan.startDate) : new Date();
+                    planStartDate.setUTCHours(0, 0, 0, 0);
+
+                    // Check if this is a date-based plan (has mealDate) or dayOfWeek-based
+                    const hasDateBasedMeals = plan.meals.some((tm: any) => tm.mealDate);
 
                     plan.meals.forEach((tm: any) => {
-                        const d = typeof tm.dayOfWeek === 'string' ? parseInt(tm.dayOfWeek) : (tm.dayOfWeek ?? 0);
-                        if (d < minDay) minDay = d;
+                        let d: number;
+                        if (hasDateBasedMeals && tm.mealDate) {
+                            // Date-based: compute day index as offset from plan startDate
+                            const mealDate = new Date(tm.mealDate);
+                            mealDate.setUTCHours(0, 0, 0, 0);
+                            d = Math.round((mealDate.getTime() - planStartDate.getTime()) / (1000 * 60 * 60 * 24));
+                        } else {
+                            d = typeof tm.dayOfWeek === 'string' ? parseInt(tm.dayOfWeek) : (tm.dayOfWeek ?? 0);
+                        }
                         if (!mealsByDay[d]) mealsByDay[d] = [];
                         mealsByDay[d].push(tm);
                     });
-                    if (minDay === Infinity) minDay = 0;
+
+                    // Normalize so first day is index 0
+                    const dayIndices = Object.keys(mealsByDay).map(Number).sort((a, b) => a - b);
+                    const minDay = dayIndices.length > 0 ? dayIndices[0] : 0;
 
                     const newWeeklyMeals: Record<number, LocalMeal[]> = {};
                     Object.entries(mealsByDay).forEach(([dayStr, dayMeals]) => {
@@ -370,7 +606,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                                     optionLabel: f.optionLabel ?? undefined,
                                 };
                             }) || [];
-                            return { id: makeId(), name: tm.name || tm.mealType, type: tm.mealType, time: tm.timeOfDay, foods: localFoods };
+                            return { id: makeId(), name: tm.name || tm.mealType, type: tm.mealType, time: tm.timeOfDay, description: tm.description || '', instructions: tm.instructions || '', foods: localFoods };
                         });
                     });
 
@@ -396,7 +632,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editId]);
 
-    // Apply template
+    // Apply template with optional portion scaling
     const applyTemplate = useCallback(async (templateId: string) => {
         if (!confirm('This will replace all current meal entries with the selected template. Continue?')) return;
 
@@ -408,6 +644,22 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             if (!template.meals || template.meals.length === 0) {
                 toast.error('Template has no meals');
                 return;
+            }
+
+            // Check if portion scaling needed
+            let scaleFactor = 1;
+            const templateCal = template.targetCalories;
+            const clientCal = targets.calories;
+            if (templateCal && clientCal && templateCal > 0) {
+                const ratio = clientCal / templateCal;
+                if (ratio > 1.1 || ratio < 0.9) {
+                    const doScale = confirm(
+                        `Template is ${templateCal} kcal but client target is ${clientCal} kcal.\n\n` +
+                        `Scale portions by ${Math.round((ratio - 1) * 100)}% to match?\n\n` +
+                        `OK = Scale portions\nCancel = Apply as-is`
+                    );
+                    if (doScale) scaleFactor = ratio;
+                }
             }
 
             const mealsByDay: Record<number, Record<string, unknown>[]> = {};
@@ -435,8 +687,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 newWeeklyMeals[normalizedDay] = dayMeals.map((tm: any) => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const localFoods: LocalFoodItem[] = tm.foodItems?.map((f: any) => {
-                        const ratio = (f.quantityG || 100) / 100;
-                        // Map backend field names (proteinG, carbsG, fatsG) to frontend names
+                        const scaledQty = Math.round(((f.quantityG || 100) * scaleFactor) / 5) * 5;
+                        const ratio = scaledQty / 100;
                         const proteinPer100 = Number(f.foodItem.proteinG) || 0;
                         const carbsPer100 = Number(f.foodItem.carbsG) || 0;
                         const fatPer100 = Number(f.foodItem.fatsG) || 0;
@@ -444,12 +696,12 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                             id: f.foodItem.id,
                             tempId: Math.random().toString(36).substr(2, 9),
                             name: f.foodItem.name,
-                            quantity: f.notes || `${f.quantityG}g`,
-                            quantityValue: f.quantityG || 100,
-                            calories: f.foodItem.calories * ratio,
-                            protein: proteinPer100 * ratio,
-                            carbs: carbsPer100 * ratio,
-                            fat: fatPer100 * ratio,
+                            quantity: `${scaledQty}g`,
+                            quantityValue: scaledQty,
+                            calories: Math.round(f.foodItem.calories * ratio),
+                            protein: Math.round(proteinPer100 * ratio * 10) / 10,
+                            carbs: Math.round(carbsPer100 * ratio * 10) / 10,
+                            fat: Math.round(fatPer100 * ratio * 10) / 10,
                             hasWarning: client?.medicalProfile?.allergies?.some((a: string) => f.foodItem.name.toLowerCase().includes(a.toLowerCase())) || false,
                             optionGroup: f.optionGroup ?? 0,
                             optionLabel: f.optionLabel ?? undefined,
@@ -461,12 +713,14 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                         name: tm.name || tm.mealType,
                         type: tm.mealType,
                         time: tm.timeOfDay,
+                        description: tm.description || '',
+                        instructions: tm.instructions || '',
                         foods: localFoods
                     };
                 });
             });
 
-            setWeeklyMeals(newWeeklyMeals);
+            setWeeklyMealsDirty(newWeeklyMeals);
 
             // Sync numDays to match template's day count
             const dayKeys = Object.keys(newWeeklyMeals).map(Number);
@@ -498,12 +752,16 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             time: slot.time,
             foods: [],
         }));
-        setWeeklyMeals(prev => ({ ...prev, [selectedDayIndex]: newMeals }));
+        setWeeklyMealsDirty(prev => ({ ...prev, [selectedDayIndex]: newMeals }));
         toast.success(`Applied "${preset.label}" structure`);
     }, [selectedDayIndex]);
 
     // Save / Publish. When slotOnly=true, strips food items and saves as slot template.
+    const [saveLock, setSaveLock] = useState(false);
     const save = useCallback(async (publish: boolean, slotOnly: boolean = false) => {
+        if (saveLock) return; // Prevent double-click
+        setSaveLock(true);
+
         const apiMeals: CreateDietPlanInput['meals'] = [];
 
         Object.entries(weeklyMeals).forEach(([dayIdx, dayMeals]) => {
@@ -516,6 +774,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                         mealType,
                         timeOfDay: m.time,
                         name: m.name,
+                        description: m.description,
+                        instructions: m.instructions,
                         foodItems: slotOnly ? [] : m.foods.map(f => ({
                             foodId: f.id,
                             quantityG: f.quantityValue,
@@ -529,10 +789,12 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     const mealDate = new Date(startDate);
                     mealDate.setDate(mealDate.getDate() + parseInt(dayIdx));
                     apiMeals.push({
-                        mealDate: mealDate.toISOString().split('T')[0],
+                        mealDate: toLocalDateStr(mealDate),
                         mealType,
                         timeOfDay: m.time,
                         name: m.name,
+                        description: m.description,
+                        instructions: m.instructions,
                         foodItems: m.foods.map(f => ({
                             foodId: f.id,
                             quantityG: f.quantityValue,
@@ -582,6 +844,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     meals: apiMeals,
                 });
 
+                setIsDirty(false);
+                if (clientId) sessionStorage.removeItem(`diet-plan-draft-${clientId}`);
                 toast.success(isTemplateMode ? 'Template Updated!' : 'Diet Plan Updated!');
                 onSaved(isTemplateMode, false);
             } else {
@@ -604,9 +868,11 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 });
 
                 if (publish && createdPlan?.id) {
-                    await publishMutation.mutateAsync(createdPlan.id);
+                    await publishMutation.mutateAsync({ id: createdPlan.id, overlapStrategy });
                 }
 
+                setIsDirty(false);
+                if (clientId) sessionStorage.removeItem(`diet-plan-draft-${clientId}`);
                 toast.success(
                     isTemplateMode
                         ? (publish ? 'Template Published!' : 'Template Saved!')
@@ -617,8 +883,10 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             }
         } catch (error) {
             toast.error('Failed to save plan');
+        } finally {
+            setSaveLock(false);
         }
-    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient]);
+    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient, saveLock]);
 
     const hasAllergyWarning = currentMeals.some(m => m.foods.some(f => f.hasWarning));
 
@@ -659,13 +927,21 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         updateOptionLabel,
         addDay,
         removeDay,
+        clipboardDay,
+        copyDay,
+        pasteDay,
+        clearDay,
         applyTemplate,
         applyPreset,
+        bulkAdjust,
+        showBulkPortionModal,
+        setShowBulkPortionModal,
         save,
 
         // Mutation states
-        isSaving: createMutation.isPending || updateMutation.isPending,
+        isSaving: createMutation.isPending || updateMutation.isPending || saveLock,
         isEditMode,
         editLoading,
+        isDirty,
     };
 }

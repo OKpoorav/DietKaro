@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AlertTriangle, Pencil, Check, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
-import type { DayNutrition } from '@/lib/types/diet-plan.types';
+import type { DayNutrition, LocalMeal } from '@/lib/types/diet-plan.types';
 
 interface NutritionTargets {
     calories: number;
@@ -38,6 +38,7 @@ interface NutritionSummaryProps {
     client?: ClientMeasurements | null;
     hideCaloriesFromClient?: boolean;
     onHideCaloriesChange?: (hide: boolean) => void;
+    meals?: LocalMeal[];
 }
 
 const FIELD_CONFIG: { key: keyof NutritionTargets; label: string; unit: string; min: number; max: number }[] = [
@@ -47,7 +48,7 @@ const FIELD_CONFIG: { key: keyof NutritionTargets; label: string; unit: string; 
     { key: 'fat', label: 'Fat', unit: 'g', min: 0, max: 500 },
 ];
 
-export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onTargetsChange, client, hideCaloriesFromClient, onHideCaloriesChange }: NutritionSummaryProps) {
+export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onTargetsChange, client, hideCaloriesFromClient, onHideCaloriesChange, meals }: NutritionSummaryProps) {
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState<NutritionTargets>(targets);
 
@@ -178,6 +179,26 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                                 </div>
                             );
                         })}
+                    </div>
+                )}
+
+                {/* Per-meal breakdown */}
+                {meals && meals.length > 0 && (
+                    <div className="mt-4 pt-3 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Per Meal</p>
+                        <div className="space-y-1.5">
+                            {meals.map(meal => {
+                                const mealCal = meal.foods
+                                    .filter(f => (meal.foods.some(ff => ff.optionGroup > 0) ? f.optionGroup === 0 : true))
+                                    .reduce((sum, f) => sum + f.calories, 0);
+                                return (
+                                    <div key={meal.id} className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-600 truncate max-w-[100px]">{meal.name}</span>
+                                        <span className="font-medium text-gray-800">{Math.round(mealCal)} kcal</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
             </div>

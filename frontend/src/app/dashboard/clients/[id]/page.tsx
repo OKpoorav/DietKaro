@@ -63,6 +63,142 @@ const COMPLIANCE_BAR_COLOR: Record<string, string> = {
 
 const MEAL_TYPE_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'] as const;
 
+// ============ PLAN SECTION (fetches its own full plan data) ============
+
+function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: string; startDate: string; endDate?: string; description?: string; status?: string; targetCalories?: number; targetProteinG?: number; targetCarbsG?: number; targetFatsG?: number }; client: any; isFirst: boolean }) {
+    const { data: fullPlan, isLoading } = useDietPlan(plan.id);
+    const [collapsed, setCollapsed] = useState(!isFirst);
+
+    const typeOrder: Record<string, number> = { breakfast: 0, lunch: 1, snack: 2, dinner: 3 };
+
+    // Group meals by date
+    const mealsByDate = new Map<string, any[]>();
+    if (fullPlan?.meals?.length) {
+        const planStart = new Date(fullPlan.startDate);
+        for (const meal of fullPlan.meals) {
+            let dateKey: string;
+            if (meal.mealDate) {
+                const d = new Date(meal.mealDate);
+                dateKey = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            } else {
+                const d = new Date(planStart);
+                d.setDate(d.getDate() + (meal.dayOfWeek ?? 0));
+                dateKey = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            }
+            if (!mealsByDate.has(dateKey)) mealsByDate.set(dateKey, []);
+            mealsByDate.get(dateKey)!.push(meal);
+        }
+    }
+
+    const startStr = new Date(plan.startDate).toLocaleDateString();
+    const endStr = plan.endDate ? new Date(plan.endDate).toLocaleDateString() : '';
+    const isCurrent = plan.status === 'active';
+
+    return (
+        <div className={`rounded-xl bg-white shadow-sm border ${isCurrent ? 'border-brand/30' : 'border-gray-100'}`}>
+            {/* Plan header — always visible, clickable to expand/collapse */}
+            <button
+                onClick={() => setCollapsed(c => !c)}
+                className="w-full p-5 flex items-center justify-between text-left"
+            >
+                <div>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-base font-semibold text-gray-900">{fullPlan?.name || plan.name}</h3>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isCurrent ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {plan.status}
+                        </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                        {startStr}{endStr ? ` — ${endStr}` : ''}
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Link
+                        href={`/dashboard/diet-plans/${plan.id}`}
+                        onClick={e => e.stopPropagation()}
+                        className="text-xs text-brand font-medium hover:underline"
+                    >
+                        View Full Plan
+                    </Link>
+                    <span className="text-gray-400 text-xs">{collapsed ? '▸' : '▾'}</span>
+                </div>
+            </button>
+
+            {/* Expandable content */}
+            {!collapsed && (
+                <div className="px-5 pb-5 space-y-4">
+                    {/* Macro targets */}
+                    <div className="grid grid-cols-4 gap-3">
+                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                            <p className="font-bold text-gray-900 text-sm">{plan.targetCalories ?? client?.targetCalories ?? '-'}</p>
+                            <p className="text-gray-500 text-xs">Calories</p>
+                        </div>
+                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                            <p className="font-bold text-gray-900 text-sm">{plan.targetProteinG ?? client?.targetProteinG ?? '-'}g</p>
+                            <p className="text-gray-500 text-xs">Protein</p>
+                        </div>
+                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                            <p className="font-bold text-gray-900 text-sm">{plan.targetCarbsG ?? client?.targetCarbsG ?? '-'}g</p>
+                            <p className="text-gray-500 text-xs">Carbs</p>
+                        </div>
+                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                            <p className="font-bold text-gray-900 text-sm">{plan.targetFatsG ?? client?.targetFatsG ?? '-'}g</p>
+                            <p className="text-gray-500 text-xs">Fat</p>
+                        </div>
+                    </div>
+
+                    {/* Meals by day */}
+                    {isLoading ? (
+                        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+                    ) : mealsByDate.size > 0 ? (
+                        <div className="space-y-4">
+                            {Array.from(mealsByDate.entries()).map(([dateLabel, dayMeals]) => (
+                                <div key={dateLabel}>
+                                    <h4 className="text-xs font-semibold text-[#4e9767] uppercase tracking-wide mb-2 pb-1 border-b border-gray-100">
+                                        {dateLabel}
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {dayMeals
+                                            .sort((a: any, b: any) => (typeOrder[a.mealType] ?? 9) - (typeOrder[b.mealType] ?? 9))
+                                            .map((meal: any) => (
+                                            <div key={meal.id} className="p-3 bg-gray-50 rounded-lg">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-medium text-gray-400 uppercase">{meal.mealType}</span>
+                                                        <p className="font-medium text-gray-900 text-sm">{meal.name}</p>
+                                                    </div>
+                                                    {meal.timeOfDay && (
+                                                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                                                            <Clock className="w-3 h-3" />
+                                                            {meal.timeOfDay}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {meal.foodItems?.length > 0 && (
+                                                    <div className="mt-1.5 space-y-0.5">
+                                                        {meal.foodItems.map((food: any, fi: number) => (
+                                                            <div key={fi} className="text-xs text-gray-600 flex justify-between">
+                                                                <span>{food.foodItem?.name || 'Unknown'}</span>
+                                                                <span className="text-gray-400">{food.quantityG}g</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400 text-center py-4">No meals in this plan</p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ============ COMPONENT ============
 
 export default function ClientProfilePage() {
@@ -78,7 +214,8 @@ export default function ClientProfilePage() {
     const { data: plansData } = useDietPlans({ clientId, isPublished: true });
     const { data: weeklyAdherence } = useWeeklyAdherence(clientId);
 
-    const activePlan = plansData?.data?.[0];
+    const allPlans = (plansData?.data || []).slice().sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const activePlan = allPlans[0]; // keep for backward compat (overview tab etc.)
 
     // Tab-specific hooks (called unconditionally per React rules)
     const { data: fullPlan } = useDietPlan(activePlan?.id || '');
@@ -477,8 +614,8 @@ export default function ClientProfilePage() {
 
                 {/* ===== DIET PLAN TAB ===== */}
                 {activeTab === 'diet-plan' && (
-                    <div className="mt-6 space-y-6">
-                        {!activePlan ? (
+                    <div className="mt-6 space-y-4">
+                        {allPlans.length === 0 ? (
                             <div className="rounded-xl bg-white p-12 shadow-sm border border-gray-100 text-center">
                                 <Flag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Diet Plan</h3>
@@ -493,99 +630,16 @@ export default function ClientProfilePage() {
                             </div>
                         ) : (
                             <>
-                                {/* Plan Header */}
-                                <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900">
-                                                {fullPlan?.name || activePlan.name || 'Diet Plan'}
-                                            </h3>
-                                            <p className="text-sm text-[#4e9767]">
-                                                Active since {new Date(activePlan.startDate).toLocaleDateString()}
-                                            </p>
-                                            {(fullPlan?.description || activePlan.description) && (
-                                                <p className="text-sm text-gray-500 mt-1">
-                                                    {fullPlan?.description || activePlan.description}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <Link
-                                            href={`/dashboard/diet-plans/${activePlan.id}`}
-                                            className="text-sm text-brand hover:underline font-medium"
-                                        >
-                                            View Full Plan
-                                        </Link>
-                                    </div>
-
-                                    {/* Nutrition Targets Row — plan targets with client fallback */}
-                                    <div className="grid grid-cols-4 gap-3 text-sm">
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="font-bold text-gray-900">{activePlan.targetCalories ?? client.targetCalories ?? '-'}</p>
-                                            <p className="text-gray-500">Calories</p>
-                                        </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="font-bold text-gray-900">{activePlan.targetProteinG ?? client.targetProteinG ?? '-'}g</p>
-                                            <p className="text-gray-500">Protein</p>
-                                        </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="font-bold text-gray-900">{activePlan.targetCarbsG ?? client.targetCarbsG ?? '-'}g</p>
-                                            <p className="text-gray-500">Carbs</p>
-                                        </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="font-bold text-gray-900">{activePlan.targetFatsG ?? client.targetFatsG ?? '-'}g</p>
-                                            <p className="text-gray-500">Fat</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Meals grouped by mealType */}
-                                <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-                                    <h3 className="font-semibold text-gray-900 mb-4">Meals</h3>
-                                    {fullPlan?.meals && fullPlan.meals.length > 0 ? (
-                                        <div className="space-y-6">
-                                            {MEAL_TYPE_ORDER.map((mealType) => {
-                                                const mealsOfType = fullPlan.meals!.filter(m => m.mealType === mealType);
-                                                if (mealsOfType.length === 0) return null;
-                                                return (
-                                                    <div key={mealType}>
-                                                        <h4 className="text-sm font-medium text-[#4e9767] uppercase tracking-wide mb-2">
-                                                            {mealType}
-                                                        </h4>
-                                                        <div className="space-y-3">
-                                                            {mealsOfType.map((meal) => (
-                                                                <div key={meal.id} className="p-4 bg-gray-50 rounded-lg">
-                                                                    <div className="flex items-center justify-between mb-1">
-                                                                        <p className="font-medium text-gray-900">{meal.name}</p>
-                                                                        {meal.timeOfDay && (
-                                                                            <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                                                <Clock className="w-3 h-3" />
-                                                                                {meal.timeOfDay}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    {meal.foodItems && meal.foodItems.length > 0 && (
-                                                                        <div className="mt-2 space-y-1">
-                                                                            {meal.foodItems.map((food, fi) => (
-                                                                                <div key={fi} className="text-sm text-gray-600 flex justify-between">
-                                                                                    <span>{food.foodItem?.name || 'Unknown'}</span>
-                                                                                    <span className="text-gray-400">{food.quantityG}g</span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-8 text-gray-500">
-                                            <Utensils className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                                            <p className="text-sm">No meals added to this plan yet</p>
-                                        </div>
-                                    )}
+                                {allPlans.map((plan, idx) => (
+                                    <PlanSection key={plan.id} plan={plan} client={client} isFirst={idx === 0} />
+                                ))}
+                                <div className="text-center pt-2">
+                                    <Link
+                                        href={`/dashboard/diet-plans/new?clientId=${clientId}`}
+                                        className="text-sm text-brand font-medium hover:underline"
+                                    >
+                                        + Create New Plan
+                                    </Link>
                                 </div>
                             </>
                         )}

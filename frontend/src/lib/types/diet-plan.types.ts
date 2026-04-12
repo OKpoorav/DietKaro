@@ -59,6 +59,8 @@ export interface LocalMeal {
     name: string;
     type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
     time: string;
+    description?: string;
+    instructions?: string;
     foods: LocalFoodItem[];
 }
 

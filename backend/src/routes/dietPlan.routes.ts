@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createDietPlan, getDietPlan, listDietPlans, updateDietPlan, publishDietPlan, assignTemplateToClient, extendDietPlan } from '../controllers/dietPlan.controller';
+import { createDietPlan, getDietPlan, listDietPlans, updateDietPlan, deleteDietPlan, publishDietPlan, assignTemplateToClient, extendDietPlan, getClientActiveRange } from '../controllers/dietPlan.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 import { requireActiveSubscription } from '../middleware/subscription.middleware';
 import { writeOperationLimiter } from '../middleware/rateLimiter';
@@ -12,9 +12,11 @@ router.use(requireAuth);
 router.use(requireActiveSubscription);
 
 router.post('/', writeOperationLimiter, validateBody(createDietPlanSchema), createDietPlan);
+router.get('/client/:clientId/active-range', getClientActiveRange);
 router.get('/', listDietPlans);
 router.get('/:id', getDietPlan);
 router.patch('/:id', writeOperationLimiter, validateBody(updateDietPlanSchema), updateDietPlan);
+router.delete('/:id', writeOperationLimiter, deleteDietPlan);
 router.post('/:id/publish', writeOperationLimiter, publishDietPlan);
 router.post('/:id/assign', writeOperationLimiter, validateBody(assignTemplateSchema), assignTemplateToClient);
 router.post('/:id/extend', writeOperationLimiter, extendDietPlan);

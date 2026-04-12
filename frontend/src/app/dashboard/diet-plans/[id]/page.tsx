@@ -186,11 +186,13 @@ export default function DietPlanDetailPage() {
     const [editedName, setEditedName] = useState('');
     const [showExtendModal, setShowExtendModal] = useState(false);
     const [extensionStartDate, setExtensionStartDate] = useState('');
+    const [extendMode, setExtendMode] = useState<'repeat' | 'custom'>('repeat');
+    const [extendWeeks, setExtendWeeks] = useState(1);
 
     const handlePublish = async () => {
         if (!plan) return;
         try {
-            await publishMutation.mutateAsync(planId);
+            await publishMutation.mutateAsync({ id: planId });
             await refetch(); // Refetch to update UI immediately
         } catch (err) {
             toast.error('Failed to publish plan');
@@ -240,12 +242,28 @@ export default function DietPlanDetailPage() {
     };
 
     const handleExtend = async () => {
-        if (!extensionStartDate) return;
+        const startDate = extendMode === 'repeat' ? defaultExtensionDate : extensionStartDate;
+        if (!startDate) return;
         try {
-            await extendMutation.mutateAsync({ id: planId, extensionStartDate });
+            if (extendMode === 'repeat' && extendWeeks > 1) {
+                // Call extend once per week, sequentially
+                for (let w = 0; w < extendWeeks; w++) {
+                    // Refetch plan to get updated endDate after each extension
+                    const freshPlan = w === 0 ? plan : (await refetch()).data;
+                    const freshEndDate = freshPlan?.endDate;
+                    const nextStart = freshEndDate
+                        ? new Date(new Date(freshEndDate).getTime() + 86400000).toISOString().slice(0, 10)
+                        : startDate;
+                    await extendMutation.mutateAsync({ id: planId, extensionStartDate: nextStart });
+                }
+            } else {
+                await extendMutation.mutateAsync({ id: planId, extensionStartDate: startDate });
+            }
             await refetch();
             setShowExtendModal(false);
             setExtensionStartDate('');
+            setExtendMode('repeat');
+            setExtendWeeks(1);
             toast.success('Plan extended successfully');
         } catch {
             toast.error('Failed to extend plan');
@@ -480,50 +498,109 @@ export default function DietPlanDetailPage() {
             </div>
 
             {/* Extend Modal */}
-            {showExtendModal && (
+            {showExtendModal && (() => {
+                const effectiveStart = extendMode === 'repeat' ? defaultExtensionDate : extensionStartDate;
+                const totalDays = extendMode === 'repeat' ? planDayCount * extendWeeks : planDayCount;
+                const canExtend = extendMode === 'repeat' ? !!defaultExtensionDate : !!extensionStartDate;
+
+                return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">Extend Plan</h3>
                         <p className="text-sm text-gray-500 mb-5">
-                            The existing {planDayCount}-day meal rotation will be repeated starting from the date you choose.
-                            Day 1 → selected date, Day 2 → next day, and so on.
+                            The existing {planDayCount}-day meal rotation will be repeated.
+                            Day 1 maps to the start date, Day 2 to the next day, and so on.
                         </p>
 
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Extension start date
-                        </label>
-                        <input
-                            type="date"
-                            value={extensionStartDate}
-                            min={new Date().toISOString().slice(0, 10)}
-                            onChange={e => setExtensionStartDate(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none mb-2"
-                        />
+                        {/* Mode selection */}
+                        <div className="space-y-3 mb-5">
+                            <label
+                                className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                                    extendMode === 'repeat' ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                                onClick={() => setExtendMode('repeat')}
+                            >
+                                <input
+                                    type="radio"
+                                    name="extendMode"
+                                    checked={extendMode === 'repeat'}
+                                    onChange={() => setExtendMode('repeat')}
+                                    className="mt-0.5 accent-brand"
+                                />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900">Quick repeat</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">
+                                        Continue from{' '}
+                                        <span className="font-medium text-gray-700">
+                                            {new Date(defaultExtensionDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                        </span>
+                                    </p>
+                                    {extendMode === 'repeat' && (
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <span className="text-sm text-gray-600">Repeat for</span>
+                                            <select
+                                                value={extendWeeks}
+                                                onChange={e => setExtendWeeks(Number(e.target.value))}
+                                                className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                                            >
+                                                {[1, 2, 3, 4].map(w => (
+                                                    <option key={w} value={w}>{w} week{w > 1 ? 's' : ''}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            </label>
 
-                        {extensionStartDate && planDayCount > 0 && (
+                            <label
+                                className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                                    extendMode === 'custom' ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                                onClick={() => setExtendMode('custom')}
+                            >
+                                <input
+                                    type="radio"
+                                    name="extendMode"
+                                    checked={extendMode === 'custom'}
+                                    onChange={() => setExtendMode('custom')}
+                                    className="mt-0.5 accent-brand"
+                                />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900">Custom start date</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">Pick a specific date to start the extension</p>
+                                    {extendMode === 'custom' && (
+                                        <input
+                                            type="date"
+                                            value={extensionStartDate}
+                                            min={new Date().toISOString().slice(0, 10)}
+                                            onChange={e => setExtensionStartDate(e.target.value)}
+                                            className="mt-2 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand focus:border-transparent outline-none"
+                                        />
+                                    )}
+                                </div>
+                            </label>
+                        </div>
+
+                        {effectiveStart && totalDays > 0 && (
                             <p className="text-xs text-gray-400 mb-5">
                                 Will add meals from{' '}
                                 <span className="font-medium text-gray-600">
-                                    {new Date(extensionStartDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    {new Date(effectiveStart + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </span>
-                                {' '}to{' '}
-                                <span className="font-medium text-gray-600">
-                                    {new Date(new Date(extensionStartDate + 'T00:00:00').getTime() + (planDayCount - 1) * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                                {' '}({planDayCount} day{planDayCount !== 1 ? 's' : ''})
+                                {' '}({totalDays} day{totalDays !== 1 ? 's' : ''} total)
                             </p>
                         )}
 
                         <div className="flex gap-3 justify-end">
                             <button
-                                onClick={() => setShowExtendModal(false)}
+                                onClick={() => { setShowExtendModal(false); setExtendMode('repeat'); setExtendWeeks(1); }}
                                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleExtend}
-                                disabled={!extensionStartDate || extendMutation.isPending}
+                                disabled={!canExtend || extendMutation.isPending}
                                 className="px-4 py-2 text-sm font-medium text-white bg-brand hover:bg-brand/90 rounded-lg transition-colors disabled:opacity-50"
                             >
                                 {extendMutation.isPending ? 'Extending…' : 'Extend Plan'}
@@ -531,7 +608,8 @@ export default function DietPlanDetailPage() {
                         </div>
                     </div>
                 </div>
-            )}
+                );
+            })()}
         </div>
     );
 }

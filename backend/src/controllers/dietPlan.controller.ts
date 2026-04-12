@@ -33,7 +33,8 @@ export const updateDietPlan = asyncHandler(async (req: AuthenticatedRequest, res
 
 export const publishDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
-    const data = await dietPlanService.publishPlan(req.params.id, req.user.organizationId);
+    const overlapStrategy = req.body?.overlapStrategy || 'overwrite';
+    const data = await dietPlanService.publishPlan(req.params.id, req.user.organizationId, overlapStrategy);
     res.status(200).json({ success: true, data });
 });
 
@@ -41,6 +42,18 @@ export const assignTemplateToClient = asyncHandler(async (req: AuthenticatedRequ
     if (!req.user) throw AppError.unauthorized();
     const newPlan = await dietPlanService.assignTemplateToClient(req.params.id, req.body, req.user.organizationId, req.user.id);
     res.status(201).json({ success: true, data: newPlan });
+});
+
+export const getClientActiveRange = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+    const plans = await dietPlanService.getClientActiveRange(req.params.clientId, req.user.organizationId);
+    res.status(200).json({ success: true, data: plans });
+});
+
+export const deleteDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+    const data = await dietPlanService.deletePlan(req.params.id, req.user.organizationId);
+    res.status(200).json({ success: true, data });
 });
 
 export const extendDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {

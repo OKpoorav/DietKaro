@@ -17,11 +17,19 @@ export class MealService {
         const plan = await prisma.dietPlan.findFirst({ where: { id: planId, orgId } });
         if (!plan) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
 
+        // Auto-assign sequenceNumber
+        const maxSeq = await prisma.meal.aggregate({
+            where: { planId, deletedAt: null },
+            _max: { sequenceNumber: true },
+        });
+        const nextSequence = (maxSeq._max.sequenceNumber ?? -1) + 1;
+
         const meal = await prisma.meal.create({
             data: {
                 planId,
                 dayOfWeek: dayOfWeek ?? null,
                 mealDate: mealDate ? new Date(mealDate) : null,
+                sequenceNumber: nextSequence,
                 mealType,
                 timeOfDay: timeOfDay ?? null,
                 name,
@@ -83,8 +91,26 @@ export class MealService {
             throw AppError.notFound('Meal not found', 'MEAL_NOT_FOUND');
         }
 
-        await prisma.meal.update({ where: { id: mealId }, data: { deletedAt: new Date() } });
-        logger.info('Meal soft-deleted', { mealId });
+        await prisma.$transaction(async (tx) => {
+            // Soft-delete food items
+            await tx.mealFoodItem.updateMany({
+                where: { mealId },
+                data: { deletedAt: new Date() },
+            });
+
+            // Cancel pending meal logs for this meal
+            await tx.mealLog.deleteMany({
+                where: { mealId, status: 'pending' as any },
+            });
+
+            // Soft-delete the meal itself
+            await tx.meal.update({
+                where: { id: mealId },
+                data: { deletedAt: new Date() },
+            });
+        });
+
+        logger.info('Meal soft-deleted with cascade', { mealId });
     }
 }
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -13,6 +13,8 @@ import { DayNavigator } from '@/components/diet-plan/day-navigator';
 import { MealEditor } from '@/components/diet-plan/meal-editor';
 import { NutritionSummary } from '@/components/diet-plan/nutrition-summary';
 import { TemplateSidebar } from '@/components/diet-plan/template-sidebar';
+import { PlanSetupModal, PlanSetupResult } from '@/components/diet-plan/plan-setup-modal';
+import { BulkPortionModal } from '@/components/diet-plan/bulk-portion-modal';
 import { useClient } from '@/lib/hooks/use-clients';
 import { calculateAge } from '@/lib/utils/formatters';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
@@ -24,6 +26,11 @@ function BuilderContent() {
     const clientId = searchParams.get('clientId');
     const isTemplateMode = searchParams.get('template') === 'true';
     const editId = searchParams.get('editId');
+
+    // Plan setup state — modal shown after client selection, before builder
+    const [setupResult, setSetupResult] = useState<PlanSetupResult | null>(editId ? { planName: '', startDate: new Date(), numDays: 1, overlapStrategy: 'overwrite' } : null);
+    const [showSetupModal, setShowSetupModal] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false);
 
     const { data: client, isLoading: clientLoading } = useClient(
         !isTemplateMode && clientId ? clientId : ''
@@ -38,6 +45,11 @@ function BuilderContent() {
         isTemplateMode,
         editId,
         client,
+        initialStartDate: setupResult?.startDate,
+        initialNumDays: setupResult?.numDays,
+        initialPlanName: setupResult?.planName,
+        overlapStrategy: setupResult?.overlapStrategy,
+        overlappingPlanIds: setupResult?.overlappingPlanIds,
         onSaved: (isTemplate) => {
             if (isTemplate) {
                 router.push('/dashboard/diet-plans?tab=templates');
@@ -49,7 +61,7 @@ function BuilderContent() {
         },
     });
 
-    // Client selection screen
+    // Step 1: Client selection screen
     if (!isTemplateMode && !clientId) {
         return <ClientSelector />;
     }
@@ -60,6 +72,31 @@ function BuilderContent() {
 
     if (!isTemplateMode && !client) {
         return <div className="p-8 text-center text-red-500">Client not found.</div>;
+    }
+
+    // Step 2: Plan setup modal — shown once after client loads, skipped for templates/edits
+    if (!isTemplateMode && !editId && !setupResult) {
+        // Auto-show modal when client is ready
+        if (!showSetupModal && client) {
+            setShowSetupModal(true);
+        }
+        return (
+            <>
+                <div className="flex justify-center p-12">
+                    <Loader2 className="animate-spin" />
+                </div>
+                <PlanSetupModal
+                    isOpen={showSetupModal}
+                    onClose={() => router.back()}
+                    clientId={clientId!}
+                    clientName={client?.fullName || ''}
+                    onConfirm={(result) => {
+                        setSetupResult(result);
+                        setShowSetupModal(false);
+                    }}
+                />
+            </>
+        );
     }
 
     return (
@@ -118,6 +155,38 @@ function BuilderContent() {
                         </div>
                     ) : (
                         <>
+                            <button
+                                onClick={() => setShowBulkModal(true)}
+                                className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                title="Adjust Portions"
+                            >
+                                <SlidersHorizontal className="w-4 h-4" />
+                                Portions
+                            </button>
+                            <div className="flex items-center gap-1 border-l border-gray-300 pl-2 ml-1">
+                                <button
+                                    onClick={builder.copyDay}
+                                    className="h-10 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
+                                    title="Copy Day"
+                                >
+                                    <Copy className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={builder.pasteDay}
+                                    disabled={!builder.clipboardDay}
+                                    className="h-10 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors disabled:opacity-30"
+                                    title="Paste Day"
+                                >
+                                    <ClipboardPaste className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={builder.clearDay}
+                                    className="h-10 px-2.5 bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 rounded-lg transition-colors"
+                                    title="Clear Day"
+                                >
+                                    <Eraser className="w-4 h-4" />
+                                </button>
+                            </div>
                             <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
@@ -213,6 +282,7 @@ function BuilderContent() {
                     client={client}
                     hideCaloriesFromClient={builder.hideCaloriesFromClient}
                     onHideCaloriesChange={builder.setHideCaloriesFromClient}
+                    meals={builder.currentMeals}
                 />
             </main>
 
@@ -231,6 +301,14 @@ function BuilderContent() {
                 clientId={clientId}
                 currentDay={builder.planDates[builder.selectedDayIndex]?.day.toLowerCase()}
                 onAddFood={builder.addFood}
+            />
+
+            {/* Bulk Portion Modal */}
+            <BulkPortionModal
+                isOpen={showBulkModal}
+                onClose={() => setShowBulkModal(false)}
+                currentCalories={builder.dayNutrition.calories}
+                onApply={builder.bulkAdjust}
             />
         </div>
     );

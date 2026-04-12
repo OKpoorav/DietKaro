@@ -10,6 +10,9 @@ export interface Meal {
     mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
     timeOfDay?: string;
     dayOfWeek?: number;
+    mealDate?: string;
+    description?: string;
+    instructions?: string;
     foodItems: MealFoodItem[];
 }
 
@@ -112,6 +115,32 @@ export interface CreateDietPlanInput {
     };
 }
 
+export interface ClientPlanRange {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string | null;
+    status: string;
+    targetCalories: number | null;
+    mealCount: number;
+}
+
+export function useClientActiveRange(clientId: string | null) {
+    const api = useApiClient();
+
+    return useQuery({
+        queryKey: ['diet-plans', 'active-range', clientId],
+        queryFn: async () => {
+            const { data } = await api.get<{ success: boolean; data: ClientPlanRange[] }>(
+                `/diet-plans/client/${clientId}/active-range`
+            );
+            return data.data;
+        },
+        enabled: !!clientId,
+        staleTime: 10 * 1000,
+    });
+}
+
 // Hooks
 export function useDietPlans(params: DietPlansParams = {}) {
     const api = useApiClient();
@@ -179,11 +208,11 @@ export function usePublishDietPlan() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (id: string) => {
-            const { data } = await api.post(`/diet-plans/${id}/publish`);
+        mutationFn: async ({ id, overlapStrategy }: { id: string; overlapStrategy?: string }) => {
+            const { data } = await api.post(`/diet-plans/${id}/publish`, { overlapStrategy });
             return data.data;
         },
-        onSuccess: (_, id) => {
+        onSuccess: (_, { id }) => {
             queryClient.invalidateQueries({ queryKey: ['diet-plans'] });
             queryClient.invalidateQueries({ queryKey: ['diet-plans', id] });
         },
@@ -208,6 +237,21 @@ export function useExtendDietPlan() {
         },
         onSuccess: (_, { id }) => {
             queryClient.invalidateQueries({ queryKey: ['diet-plans', id] });
+        },
+    });
+}
+
+export function useDeleteDietPlan() {
+    const api = useApiClient();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { data } = await api.delete(`/diet-plans/${id}`);
+            return data.data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['diet-plans'] });
         },
     });
 }

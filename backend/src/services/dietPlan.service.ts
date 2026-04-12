@@ -239,7 +239,7 @@ export class DietPlanService {
         return updated;
     }
 
-    async publishPlan(planId: string, orgId: string) {
+    async publishPlan(planId: string, orgId: string, overlapStrategy: 'overwrite' | 'end_previous' | 'update' = 'overwrite') {
         const plan = await prisma.dietPlan.findFirst({
             where: { id: planId, orgId },
             include: {
@@ -251,35 +251,11 @@ export class DietPlanService {
         if (!plan) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
         if (!plan.clientId) throw AppError.badRequest('Cannot publish a template');
 
-        // Cancel pending meal logs from any existing active plan that overlap with the new plan's date range.
-        // Cutoff = max(today, newPlan.startDate) so already-completed logs are never touched.
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
         const newPlanStart = new Date(plan.startDate);
         newPlanStart.setUTCHours(0, 0, 0, 0);
         const cutoffDate = newPlanStart > today ? newPlanStart : today;
-
-        const oldActivePlans = await prisma.dietPlan.findMany({
-            where: { clientId: plan.clientId, isActive: true, id: { not: planId } },
-            select: { id: true, meals: { select: { id: true } } },
-        });
-
-        if (oldActivePlans.length > 0) {
-            const oldMealIds = oldActivePlans.flatMap(p => p.meals.map(m => m.id));
-            if (oldMealIds.length > 0) {
-                await prisma.mealLog.deleteMany({
-                    where: {
-                        mealId: { in: oldMealIds },
-                        scheduledDate: { gte: cutoffDate },
-                        status: MealLogStatus.pending,
-                    },
-                });
-                logger.info('Cancelled pending meal logs from old plan(s)', {
-                    oldPlanIds: oldActivePlans.map(p => p.id),
-                    cutoffDate,
-                });
-            }
-        }
 
         // Build meal logs
         const mealLogsToCreate: {
@@ -291,11 +267,9 @@ export class DietPlanService {
             status: MealLogStatus;
         }[] = [];
 
-        // Check if meals use mealDate (date-based plan) vs dayOfWeek (legacy)
         const hasDateBasedMeals = plan.meals.some((m) => m.mealDate !== null);
 
         if (hasDateBasedMeals) {
-            // Date-based path: each meal has a specific mealDate
             for (const meal of plan.meals) {
                 if (!meal.mealDate) continue;
                 mealLogsToCreate.push({
@@ -308,21 +282,18 @@ export class DietPlanService {
                 });
             }
         } else {
-            // Legacy dayOfWeek path: iterate date range and match meals by dayOfWeek
             const startDate = new Date(plan.startDate);
             const endDate = plan.endDate ? new Date(plan.endDate) : new Date(startDate);
             if (!plan.endDate) {
-                endDate.setDate(endDate.getDate() + 6); // Default to 7 days
+                endDate.setDate(endDate.getDate() + 6);
             }
 
             const currentDate = new Date(startDate);
             while (currentDate <= endDate) {
-                const dayOfWeek = (currentDate.getDay() + 6) % 7; // Monday = 0
-
+                const dayOfWeek = (currentDate.getDay() + 6) % 7;
                 const todaysMeals = plan.meals.filter(
                     (m) => m.dayOfWeek === dayOfWeek || m.dayOfWeek === null
                 );
-
                 for (const meal of todaysMeals) {
                     mealLogsToCreate.push({
                         orgId: plan.orgId,
@@ -333,44 +304,103 @@ export class DietPlanService {
                         status: MealLogStatus.pending,
                     });
                 }
-
                 currentDate.setDate(currentDate.getDate() + 1);
             }
         }
 
-        // Batch create with conflict handling — upserts batched in groups of 50
+        // Single transaction: overlap handling + activate plan + create all meal logs
         const BATCH_SIZE = 50;
-        const upsertOps = mealLogsToCreate.map((log) =>
-            prisma.mealLog.upsert({
-                where: {
-                    clientId_mealId_scheduledDate: {
-                        clientId: log.clientId,
-                        mealId: log.mealId,
-                        scheduledDate: log.scheduledDate,
-                    },
-                },
-                create: log,
-                update: {},
-            })
-        );
+        const newPlanEnd = plan.endDate ? new Date(plan.endDate) : new Date(newPlanStart);
+        if (!plan.endDate) newPlanEnd.setDate(newPlanEnd.getDate() + 6);
+        newPlanEnd.setUTCHours(23, 59, 59, 999);
 
-        // First transaction: deactivate old plans + activate this one
-        await prisma.$transaction([
-            prisma.dietPlan.updateMany({
-                where: { clientId: plan.clientId!, isActive: true, id: { not: planId } },
-                data: { isActive: false },
-            }),
-            prisma.dietPlan.update({
+        await prisma.$transaction(async (tx) => {
+            // Only find plans whose date range actually overlaps with the new plan
+            const oldActivePlans = await tx.dietPlan.findMany({
+                where: {
+                    clientId: plan.clientId!,
+                    isActive: true,
+                    id: { not: planId },
+                    // Overlap: oldStart <= newEnd AND oldEnd >= newStart (or oldEnd is null)
+                    startDate: { lte: newPlanEnd },
+                    OR: [
+                        { endDate: { gte: newPlanStart } },
+                        { endDate: null },
+                    ],
+                },
+                select: { id: true, meals: { select: { id: true } } },
+            });
+
+            if (oldActivePlans.length > 0) {
+                const oldPlanIds = oldActivePlans.map(p => p.id);
+                const oldMealIds = oldActivePlans.flatMap(p => p.meals.map(m => m.id));
+
+                if (overlapStrategy === 'overwrite') {
+                    // Delete pending logs from overlap date range, deactivate overlapping plans
+                    if (oldMealIds.length > 0) {
+                        await tx.mealLog.deleteMany({
+                            where: {
+                                mealId: { in: oldMealIds },
+                                scheduledDate: { gte: cutoffDate },
+                                status: MealLogStatus.pending,
+                            },
+                        });
+                    }
+                    await tx.dietPlan.updateMany({
+                        where: { id: { in: oldPlanIds } },
+                        data: { isActive: false },
+                    });
+                } else if (overlapStrategy === 'end_previous' || overlapStrategy === 'update') {
+                    // End overlapping plans the day before new plan starts
+                    const dayBefore = new Date(newPlanStart);
+                    dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+                    if (oldMealIds.length > 0) {
+                        await tx.mealLog.deleteMany({
+                            where: {
+                                mealId: { in: oldMealIds },
+                                scheduledDate: { gte: newPlanStart },
+                                status: MealLogStatus.pending,
+                            },
+                        });
+                    }
+                    await tx.dietPlan.updateMany({
+                        where: { id: { in: oldPlanIds } },
+                        data: { endDate: dayBefore, status: 'completed' },
+                    });
+                }
+
+                logger.info('Handled overlap with old plan(s)', {
+                    strategy: overlapStrategy,
+                    oldPlanIds,
+                });
+            }
+
+            // Activate this plan
+            await tx.dietPlan.update({
                 where: { id: planId },
                 data: { status: 'active', publishedAt: new Date() },
-            }),
-        ]);
+            });
 
-        // Subsequent transactions: upsert meal logs in batches of 50
-        for (let i = 0; i < upsertOps.length; i += BATCH_SIZE) {
-            const batch = upsertOps.slice(i, i + BATCH_SIZE);
-            await prisma.$transaction(batch);
-        }
+            // Create meal logs in batches within the same transaction
+            for (let i = 0; i < mealLogsToCreate.length; i += BATCH_SIZE) {
+                const batch = mealLogsToCreate.slice(i, i + BATCH_SIZE);
+                await Promise.all(
+                    batch.map(log =>
+                        tx.mealLog.upsert({
+                            where: {
+                                clientId_mealId_scheduledDate: {
+                                    clientId: log.clientId,
+                                    mealId: log.mealId,
+                                    scheduledDate: log.scheduledDate,
+                                },
+                            },
+                            create: log,
+                            update: {},
+                        })
+                    )
+                );
+            }
+        }, { timeout: 30000 });
 
         logger.info('Diet plan published with meal logs', {
             planId,
@@ -380,17 +410,14 @@ export class DietPlanService {
         const clientId = plan.clientId!;
         const publishedAt = new Date();
 
-        // Clear server-side cache so next request returns fresh data
         invalidateClientCache(clientId);
 
-        // Emit real-time socket event so the client app refreshes instantly
         try {
             getIO().to(`client:${clientId}`).emit('plan:published', { planId, planName: plan.name });
         } catch (err) {
             logger.warn('Socket emit for plan:published failed', { err });
         }
 
-        // Push notification (fire-and-forget, don't block the response)
         notificationService.sendNotification(
             clientId,
             'client',
@@ -486,6 +513,77 @@ export class DietPlanService {
 
         logger.info('Template assigned to client', { templateId, newPlanId: newPlan.id, clientId });
         return newPlan;
+    }
+
+    async deletePlan(planId: string, orgId: string) {
+        const plan = await prisma.dietPlan.findFirst({
+            where: { id: planId, orgId, isActive: true },
+            include: { meals: { select: { id: true } } },
+        });
+
+        if (!plan) throw AppError.notFound('Diet plan not found', 'PLAN_NOT_FOUND');
+
+        const mealIds = plan.meals.map(m => m.id);
+
+        await prisma.$transaction(async (tx) => {
+            // Cancel pending meal logs
+            if (mealIds.length > 0) {
+                await tx.mealLog.deleteMany({
+                    where: {
+                        mealId: { in: mealIds },
+                        status: 'pending' as any,
+                    },
+                });
+            }
+
+            // Soft delete the plan
+            await tx.dietPlan.update({
+                where: { id: planId },
+                data: { deletedAt: new Date(), isActive: false },
+            });
+        });
+
+        logger.info('Diet plan deleted', { planId });
+        return { planId, deleted: true };
+    }
+
+    async getClientActiveRange(clientId: string, orgId: string) {
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        const plans = await prisma.dietPlan.findMany({
+            where: {
+                clientId,
+                orgId,
+                isTemplate: false,
+                deletedAt: null,
+                status: { in: ['active', 'draft', 'completed'] },
+                OR: [
+                    { endDate: { gte: today } },
+                    { endDate: null },
+                ],
+            },
+            select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                status: true,
+                targetCalories: true,
+                _count: { select: { meals: true } },
+            },
+            orderBy: { startDate: 'desc' },
+        });
+
+        return plans.map(p => ({
+            id: p.id,
+            name: p.name,
+            startDate: p.startDate,
+            endDate: p.endDate,
+            status: p.status,
+            targetCalories: p.targetCalories,
+            mealCount: p._count.meals,
+        }));
     }
 
     async extendPlan(planId: string, orgId: string, extensionStartDate: string) {

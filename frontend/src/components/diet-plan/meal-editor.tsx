@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch } from 'lucide-react';
+import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 
 const HOUSEHOLD_UNITS: { label: string; gramsEach: number | null; tooltip: string }[] = [
@@ -155,7 +155,7 @@ interface MealEditorProps {
     onRemoveFood: (mealId: string, tempId: string) => void;
     onUpdateFoodQuantity: (mealId: string, tempId: string, val: string) => void;
     onUpdateFoodQuantityValue: (mealId: string, tempId: string, grams: number) => void;
-    onUpdateMealField: (mealId: string, field: 'name' | 'time' | 'type', value: string) => void;
+    onUpdateMealField: (mealId: string, field: 'name' | 'time' | 'type' | 'description' | 'instructions', value: string) => void;
     onAddAlternative?: (mealId: string) => void;
     onRemoveOption?: (mealId: string, optionGroup: number) => void;
     onUpdateOptionLabel?: (mealId: string, optionGroup: number, label: string) => void;
@@ -187,6 +187,8 @@ function MealCard({
     }, [meal.foods]);
 
     const hasAlternatives = groupedFoods.length > 1;
+    const [notesOpen, setNotesOpen] = useState(false);
+    const hasNotes = !!(meal.description || meal.instructions);
 
     // Calculate calories for display (option 0 only when alternatives exist)
     const displayCalories = useMemo(() => {
@@ -222,6 +224,43 @@ function MealCard({
                         <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
+            </div>
+
+            {/* Meal Notes — collapsible */}
+            <div className="mb-3">
+                <button
+                    onClick={() => setNotesOpen(!notesOpen)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                    {notesOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    <FileText className="w-3.5 h-3.5" />
+                    Meal Notes
+                    {hasNotes && !notesOpen && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
+                </button>
+                {notesOpen && (
+                    <div className="mt-2 space-y-2 pl-5">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Description (visible to client)</label>
+                            <textarea
+                                value={meal.description || ''}
+                                onChange={(e) => onUpdateMealField(meal.id, 'description', e.target.value)}
+                                placeholder="e.g. Light protein-rich breakfast, ready in 10 min"
+                                rows={2}
+                                className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-md text-gray-800 placeholder:text-gray-300 focus:ring-1 focus:ring-brand/20 focus:border-brand outline-none resize-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Preparation Instructions</label>
+                            <textarea
+                                value={meal.instructions || ''}
+                                onChange={(e) => onUpdateMealField(meal.id, 'instructions', e.target.value)}
+                                placeholder="e.g. Boil eggs 8 min. Toast bread lightly. No butter."
+                                rows={2}
+                                className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-md text-gray-800 placeholder:text-gray-300 focus:ring-1 focus:ring-brand/20 focus:border-brand outline-none resize-none"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Food Items — flat list when no alternatives, grouped when alternatives exist */}
