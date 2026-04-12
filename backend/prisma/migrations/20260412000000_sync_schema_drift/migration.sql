@@ -32,7 +32,7 @@ END $$;
 -- ------------------------------------
 -- Organization: add slug
 -- ------------------------------------
-ALTER TABLE "public"."Organization" ADD COLUMN "slug" TEXT;
+ALTER TABLE "public"."Organization" ADD COLUMN IF NOT EXISTS "slug" TEXT;
 
 -- Backfill slug with id (uuid) so existing rows satisfy NOT NULL + UNIQUE
 UPDATE "public"."Organization" SET "slug" = "id" WHERE "slug" IS NULL;
@@ -40,65 +40,74 @@ UPDATE "public"."Organization" SET "slug" = "id" WHERE "slug" IS NULL;
 ALTER TABLE "public"."Organization" ALTER COLUMN "slug" SET NOT NULL;
 ALTER TABLE "public"."Organization" ALTER COLUMN "slug" SET DEFAULT gen_random_uuid()::text;
 
-CREATE UNIQUE INDEX "Organization_slug_key" ON "public"."Organization"("slug");
+CREATE UNIQUE INDEX IF NOT EXISTS "Organization_slug_key" ON "public"."Organization"("slug");
 
 -- ------------------------------------
 -- User: add pushTokens
 -- ------------------------------------
-ALTER TABLE "public"."User" ADD COLUMN "pushTokens" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."User" ADD COLUMN IF NOT EXISTS "pushTokens" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- ------------------------------------
 -- Client: add all new columns
 -- ------------------------------------
-ALTER TABLE "public"."Client" ADD COLUMN "goal" TEXT;
-ALTER TABLE "public"."Client" ADD COLUMN "goalDeadline" DATE;
-ALTER TABLE "public"."Client" ADD COLUMN "referralCode" TEXT;
-ALTER TABLE "public"."Client" ADD COLUMN "referralSource" "public"."ReferralSource";
-ALTER TABLE "public"."Client" ADD COLUMN "referralSourceName" TEXT;
-ALTER TABLE "public"."Client" ADD COLUMN "referralSourcePhone" TEXT;
-ALTER TABLE "public"."Client" ADD COLUMN "referredByClientId" TEXT;
-ALTER TABLE "public"."Client" ADD COLUMN "avoidCategories" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "dietPattern" TEXT;
-ALTER TABLE "public"."Client" ADD COLUMN "dislikes" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "eggAllowed" BOOLEAN NOT NULL DEFAULT true;
-ALTER TABLE "public"."Client" ADD COLUMN "eggAvoidDays" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "intolerances" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "labDerivedTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "likedFoods" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "preferredCuisines" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "foodRestrictions" JSONB NOT NULL DEFAULT '[]';
-ALTER TABLE "public"."Client" ADD COLUMN "pushTokens" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."Client" ADD COLUMN "targetCalories" INTEGER;
-ALTER TABLE "public"."Client" ADD COLUMN "targetCarbsG" DECIMAL(5,1);
-ALTER TABLE "public"."Client" ADD COLUMN "targetFatsG" DECIMAL(5,1);
-ALTER TABLE "public"."Client" ADD COLUMN "targetProteinG" DECIMAL(5,1);
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "goal" TEXT;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "goalDeadline" DATE;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "referralCode" TEXT;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "referralSource" "public"."ReferralSource";
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "referralSourceName" TEXT;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "referralSourcePhone" TEXT;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "referredByClientId" TEXT;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "avoidCategories" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "dietPattern" TEXT;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "dislikes" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "eggAllowed" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "eggAvoidDays" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "intolerances" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "labDerivedTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "likedFoods" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "preferredCuisines" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "foodRestrictions" JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "pushTokens" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "targetCalories" INTEGER;
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "targetCarbsG" DECIMAL(5,1);
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "targetFatsG" DECIMAL(5,1);
+ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "targetProteinG" DECIMAL(5,1);
 
 -- Client: make primaryDietitianId nullable (was NOT NULL)
 ALTER TABLE "public"."Client" ALTER COLUMN "primaryDietitianId" DROP NOT NULL;
 
 -- Client: new indexes
-CREATE UNIQUE INDEX "Client_orgId_referralCode_key" ON "public"."Client"("orgId", "referralCode");
-CREATE INDEX "Client_referralCode_idx" ON "public"."Client"("referralCode");
-CREATE INDEX "Client_referredByClientId_idx" ON "public"."Client"("referredByClientId");
-CREATE INDEX "Client_orgId_isActive_createdAt_idx" ON "public"."Client"("orgId", "isActive", "createdAt");
-CREATE INDEX "Client_dietPattern_idx" ON "public"."Client"("dietPattern");
-CREATE INDEX "Client_phone_idx" ON "public"."Client"("phone");
+CREATE UNIQUE INDEX IF NOT EXISTS "Client_orgId_referralCode_key" ON "public"."Client"("orgId", "referralCode");
+CREATE INDEX IF NOT EXISTS "Client_referralCode_idx" ON "public"."Client"("referralCode");
+CREATE INDEX IF NOT EXISTS "Client_referredByClientId_idx" ON "public"."Client"("referredByClientId");
+CREATE INDEX IF NOT EXISTS "Client_orgId_isActive_createdAt_idx" ON "public"."Client"("orgId", "isActive", "createdAt");
+CREATE INDEX IF NOT EXISTS "Client_dietPattern_idx" ON "public"."Client"("dietPattern");
+CREATE INDEX IF NOT EXISTS "Client_phone_idx" ON "public"."Client"("phone");
 
 -- Client: change FK on primaryDietitianId from RESTRICT to SET NULL
-ALTER TABLE "public"."Client" DROP CONSTRAINT "Client_primaryDietitianId_fkey";
-ALTER TABLE "public"."Client" ADD CONSTRAINT "Client_primaryDietitianId_fkey"
-    FOREIGN KEY ("primaryDietitianId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."Client" DROP CONSTRAINT "Client_primaryDietitianId_fkey";
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."Client" ADD CONSTRAINT "Client_primaryDietitianId_fkey"
+        FOREIGN KEY ("primaryDietitianId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Client: add FK for referredByClientId (self-relation)
-ALTER TABLE "public"."Client" ADD CONSTRAINT "Client_referredByClientId_fkey"
-    FOREIGN KEY ("referredByClientId") REFERENCES "public"."Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."Client" ADD CONSTRAINT "Client_referredByClientId_fkey"
+        FOREIGN KEY ("referredByClientId") REFERENCES "public"."Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- MedicalProfile: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."MedicalProfile" ADD COLUMN "labDate" TIMESTAMP(3);
-ALTER TABLE "public"."MedicalProfile" ADD COLUMN "labDerivedTags" TEXT[];
-ALTER TABLE "public"."MedicalProfile" ADD COLUMN "labValues" JSONB;
+ALTER TABLE "public"."MedicalProfile" ADD COLUMN IF NOT EXISTS "labDate" TIMESTAMP(3);
+ALTER TABLE "public"."MedicalProfile" ADD COLUMN IF NOT EXISTS "labDerivedTags" TEXT[];
+ALTER TABLE "public"."MedicalProfile" ADD COLUMN IF NOT EXISTS "labValues" JSONB;
 
 -- ------------------------------------
 -- DietPlan: make clientId and createdByUserId nullable
@@ -108,8 +117,8 @@ ALTER TABLE "public"."DietPlan" ALTER COLUMN "clientId" DROP NOT NULL;
 ALTER TABLE "public"."DietPlan" ALTER COLUMN "createdByUserId" DROP NOT NULL;
 
 -- DietPlan: new indexes
-CREATE INDEX "DietPlan_orgId_status_createdAt_idx" ON "public"."DietPlan"("orgId", "status", "createdAt");
-CREATE INDEX "DietPlan_clientId_status_idx" ON "public"."DietPlan"("clientId", "status");
+CREATE INDEX IF NOT EXISTS "DietPlan_orgId_status_createdAt_idx" ON "public"."DietPlan"("orgId", "status", "createdAt");
+CREATE INDEX IF NOT EXISTS "DietPlan_clientId_status_idx" ON "public"."DietPlan"("clientId", "status");
 
 -- DietPlan: change FK on clientId from CASCADE to CASCADE (no change on delete action,
 -- but the column is now nullable so Prisma re-generates the constraint)
@@ -117,82 +126,88 @@ CREATE INDEX "DietPlan_clientId_status_idx" ON "public"."DietPlan"("clientId", "
 -- The ALTER COLUMN DROP NOT NULL above handles that.
 
 -- DietPlan: change FK on createdByUserId from RESTRICT to SET NULL
-ALTER TABLE "public"."DietPlan" DROP CONSTRAINT "DietPlan_createdByUserId_fkey";
-ALTER TABLE "public"."DietPlan" ADD CONSTRAINT "DietPlan_createdByUserId_fkey"
-    FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."DietPlan" DROP CONSTRAINT "DietPlan_createdByUserId_fkey";
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."DietPlan" ADD CONSTRAINT "DietPlan_createdByUserId_fkey"
+        FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- Meal: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."Meal" ADD COLUMN "createdByUserId" TEXT;
-ALTER TABLE "public"."Meal" ADD COLUMN "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."Meal" ADD COLUMN IF NOT EXISTS "createdByUserId" TEXT;
+ALTER TABLE "public"."Meal" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 
 -- Meal: new index
-CREATE INDEX "Meal_createdByUserId_idx" ON "public"."Meal"("createdByUserId");
+CREATE INDEX IF NOT EXISTS "Meal_createdByUserId_idx" ON "public"."Meal"("createdByUserId");
 
 -- ------------------------------------
 -- FoodItem: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."FoodItem" ADD COLUMN "cuisineTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."FoodItem" ADD COLUMN "dietaryCategory" TEXT;
-ALTER TABLE "public"."FoodItem" ADD COLUMN "healthFlags" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."FoodItem" ADD COLUMN "mealSuitabilityTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."FoodItem" ADD COLUMN "nutritionTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."FoodItem" ADD COLUMN "processingLevel" TEXT;
-ALTER TABLE "public"."FoodItem" ADD COLUMN "deletedAt" TIMESTAMP(3);
-ALTER TABLE "public"."FoodItem" ADD COLUMN "updatedByUserId" TEXT;
-ALTER TABLE "public"."FoodItem" ADD COLUMN "isBaseIngredient" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "public"."FoodItem" ADD COLUMN "servingUnit" TEXT NOT NULL DEFAULT 'g';
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "cuisineTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "dietaryCategory" TEXT;
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "healthFlags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "mealSuitabilityTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "nutritionTags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "processingLevel" TEXT;
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "updatedByUserId" TEXT;
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "isBaseIngredient" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "public"."FoodItem" ADD COLUMN IF NOT EXISTS "servingUnit" TEXT NOT NULL DEFAULT 'g';
 
 -- FoodItem: new indexes
-CREATE INDEX "FoodItem_orgId_category_idx" ON "public"."FoodItem"("orgId", "category");
-CREATE INDEX "FoodItem_isBaseIngredient_idx" ON "public"."FoodItem"("isBaseIngredient");
+CREATE INDEX IF NOT EXISTS "FoodItem_orgId_category_idx" ON "public"."FoodItem"("orgId", "category");
+CREATE INDEX IF NOT EXISTS "FoodItem_isBaseIngredient_idx" ON "public"."FoodItem"("isBaseIngredient");
 
 -- ------------------------------------
 -- MealFoodItem: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."MealFoodItem" ADD COLUMN "createdByUserId" TEXT;
-ALTER TABLE "public"."MealFoodItem" ADD COLUMN "deletedAt" TIMESTAMP(3);
-ALTER TABLE "public"."MealFoodItem" ADD COLUMN "optionGroup" INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE "public"."MealFoodItem" ADD COLUMN "optionLabel" TEXT;
+ALTER TABLE "public"."MealFoodItem" ADD COLUMN IF NOT EXISTS "createdByUserId" TEXT;
+ALTER TABLE "public"."MealFoodItem" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."MealFoodItem" ADD COLUMN IF NOT EXISTS "optionGroup" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "public"."MealFoodItem" ADD COLUMN IF NOT EXISTS "optionLabel" TEXT;
 
 -- MealFoodItem: new indexes
-CREATE INDEX "MealFoodItem_mealId_optionGroup_idx" ON "public"."MealFoodItem"("mealId", "optionGroup");
-CREATE INDEX "MealFoodItem_createdByUserId_idx" ON "public"."MealFoodItem"("createdByUserId");
+CREATE INDEX IF NOT EXISTS "MealFoodItem_mealId_optionGroup_idx" ON "public"."MealFoodItem"("mealId", "optionGroup");
+CREATE INDEX IF NOT EXISTS "MealFoodItem_createdByUserId_idx" ON "public"."MealFoodItem"("createdByUserId");
 
 -- ------------------------------------
 -- MealLog: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."MealLog" ADD COLUMN "complianceColor" TEXT;
-ALTER TABLE "public"."MealLog" ADD COLUMN "complianceIssues" TEXT[] DEFAULT ARRAY[]::TEXT[];
-ALTER TABLE "public"."MealLog" ADD COLUMN "complianceScore" INTEGER;
-ALTER TABLE "public"."MealLog" ADD COLUMN "deletedAt" TIMESTAMP(3);
-ALTER TABLE "public"."MealLog" ADD COLUMN "chosenOptionGroup" INTEGER;
+ALTER TABLE "public"."MealLog" ADD COLUMN IF NOT EXISTS "complianceColor" TEXT;
+ALTER TABLE "public"."MealLog" ADD COLUMN IF NOT EXISTS "complianceIssues" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "public"."MealLog" ADD COLUMN IF NOT EXISTS "complianceScore" INTEGER;
+ALTER TABLE "public"."MealLog" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."MealLog" ADD COLUMN IF NOT EXISTS "chosenOptionGroup" INTEGER;
 
 -- MealLog: new unique constraint
-CREATE UNIQUE INDEX "MealLog_clientId_mealId_scheduledDate_key" ON "public"."MealLog"("clientId", "mealId", "scheduledDate");
+CREATE UNIQUE INDEX IF NOT EXISTS "MealLog_clientId_mealId_scheduledDate_key" ON "public"."MealLog"("clientId", "mealId", "scheduledDate");
 
 -- MealLog: new indexes
-CREATE INDEX "MealLog_orgId_status_scheduledDate_idx" ON "public"."MealLog"("orgId", "status", "scheduledDate");
-CREATE INDEX "MealLog_clientId_scheduledDate_idx" ON "public"."MealLog"("clientId", "scheduledDate");
+CREATE INDEX IF NOT EXISTS "MealLog_orgId_status_scheduledDate_idx" ON "public"."MealLog"("orgId", "status", "scheduledDate");
+CREATE INDEX IF NOT EXISTS "MealLog_clientId_scheduledDate_idx" ON "public"."MealLog"("clientId", "scheduledDate");
 
 -- ------------------------------------
 -- WeightLog: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."WeightLog" ADD COLUMN "createdByUserId" TEXT;
-ALTER TABLE "public"."WeightLog" ADD COLUMN "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."WeightLog" ADD COLUMN IF NOT EXISTS "createdByUserId" TEXT;
+ALTER TABLE "public"."WeightLog" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 
 -- WeightLog: new index
-CREATE INDEX "WeightLog_clientId_logDate_idx" ON "public"."WeightLog"("clientId", "logDate");
+CREATE INDEX IF NOT EXISTS "WeightLog_clientId_logDate_idx" ON "public"."WeightLog"("clientId", "logDate");
 
 -- ------------------------------------
 -- BodyMeasurement: add new columns
 -- ------------------------------------
-ALTER TABLE "public"."BodyMeasurement" ADD COLUMN "createdByUserId" TEXT;
-ALTER TABLE "public"."BodyMeasurement" ADD COLUMN "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."BodyMeasurement" ADD COLUMN IF NOT EXISTS "createdByUserId" TEXT;
+ALTER TABLE "public"."BodyMeasurement" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 
 -- BodyMeasurement: new unique constraint
-CREATE UNIQUE INDEX "BodyMeasurement_clientId_logDate_key" ON "public"."BodyMeasurement"("clientId", "logDate");
+CREATE UNIQUE INDEX IF NOT EXISTS "BodyMeasurement_clientId_logDate_key" ON "public"."BodyMeasurement"("clientId", "logDate");
 
 -- ------------------------------------
 -- SessionNote: make createdByUserId nullable
@@ -200,27 +215,39 @@ CREATE UNIQUE INDEX "BodyMeasurement_clientId_logDate_key" ON "public"."BodyMeas
 ALTER TABLE "public"."SessionNote" ALTER COLUMN "createdByUserId" DROP NOT NULL;
 
 -- SessionNote: change FK from RESTRICT to SET NULL
-ALTER TABLE "public"."SessionNote" DROP CONSTRAINT "SessionNote_createdByUserId_fkey";
-ALTER TABLE "public"."SessionNote" ADD CONSTRAINT "SessionNote_createdByUserId_fkey"
-    FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."SessionNote" DROP CONSTRAINT "SessionNote_createdByUserId_fkey";
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."SessionNote" ADD CONSTRAINT "SessionNote_createdByUserId_fkey"
+        FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- Invoice: make createdByUserId nullable, add deletedAt
 -- ------------------------------------
 ALTER TABLE "public"."Invoice" ALTER COLUMN "createdByUserId" DROP NOT NULL;
-ALTER TABLE "public"."Invoice" ADD COLUMN "deletedAt" TIMESTAMP(3);
+ALTER TABLE "public"."Invoice" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 
 -- Invoice: change FK from RESTRICT to SET NULL
-ALTER TABLE "public"."Invoice" DROP CONSTRAINT "Invoice_createdByUserId_fkey";
-ALTER TABLE "public"."Invoice" ADD CONSTRAINT "Invoice_createdByUserId_fkey"
-    FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."Invoice" DROP CONSTRAINT "Invoice_createdByUserId_fkey";
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."Invoice" ADD CONSTRAINT "Invoice_createdByUserId_fkey"
+        FOREIGN KEY ("createdByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- Notification: new indexes
 -- ------------------------------------
-CREATE INDEX "Notification_recipientId_recipientType_isRead_createdAt_idx"
+CREATE INDEX IF NOT EXISTS "Notification_recipientId_recipientType_isRead_createdAt_idx"
     ON "public"."Notification"("recipientId", "recipientType", "isRead", "createdAt");
-CREATE INDEX "Notification_expiresAt_idx" ON "public"."Notification"("expiresAt");
+CREATE INDEX IF NOT EXISTS "Notification_expiresAt_idx" ON "public"."Notification"("expiresAt");
 
 -- ============================================================================
 -- 3. NEW TABLES
@@ -241,12 +268,15 @@ CREATE TABLE IF NOT EXISTS "public"."ClientRefreshToken" (
     CONSTRAINT "ClientRefreshToken_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "ClientRefreshToken_tokenHash_key" ON "public"."ClientRefreshToken"("tokenHash");
-CREATE INDEX "ClientRefreshToken_clientId_idx" ON "public"."ClientRefreshToken"("clientId");
-CREATE INDEX "ClientRefreshToken_familyId_idx" ON "public"."ClientRefreshToken"("familyId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ClientRefreshToken_tokenHash_key" ON "public"."ClientRefreshToken"("tokenHash");
+CREATE INDEX IF NOT EXISTS "ClientRefreshToken_clientId_idx" ON "public"."ClientRefreshToken"("clientId");
+CREATE INDEX IF NOT EXISTS "ClientRefreshToken_familyId_idx" ON "public"."ClientRefreshToken"("familyId");
 
-ALTER TABLE "public"."ClientRefreshToken" ADD CONSTRAINT "ClientRefreshToken_clientId_fkey"
-    FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."ClientRefreshToken" ADD CONSTRAINT "ClientRefreshToken_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- FoodItemIngredient
@@ -260,15 +290,21 @@ CREATE TABLE IF NOT EXISTS "public"."FoodItemIngredient" (
     CONSTRAINT "FoodItemIngredient_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "FoodItemIngredient_foodItemId_ingredientId_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "FoodItemIngredient_foodItemId_ingredientId_key"
     ON "public"."FoodItemIngredient"("foodItemId", "ingredientId");
-CREATE INDEX "FoodItemIngredient_foodItemId_idx" ON "public"."FoodItemIngredient"("foodItemId");
-CREATE INDEX "FoodItemIngredient_ingredientId_idx" ON "public"."FoodItemIngredient"("ingredientId");
+CREATE INDEX IF NOT EXISTS "FoodItemIngredient_foodItemId_idx" ON "public"."FoodItemIngredient"("foodItemId");
+CREATE INDEX IF NOT EXISTS "FoodItemIngredient_ingredientId_idx" ON "public"."FoodItemIngredient"("ingredientId");
 
-ALTER TABLE "public"."FoodItemIngredient" ADD CONSTRAINT "FoodItemIngredient_foodItemId_fkey"
-    FOREIGN KEY ("foodItemId") REFERENCES "public"."FoodItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "public"."FoodItemIngredient" ADD CONSTRAINT "FoodItemIngredient_ingredientId_fkey"
-    FOREIGN KEY ("ingredientId") REFERENCES "public"."FoodItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."FoodItemIngredient" ADD CONSTRAINT "FoodItemIngredient_foodItemId_fkey"
+        FOREIGN KEY ("foodItemId") REFERENCES "public"."FoodItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."FoodItemIngredient" ADD CONSTRAINT "FoodItemIngredient_ingredientId_fkey"
+        FOREIGN KEY ("ingredientId") REFERENCES "public"."FoodItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- Invitation
@@ -286,13 +322,16 @@ CREATE TABLE IF NOT EXISTS "public"."Invitation" (
     CONSTRAINT "Invitation_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "Invitation_token_key" ON "public"."Invitation"("token");
-CREATE INDEX "Invitation_orgId_idx" ON "public"."Invitation"("orgId");
-CREATE INDEX "Invitation_token_idx" ON "public"."Invitation"("token");
-CREATE INDEX "Invitation_email_idx" ON "public"."Invitation"("email");
+CREATE UNIQUE INDEX IF NOT EXISTS "Invitation_token_key" ON "public"."Invitation"("token");
+CREATE INDEX IF NOT EXISTS "Invitation_orgId_idx" ON "public"."Invitation"("orgId");
+CREATE INDEX IF NOT EXISTS "Invitation_token_idx" ON "public"."Invitation"("token");
+CREATE INDEX IF NOT EXISTS "Invitation_email_idx" ON "public"."Invitation"("email");
 
-ALTER TABLE "public"."Invitation" ADD CONSTRAINT "Invitation_orgId_fkey"
-    FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."Invitation" ADD CONSTRAINT "Invitation_orgId_fkey"
+        FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- ReferralBenefit
@@ -309,11 +348,14 @@ CREATE TABLE IF NOT EXISTS "public"."ReferralBenefit" (
     CONSTRAINT "ReferralBenefit_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "ReferralBenefit_clientId_key" ON "public"."ReferralBenefit"("clientId");
-CREATE INDEX "ReferralBenefit_clientId_idx" ON "public"."ReferralBenefit"("clientId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralBenefit_clientId_key" ON "public"."ReferralBenefit"("clientId");
+CREATE INDEX IF NOT EXISTS "ReferralBenefit_clientId_idx" ON "public"."ReferralBenefit"("clientId");
 
-ALTER TABLE "public"."ReferralBenefit" ADD CONSTRAINT "ReferralBenefit_clientId_fkey"
-    FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."ReferralBenefit" ADD CONSTRAINT "ReferralBenefit_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- ClientReport
@@ -336,14 +378,20 @@ CREATE TABLE IF NOT EXISTS "public"."ClientReport" (
     CONSTRAINT "ClientReport_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "ClientReport_clientId_idx" ON "public"."ClientReport"("clientId");
-CREATE INDEX "ClientReport_orgId_idx" ON "public"."ClientReport"("orgId");
-CREATE INDEX "ClientReport_clientId_processingStatus_idx" ON "public"."ClientReport"("clientId", "processingStatus");
+CREATE INDEX IF NOT EXISTS "ClientReport_clientId_idx" ON "public"."ClientReport"("clientId");
+CREATE INDEX IF NOT EXISTS "ClientReport_orgId_idx" ON "public"."ClientReport"("orgId");
+CREATE INDEX IF NOT EXISTS "ClientReport_clientId_processingStatus_idx" ON "public"."ClientReport"("clientId", "processingStatus");
 
-ALTER TABLE "public"."ClientReport" ADD CONSTRAINT "ClientReport_clientId_fkey"
-    FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "public"."ClientReport" ADD CONSTRAINT "ClientReport_orgId_fkey"
-    FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."ClientReport" ADD CONSTRAINT "ClientReport_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."ClientReport" ADD CONSTRAINT "ClientReport_orgId_fkey"
+        FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- ReportSummary
@@ -362,11 +410,14 @@ CREATE TABLE IF NOT EXISTS "public"."ReportSummary" (
     CONSTRAINT "ReportSummary_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "ReportSummary_reportId_key" ON "public"."ReportSummary"("reportId");
-CREATE INDEX "ReportSummary_reportId_idx" ON "public"."ReportSummary"("reportId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReportSummary_reportId_key" ON "public"."ReportSummary"("reportId");
+CREATE INDEX IF NOT EXISTS "ReportSummary_reportId_idx" ON "public"."ReportSummary"("reportId");
 
-ALTER TABLE "public"."ReportSummary" ADD CONSTRAINT "ReportSummary_reportId_fkey"
-    FOREIGN KEY ("reportId") REFERENCES "public"."ClientReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."ReportSummary" ADD CONSTRAINT "ReportSummary_reportId_fkey"
+        FOREIGN KEY ("reportId") REFERENCES "public"."ClientReport"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- ClientDocumentSummary
@@ -383,11 +434,14 @@ CREATE TABLE IF NOT EXISTS "public"."ClientDocumentSummary" (
     CONSTRAINT "ClientDocumentSummary_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "ClientDocumentSummary_clientId_key" ON "public"."ClientDocumentSummary"("clientId");
-CREATE INDEX "ClientDocumentSummary_clientId_idx" ON "public"."ClientDocumentSummary"("clientId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ClientDocumentSummary_clientId_key" ON "public"."ClientDocumentSummary"("clientId");
+CREATE INDEX IF NOT EXISTS "ClientDocumentSummary_clientId_idx" ON "public"."ClientDocumentSummary"("clientId");
 
-ALTER TABLE "public"."ClientDocumentSummary" ADD CONSTRAINT "ClientDocumentSummary_clientId_fkey"
-    FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."ClientDocumentSummary" ADD CONSTRAINT "ClientDocumentSummary_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- ClientPreferences
@@ -412,11 +466,14 @@ CREATE TABLE IF NOT EXISTS "public"."ClientPreferences" (
     CONSTRAINT "ClientPreferences_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "ClientPreferences_clientId_key" ON "public"."ClientPreferences"("clientId");
-CREATE INDEX "ClientPreferences_clientId_idx" ON "public"."ClientPreferences"("clientId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ClientPreferences_clientId_key" ON "public"."ClientPreferences"("clientId");
+CREATE INDEX IF NOT EXISTS "ClientPreferences_clientId_idx" ON "public"."ClientPreferences"("clientId");
 
-ALTER TABLE "public"."ClientPreferences" ADD CONSTRAINT "ClientPreferences_clientId_fkey"
-    FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."ClientPreferences" ADD CONSTRAINT "ClientPreferences_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- Conversation
@@ -434,19 +491,28 @@ CREATE TABLE IF NOT EXISTS "public"."Conversation" (
     CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "Conversation_orgId_userId_clientId_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "Conversation_orgId_userId_clientId_key"
     ON "public"."Conversation"("orgId", "userId", "clientId");
-CREATE INDEX "Conversation_userId_lastMessageAt_idx"
+CREATE INDEX IF NOT EXISTS "Conversation_userId_lastMessageAt_idx"
     ON "public"."Conversation"("userId", "lastMessageAt" DESC);
-CREATE INDEX "Conversation_clientId_lastMessageAt_idx"
+CREATE INDEX IF NOT EXISTS "Conversation_clientId_lastMessageAt_idx"
     ON "public"."Conversation"("clientId", "lastMessageAt" DESC);
 
-ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_clientId_fkey"
-    FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_orgId_fkey"
-    FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_userId_fkey"
-    FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_clientId_fkey"
+        FOREIGN KEY ("clientId") REFERENCES "public"."Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_orgId_fkey"
+        FOREIGN KEY ("orgId") REFERENCES "public"."Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE "public"."Conversation" ADD CONSTRAINT "Conversation_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ------------------------------------
 -- Message
@@ -464,12 +530,15 @@ CREATE TABLE IF NOT EXISTS "public"."Message" (
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "Message_conversationId_createdAt_idx"
+CREATE INDEX IF NOT EXISTS "Message_conversationId_createdAt_idx"
     ON "public"."Message"("conversationId", "createdAt" DESC);
-CREATE INDEX "Message_conversationId_status_idx"
+CREATE INDEX IF NOT EXISTS "Message_conversationId_status_idx"
     ON "public"."Message"("conversationId", "status");
-CREATE INDEX "Message_conversationId_senderType_status_idx"
+CREATE INDEX IF NOT EXISTS "Message_conversationId_senderType_status_idx"
     ON "public"."Message"("conversationId", "senderType", "status");
 
-ALTER TABLE "public"."Message" ADD CONSTRAINT "Message_conversationId_fkey"
-    FOREIGN KEY ("conversationId") REFERENCES "public"."Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "public"."Message" ADD CONSTRAINT "Message_conversationId_fkey"
+        FOREIGN KEY ("conversationId") REFERENCES "public"."Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
