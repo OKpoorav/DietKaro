@@ -141,7 +141,7 @@ export const requireClientAuth = async (
         }
 
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, JWT_SECRET!) as { clientId: string; type?: string };
+        const decoded = jwt.verify(token, JWT_SECRET!, { clockTolerance: 10 }) as { clientId: string; type?: string };
 
         // Accept both old tokens (no type) and new access tokens
         if (decoded.type && decoded.type !== 'access') {

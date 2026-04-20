@@ -10,6 +10,10 @@ export default clerkMiddleware(async (auth, request) => {
             return NextResponse.redirect(new URL('/sign-in', request.url));
         }
     }
+}, {
+    // Tolerate small clock skew between this server and Clerk's issuer.
+    // Root fix: sync the host clock (NTP). See chrony/timesyncd setup.
+    clockSkewInMs: 10_000,
 });
 
 export const config = {

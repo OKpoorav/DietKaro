@@ -136,7 +136,7 @@ export const clerkLogin = asyncHandler(async (req: Request, res: Response) => {
     // Verify the Clerk JWT and get the user
     let clerkUserId: string;
     try {
-        const payload = await verifyToken(clerkToken, { secretKey: process.env.CLERK_SECRET_KEY! });
+        const payload = await verifyToken(clerkToken, { secretKey: process.env.CLERK_SECRET_KEY!, clockSkewInMs: 10_000 });
         clerkUserId = payload.sub;
     } catch {
         throw AppError.unauthorized('Invalid or expired Clerk token');

@@ -22,7 +22,7 @@ export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) =
         }
 
         if (type === 'client') {
-            const decoded = jwt.verify(token, CLIENT_JWT_SECRET) as { clientId: string; type?: string };
+            const decoded = jwt.verify(token, CLIENT_JWT_SECRET, { clockTolerance: 10 }) as { clientId: string; type?: string };
             if (decoded.type && decoded.type !== 'access') {
                 return next(new Error('Invalid token type'));
             }
@@ -44,6 +44,7 @@ export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) =
         } else if (type === 'user') {
             const payload = await verifyToken(token, {
                 secretKey: process.env.CLERK_SECRET_KEY!,
+                clockSkewInMs: 10_000,
             });
 
             if (!payload.sub) {
