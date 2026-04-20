@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -20,6 +20,107 @@ import { calculateAge } from '@/lib/utils/formatters';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
 import { useMealBuilder } from '@/lib/hooks/use-meal-builder';
 
+interface BuilderPaneProps {
+    dayIndex: number;
+    setDayIndex: (n: number) => void;
+    paneLabel?: string; // e.g. "A" / "B" — only shown in split mode
+    otherPaneDay?: number;
+    builder: ReturnType<typeof useMealBuilder>;
+    isTemplateMode: boolean;
+}
+
+function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, isTemplateMode }: BuilderPaneProps) {
+    const sameDay = otherPaneDay !== undefined && otherPaneDay === dayIndex;
+    const dayMeals = builder.getDayMeals(dayIndex);
+    const dayKcal = builder.getDayNutrition(dayIndex).calories;
+
+    return (
+        <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto pr-1">
+            {/* Pane header — label + inline day actions */}
+            <div className="flex items-center justify-between gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    {paneLabel && (
+                        <span className="text-xs font-bold px-1.5 py-0.5 bg-brand/10 text-brand rounded">
+                            Pane {paneLabel}
+                        </span>
+                    )}
+                    <span className="text-xs text-gray-500 truncate">
+                        {Math.round(dayKcal)} kcal
+                    </span>
+                    {sameDay && (
+                        <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded" title="Both panes show the same day — edits sync">
+                            same day
+                        </span>
+                    )}
+                </div>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => builder.copyDay(dayIndex)}
+                        className="h-8 px-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors"
+                        title="Copy Day"
+                    >
+                        <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        onClick={() => builder.pasteDay(dayIndex)}
+                        disabled={!builder.clipboardDay}
+                        className="h-8 px-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors disabled:opacity-30"
+                        title="Paste Day"
+                    >
+                        <ClipboardPaste className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        onClick={() => builder.clearDay(dayIndex)}
+                        className="h-8 px-2 bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 rounded-md transition-colors"
+                        title="Clear Day"
+                    >
+                        <Eraser className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            <DayNavigator
+                planDates={builder.planDates}
+                selectedDayIndex={dayIndex}
+                onSelectDay={setDayIndex}
+                isTemplateMode={isTemplateMode}
+                onAddDay={() => {
+                    const newIdx = builder.numDays; // pre-increment index becomes the new day
+                    builder.addDay();
+                    setDayIndex(newIdx);
+                }}
+                onRemoveDay={builder.removeDay}
+            />
+            <ErrorBoundary
+                fallback={
+                    <div className="flex flex-col items-center justify-center p-6 bg-white rounded-xl border border-red-200">
+                        <p className="text-red-600 font-medium mb-2">Failed to render meal editor</p>
+                        <p className="text-gray-500 text-sm mb-4">Your other data is preserved. Try refreshing the page.</p>
+                        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium">Refresh Page</button>
+                    </div>
+                }
+            >
+                <MealEditor
+                    meals={dayMeals}
+                    onAddMeal={() => builder.addMeal(dayIndex)}
+                    onRemoveMeal={(id) => builder.removeMeal(dayIndex, id)}
+                    onOpenAddFood={(mealId, group) => builder.openAddFood(dayIndex, mealId, group)}
+                    onRemoveFood={(mealId, tempId) => builder.removeFood(dayIndex, mealId, tempId)}
+                    onUpdateFoodQuantity={(mealId, tempId, val) => builder.updateFoodQuantity(dayIndex, mealId, tempId, val)}
+                    onUpdateFoodQuantityValue={(mealId, tempId, grams) => builder.updateFoodQuantityValue(dayIndex, mealId, tempId, grams)}
+                    onUpdateMealField={(mealId, field, value) => builder.updateMealField(dayIndex, mealId, field, value)}
+                    onAddAlternative={(mealId) => builder.addMealOption(dayIndex, mealId)}
+                    onRemoveOption={(mealId, group) => builder.removeOption(dayIndex, mealId, group)}
+                    onUpdateOptionLabel={(mealId, group, label) => builder.updateOptionLabel(dayIndex, mealId, group, label)}
+                    onCopyMeal={(mealId) => builder.copyMeal(dayIndex, mealId)}
+                    onPasteMeal={(mealId) => builder.pasteMeal(dayIndex, mealId)}
+                    hasMealClipboard={!!builder.clipboardMeal}
+                />
+            </ErrorBoundary>
+        </div>
+    );
+}
+
 function BuilderContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -31,6 +132,22 @@ function BuilderContent() {
     const [setupResult, setSetupResult] = useState<PlanSetupResult | null>(editId ? { planName: '', startDate: new Date(), numDays: 1, overlapStrategy: 'overwrite' } : null);
     const [showSetupModal, setShowSetupModal] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
+
+    // Split-pane state — max 2 panes, each picks its own day.
+    const [splitMode, setSplitMode] = useState(false);
+    const [selectedDayA, setSelectedDayA] = useState(0);
+    const [selectedDayB, setSelectedDayB] = useState(0);
+
+    // Hydrate split toggle from localStorage (client-only)
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        setSplitMode(localStorage.getItem('builder-split') === '1');
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        localStorage.setItem('builder-split', splitMode ? '1' : '0');
+    }, [splitMode]);
 
     const { data: client, isLoading: clientLoading } = useClient(
         !isTemplateMode && clientId ? clientId : ''
@@ -60,6 +177,12 @@ function BuilderContent() {
             }
         },
     });
+
+    // Clamp pane days whenever the plan shrinks
+    useEffect(() => {
+        if (selectedDayA >= builder.numDays) setSelectedDayA(Math.max(0, builder.numDays - 1));
+        if (selectedDayB >= builder.numDays) setSelectedDayB(Math.max(0, builder.numDays - 1));
+    }, [builder.numDays, selectedDayA, selectedDayB]);
 
     // Step 1: Client selection screen
     if (!isTemplateMode && !clientId) {
@@ -134,6 +257,16 @@ function BuilderContent() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        onClick={() => setSplitMode(s => !s)}
+                        className={`h-10 px-3 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                            splitMode ? 'bg-brand/10 text-brand hover:bg-brand/20' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
+                        title={splitMode ? 'Exit split view' : 'Split builder into two panes'}
+                    >
+                        {splitMode ? <Columns2 className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                        {splitMode ? 'Split' : 'Single'}
+                    </button>
                     {isTemplateMode ? (
                         <div className="flex gap-2">
                             <button
@@ -163,30 +296,6 @@ function BuilderContent() {
                                 <SlidersHorizontal className="w-4 h-4" />
                                 Portions
                             </button>
-                            <div className="flex items-center gap-1 border-l border-gray-300 pl-2 ml-1">
-                                <button
-                                    onClick={builder.copyDay}
-                                    className="h-10 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
-                                    title="Copy Day"
-                                >
-                                    <Copy className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={builder.pasteDay}
-                                    disabled={!builder.clipboardDay}
-                                    className="h-10 px-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors disabled:opacity-30"
-                                    title="Paste Day"
-                                >
-                                    <ClipboardPaste className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={builder.clearDay}
-                                    className="h-10 px-2.5 bg-gray-100 hover:bg-red-100 text-gray-600 hover:text-red-600 rounded-lg transition-colors"
-                                    title="Clear Day"
-                                >
-                                    <Eraser className="w-4 h-4" />
-                                </button>
-                            </div>
                             <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
@@ -238,77 +347,67 @@ function BuilderContent() {
                     </div>
                 </aside>
 
-                {/* Center - Meal Editor */}
-                <section className="col-span-6 flex flex-col gap-4 overflow-y-auto">
-                    <DayNavigator
-                        planDates={builder.planDates}
-                        selectedDayIndex={builder.selectedDayIndex}
-                        onSelectDay={builder.setSelectedDayIndex}
+                {/* Center — Meal Editor (single or split) */}
+                <section className="col-span-6 flex overflow-hidden gap-3">
+                    <BuilderPane
+                        dayIndex={selectedDayA}
+                        setDayIndex={setSelectedDayA}
+                        paneLabel={splitMode ? 'A' : undefined}
+                        otherPaneDay={splitMode ? selectedDayB : undefined}
+                        builder={builder}
                         isTemplateMode={isTemplateMode}
-                        onAddDay={builder.addDay}
-                        onRemoveDay={builder.removeDay}
                     />
-                    <ErrorBoundary
-                        fallback={
-                            <div className="flex flex-col items-center justify-center p-8 bg-white rounded-xl border border-red-200">
-                                <p className="text-red-600 font-medium mb-2">Failed to render meal editor</p>
-                                <p className="text-gray-500 text-sm mb-4">Your other data is preserved. Try refreshing the page.</p>
-                                <button onClick={() => window.location.reload()} className="px-4 py-2 bg-brand text-white rounded-lg text-sm font-medium">Refresh Page</button>
-                            </div>
-                        }
-                    >
-                        <MealEditor
-                            meals={builder.currentMeals}
-                            onAddMeal={builder.addMeal}
-                            onRemoveMeal={builder.removeMeal}
-                            onOpenAddFood={builder.openAddFood}
-                            onRemoveFood={builder.removeFood}
-                            onUpdateFoodQuantity={builder.updateFoodQuantity}
-                            onUpdateFoodQuantityValue={builder.updateFoodQuantityValue}
-                            onUpdateMealField={builder.updateMealField}
-                            onAddAlternative={builder.addMealOption}
-                            onRemoveOption={builder.removeOption}
-                            onUpdateOptionLabel={builder.updateOptionLabel}
-                        />
-                    </ErrorBoundary>
+                    {splitMode && (
+                        <>
+                            <div className="w-px bg-gray-200 flex-shrink-0" />
+                            <BuilderPane
+                                dayIndex={selectedDayB}
+                                setDayIndex={setSelectedDayB}
+                                paneLabel="B"
+                                otherPaneDay={selectedDayA}
+                                builder={builder}
+                                isTemplateMode={isTemplateMode}
+                            />
+                        </>
+                    )}
                 </section>
 
-                {/* Right Sidebar - Nutrition Summary */}
+                {/* Right Sidebar - Nutrition Summary (bound to pane A) */}
                 <NutritionSummary
-                    dayNutrition={builder.dayNutrition}
+                    dayNutrition={builder.getDayNutrition(selectedDayA)}
                     targets={builder.targets}
-                    hasAllergyWarning={builder.hasAllergyWarning}
+                    hasAllergyWarning={builder.getHasAllergyWarning(selectedDayA)}
                     onTargetsChange={builder.setTargets}
                     client={client}
                     hideCaloriesFromClient={builder.hideCaloriesFromClient}
                     onHideCaloriesChange={builder.setHideCaloriesFromClient}
-                    meals={builder.currentMeals}
+                    meals={builder.getDayMeals(selectedDayA)}
                 />
             </main>
 
-            {/* Add Food Modal */}
+            {/* Add Food Modal — targets whichever pane/day triggered it */}
             <AddFoodModal
                 isOpen={builder.showAddFoodModal}
                 onClose={() => builder.setShowAddFoodModal(false)}
-                mealType={builder.currentMeals.find(m => m.id === builder.activeMealId)?.name || 'Meal'}
+                mealType={builder.getDayMeals(builder.activeDayIndex).find(m => m.id === builder.activeMealId)?.name || 'Meal'}
                 optionLabel={
                     builder.activeOptionGroup > 0
-                        ? builder.currentMeals.find(m => m.id === builder.activeMealId)?.foods
+                        ? builder.getDayMeals(builder.activeDayIndex).find(m => m.id === builder.activeMealId)?.foods
                             .find(f => f.optionGroup === builder.activeOptionGroup)?.optionLabel
                             || `Option ${String.fromCharCode(65 + builder.activeOptionGroup)}`
                         : undefined
                 }
                 clientId={clientId}
-                currentDay={builder.planDates[builder.selectedDayIndex]?.day.toLowerCase()}
+                currentDay={builder.planDates[builder.activeDayIndex]?.day.toLowerCase()}
                 onAddFood={builder.addFood}
             />
 
-            {/* Bulk Portion Modal */}
+            {/* Bulk Portion Modal — day-scope adjustments target pane A */}
             <BulkPortionModal
                 isOpen={showBulkModal}
                 onClose={() => setShowBulkModal(false)}
-                currentCalories={builder.dayNutrition.calories}
-                onApply={builder.bulkAdjust}
+                currentCalories={builder.getDayNutrition(selectedDayA).calories}
+                onApply={(factor, scope) => builder.bulkAdjust(factor, scope, selectedDayA)}
             />
         </div>
     );

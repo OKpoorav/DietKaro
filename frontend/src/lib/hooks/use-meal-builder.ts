@@ -89,12 +89,14 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const [showAddFoodModal, setShowAddFoodModal] = useState(false);
     const [activeMealId, setActiveMealId] = useState<string | null>(null);
     const [activeOptionGroup, setActiveOptionGroup] = useState<number>(0);
+    const [activeDayIndex, setActiveDayIndex] = useState<number>(0);
     const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
     const [hideCaloriesFromClient, setHideCaloriesFromClient] = useState(false);
     const [numDays, setNumDays] = useState(initialNumDays || (isTemplateMode ? 7 : 1));
     const [editLoading, setEditLoading] = useState(!!editId);
     const [isDirty, setIsDirty] = useState(false);
     const [clipboardDay, setClipboardDay] = useState<LocalMeal[] | null>(null);
+    const [clipboardMeal, setClipboardMeal] = useState<LocalMeal | null>(null);
 
     // Sync state when PlanSetupModal results arrive (initial values only run once in useState)
     const [setupApplied, setSetupApplied] = useState(false);
@@ -211,15 +213,40 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const planDates = getDates(startDate, numDays);
     const currentMeals = useMemo(() => weeklyMeals[selectedDayIndex] || [], [weeklyMeals, selectedDayIndex]);
 
+    // Pane-friendly selectors — callers pass the day they want to read.
+    const getDayMeals = useCallback((dayIndex: number): LocalMeal[] => weeklyMeals[dayIndex] || [], [weeklyMeals]);
+
+    const getDayNutrition = useCallback((dayIndex: number): DayNutrition => {
+        const meals = weeklyMeals[dayIndex] || [];
+        let calories = 0, protein = 0, carbs = 0, fat = 0;
+        meals.forEach(m => {
+            const hasAlternatives = m.foods.some(f => f.optionGroup > 0);
+            const foodsToCount = hasAlternatives
+                ? m.foods.filter(f => f.optionGroup === 0)
+                : m.foods;
+            foodsToCount.forEach(f => {
+                calories += f.calories;
+                protein += f.protein;
+                carbs += f.carbs;
+                fat += f.fat;
+            });
+        });
+        return { calories, protein, carbs, fat };
+    }, [weeklyMeals]);
+
+    const getHasAllergyWarning = useCallback((dayIndex: number): boolean =>
+        (weeklyMeals[dayIndex] || []).some(m => m.foods.some(f => f.hasWarning)),
+    [weeklyMeals]);
+
     // Dirty-tracking wrapper
     const setWeeklyMealsDirty = useCallback((updater: Parameters<typeof setWeeklyMeals>[0]) => {
         setWeeklyMeals(updater);
         setIsDirty(true);
     }, []);
 
-    // Handlers
-    const addMeal = useCallback(() => {
-        const existing = weeklyMeals[selectedDayIndex] || [];
+    // Handlers — all take explicit dayIndex so multiple panes can target different days.
+    const addMeal = useCallback((dayIndex: number) => {
+        const existing = weeklyMeals[dayIndex] || [];
         const existingTypes = new Set(existing.map(m => m.type));
 
         const defaults: { type: LocalMeal['type']; name: string; time: string }[] = [
@@ -240,18 +267,19 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         };
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: [...(prev[selectedDayIndex] || []), newMeal]
+            [dayIndex]: [...(prev[dayIndex] || []), newMeal]
         }));
-    }, [selectedDayIndex, weeklyMeals, client]);
+    }, [weeklyMeals, client]);
 
-    const removeMeal = useCallback((id: string) => {
+    const removeMeal = useCallback((dayIndex: number, id: string) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).filter(m => m.id !== id)
+            [dayIndex]: (prev[dayIndex] || []).filter(m => m.id !== id)
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
-    const openAddFood = useCallback((mealId: string, optionGroup: number = 0) => {
+    const openAddFood = useCallback((dayIndex: number, mealId: string, optionGroup: number = 0) => {
+        setActiveDayIndex(dayIndex);
         setActiveMealId(mealId);
         setActiveOptionGroup(optionGroup);
         setShowAddFoodModal(true);
@@ -279,7 +307,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+            [activeDayIndex]: (prev[activeDayIndex] || []).map(m => {
                 if (m.id === activeMealId) {
                     return { ...m, foods: [...m.foods, newFood] };
                 }
@@ -287,36 +315,36 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             })
         }));
         setShowAddFoodModal(false);
-    }, [activeMealId, activeOptionGroup, selectedDayIndex, client]);
+    }, [activeMealId, activeOptionGroup, activeDayIndex, client]);
 
-    const removeFood = useCallback((mealId: string, tempId: string) => {
+    const removeFood = useCallback((dayIndex: number, mealId: string, tempId: string) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+            [dayIndex]: (prev[dayIndex] || []).map(m => {
                 if (m.id === mealId) {
                     return { ...m, foods: m.foods.filter(f => f.tempId !== tempId) };
                 }
                 return m;
             })
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
-    const updateFoodQuantity = useCallback((mealId: string, tempId: string, val: string) => {
+    const updateFoodQuantity = useCallback((dayIndex: number, mealId: string, tempId: string, val: string) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+            [dayIndex]: (prev[dayIndex] || []).map(m => {
                 if (m.id === mealId) {
                     return { ...m, foods: m.foods.map(f => f.tempId === tempId ? { ...f, quantity: val } : f) };
                 }
                 return m;
             })
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
-    const updateFoodQuantityValue = useCallback((mealId: string, tempId: string, newGrams: number) => {
+    const updateFoodQuantityValue = useCallback((dayIndex: number, mealId: string, tempId: string, newGrams: number) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+            [dayIndex]: (prev[dayIndex] || []).map(m => {
                 if (m.id !== mealId) return m;
                 return {
                     ...m,
@@ -337,18 +365,18 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 };
             })
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
-    const updateMealField = useCallback((mealId: string, field: 'name' | 'time' | 'type' | 'description' | 'instructions', value: string) => {
+    const updateMealField = useCallback((dayIndex: number, mealId: string, field: 'name' | 'time' | 'type' | 'description' | 'instructions', value: string) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: prev[selectedDayIndex].map(m => m.id === mealId ? { ...m, [field]: value } : m)
+            [dayIndex]: (prev[dayIndex] || []).map(m => m.id === mealId ? { ...m, [field]: value } : m)
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
     // Option group actions
-    const addMealOption = useCallback((mealId: string) => {
-        const meals = weeklyMeals[selectedDayIndex] || [];
+    const addMealOption = useCallback((dayIndex: number, mealId: string) => {
+        const meals = weeklyMeals[dayIndex] || [];
         const meal = meals.find(m => m.id === mealId);
         if (!meal) return;
 
@@ -362,7 +390,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         if (newGroup === 1) {
             setWeeklyMealsDirty(prev => ({
                 ...prev,
-                [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+                [dayIndex]: (prev[dayIndex] || []).map(m => {
                     if (m.id !== mealId) return m;
                     return {
                         ...m,
@@ -377,15 +405,16 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }
 
         // Open add food modal targeting the new group
+        setActiveDayIndex(dayIndex);
         setActiveMealId(mealId);
         setActiveOptionGroup(newGroup);
         setShowAddFoodModal(true);
-    }, [weeklyMeals, selectedDayIndex]);
+    }, [weeklyMeals]);
 
-    const removeOption = useCallback((mealId: string, optionGroup: number) => {
+    const removeOption = useCallback((dayIndex: number, mealId: string, optionGroup: number) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+            [dayIndex]: (prev[dayIndex] || []).map(m => {
                 if (m.id !== mealId) return m;
                 const remaining = m.foods.filter(f => f.optionGroup !== optionGroup);
                 // If only one option group left, clear all labels
@@ -396,12 +425,12 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 return { ...m, foods: remaining };
             })
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
-    const updateOptionLabel = useCallback((mealId: string, optionGroup: number, label: string) => {
+    const updateOptionLabel = useCallback((dayIndex: number, mealId: string, optionGroup: number, label: string) => {
         setWeeklyMealsDirty(prev => ({
             ...prev,
-            [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => {
+            [dayIndex]: (prev[dayIndex] || []).map(m => {
                 if (m.id !== mealId) return m;
                 return {
                     ...m,
@@ -411,7 +440,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 };
             })
         }));
-    }, [selectedDayIndex]);
+    }, []);
 
     // Day management
     const addDay = useCallback(() => {
@@ -436,13 +465,13 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         setNumDays(prev => prev - 1);
     }, [numDays, selectedDayIndex]);
 
-    const copyDay = useCallback(() => {
-        const meals = weeklyMeals[selectedDayIndex] || [];
+    const copyDay = useCallback((dayIndex: number) => {
+        const meals = weeklyMeals[dayIndex] || [];
         setClipboardDay(JSON.parse(JSON.stringify(meals)));
         toast.success('Day copied');
-    }, [weeklyMeals, selectedDayIndex]);
+    }, [weeklyMeals]);
 
-    const pasteDay = useCallback(() => {
+    const pasteDay = useCallback((dayIndex: number) => {
         if (!clipboardDay) return;
         // Deep clone and assign new IDs
         const pasted: LocalMeal[] = clipboardDay.map(m => ({
@@ -450,19 +479,47 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             id: Math.random().toString(36).substr(2, 9),
             foods: m.foods.map(f => ({ ...f, tempId: Math.random().toString(36).substr(2, 9) })),
         }));
-        setWeeklyMealsDirty(prev => ({ ...prev, [selectedDayIndex]: pasted }));
+        setWeeklyMealsDirty(prev => ({ ...prev, [dayIndex]: pasted }));
         toast.success('Day pasted');
-    }, [clipboardDay, selectedDayIndex]);
+    }, [clipboardDay]);
 
-    const clearDay = useCallback(() => {
-        setWeeklyMealsDirty(prev => ({ ...prev, [selectedDayIndex]: defaultMeals(client?.preferences) }));
+    const clearDay = useCallback((dayIndex: number) => {
+        setWeeklyMealsDirty(prev => ({ ...prev, [dayIndex]: defaultMeals(client?.preferences) }));
         toast.success('Day cleared');
-    }, [selectedDayIndex, client]);
+    }, [client]);
+
+    // Per-meal clipboard — independent of clipboardDay.
+    const copyMeal = useCallback((dayIndex: number, mealId: string) => {
+        const meal = (weeklyMeals[dayIndex] || []).find(m => m.id === mealId);
+        if (!meal) return;
+        setClipboardMeal(JSON.parse(JSON.stringify(meal)));
+        toast.success('Meal copied');
+    }, [weeklyMeals]);
+
+    // Paste replaces the target meal's foods + options. Keeps target's name/time/notes
+    // so pasting across slot types (e.g. breakfast → dinner) preserves the slot label.
+    const pasteMeal = useCallback((dayIndex: number, targetMealId: string) => {
+        if (!clipboardMeal) return;
+        setWeeklyMealsDirty(prev => ({
+            ...prev,
+            [dayIndex]: (prev[dayIndex] || []).map(m => {
+                if (m.id !== targetMealId) return m;
+                return {
+                    ...m,
+                    foods: clipboardMeal.foods.map(f => ({
+                        ...f,
+                        tempId: Math.random().toString(36).substr(2, 9),
+                    })),
+                };
+            }),
+        }));
+        toast.success('Meal pasted');
+    }, [clipboardMeal]);
 
     // Bulk portion adjustment
     const [showBulkPortionModal, setShowBulkPortionModal] = useState(false);
 
-    const bulkAdjust = useCallback((factor: number, scope: 'meal' | 'day' | 'plan') => {
+    const bulkAdjust = useCallback((factor: number, scope: 'meal' | 'day' | 'plan', dayIndex?: number) => {
         const adjustFoods = (foods: LocalFoodItem[]): LocalFoodItem[] =>
             foods.map(f => ({
                 ...f,
@@ -474,9 +531,10 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             }));
 
         if (scope === 'day') {
+            const targetDay = dayIndex ?? 0;
             setWeeklyMealsDirty(prev => ({
                 ...prev,
-                [selectedDayIndex]: (prev[selectedDayIndex] || []).map(m => ({
+                [targetDay]: (prev[targetDay] || []).map(m => ({
                     ...m, foods: adjustFoods(m.foods)
                 })),
             }));
@@ -493,7 +551,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             });
         }
         toast.success(`Portions adjusted by ${Math.round((factor - 1) * 100)}%`);
-    }, [selectedDayIndex]);
+    }, []);
 
     // Nutrition calculation — only count option 0 for day totals (client eats one option)
     const dayNutrition = useMemo<DayNutrition>(() => {
@@ -900,6 +958,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         showAddFoodModal, setShowAddFoodModal,
         activeMealId,
         activeOptionGroup,
+        activeDayIndex,
         applyingTemplateId,
         numDays,
         planDates,
@@ -907,6 +966,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
         // Computed
         dayNutrition,
+        getDayMeals,
+        getDayNutrition,
+        getHasAllergyWarning,
         targets,
         setTargets,
         hideCaloriesFromClient,
@@ -931,6 +993,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         copyDay,
         pasteDay,
         clearDay,
+        clipboardMeal,
+        copyMeal,
+        pasteMeal,
         applyTemplate,
         applyPreset,
         bulkAdjust,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch, FileText, ChevronDown, ChevronRight, Copy, ClipboardPaste } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 
 const HOUSEHOLD_UNITS: { label: string; gramsEach: number | null; tooltip: string }[] = [
@@ -159,6 +159,9 @@ interface MealEditorProps {
     onAddAlternative?: (mealId: string) => void;
     onRemoveOption?: (mealId: string, optionGroup: number) => void;
     onUpdateOptionLabel?: (mealId: string, optionGroup: number, label: string) => void;
+    onCopyMeal?: (mealId: string) => void;
+    onPasteMeal?: (mealId: string) => void;
+    hasMealClipboard?: boolean;
 }
 
 function MealCard({
@@ -172,6 +175,9 @@ function MealCard({
     onAddAlternative,
     onRemoveOption,
     onUpdateOptionLabel,
+    onCopyMeal,
+    onPasteMeal,
+    hasMealClipboard,
 }: {
     meal: LocalMeal;
 } & Omit<MealEditorProps, 'meals' | 'onAddMeal'>) {
@@ -220,6 +226,25 @@ function MealCard({
                     <p className="text-xs font-medium text-gray-500">
                         {displayCalories} Kcal
                     </p>
+                    {onCopyMeal && (
+                        <button
+                            onClick={() => onCopyMeal(meal.id)}
+                            className="p-1 text-gray-400 hover:text-brand hover:bg-brand/10 rounded transition-colors"
+                            title="Copy meal (foods + options)"
+                        >
+                            <Copy className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {onPasteMeal && (
+                        <button
+                            onClick={() => onPasteMeal(meal.id)}
+                            disabled={!hasMealClipboard}
+                            className="p-1 text-gray-400 hover:text-brand hover:bg-brand/10 rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                            title={hasMealClipboard ? 'Replace this meal\'s foods with the copied meal' : 'Copy a meal first'}
+                        >
+                            <ClipboardPaste className="w-3.5 h-3.5" />
+                        </button>
+                    )}
                     <button onClick={() => onRemoveMeal(meal.id)} className="text-gray-400 hover:text-red-500">
                         <Trash2 className="w-4 h-4" />
                     </button>
@@ -389,6 +414,9 @@ export function MealEditor({
     onAddAlternative,
     onRemoveOption,
     onUpdateOptionLabel,
+    onCopyMeal,
+    onPasteMeal,
+    hasMealClipboard,
 }: MealEditorProps) {
     return (
         <div className="space-y-4">
@@ -412,6 +440,9 @@ export function MealEditor({
                     onAddAlternative={onAddAlternative}
                     onRemoveOption={onRemoveOption}
                     onUpdateOptionLabel={onUpdateOptionLabel}
+                    onCopyMeal={onCopyMeal}
+                    onPasteMeal={onPasteMeal}
+                    hasMealClipboard={hasMealClipboard}
                 />
             ))}
 
