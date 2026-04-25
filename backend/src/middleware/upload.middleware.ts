@@ -45,6 +45,13 @@ export const uploadReport = multer({
     limits: { fileSize: 25 * 1024 * 1024, files: 1 } // 25MB for PDFs
 });
 
+// Dietitian-side report upload — capped at 10MB per spec 05.
+export const uploadDietitianReport = multer({
+    storage,
+    fileFilter: reportFilter,
+    limits: { fileSize: 10 * 1024 * 1024, files: 1 } // 10MB
+});
+
 /**
  * Validate actual file content matches declared MIME type using magic bytes.
  * Call AFTER multer has parsed the file into req.file.buffer.
@@ -71,5 +78,8 @@ export const uploadSinglePhoto = upload.single('photo');
 
 // Single report upload middleware
 export const uploadSingleReport = uploadReport.single('file');
+
+// Single report upload middleware (dietitian-side, 10MB)
+export const uploadSingleDietitianReport = uploadDietitianReport.single('file');
 
 export default upload;

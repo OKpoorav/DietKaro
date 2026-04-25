@@ -121,6 +121,8 @@ export interface MedicalExtractedData {
     summary: string;
 }
 
+export type ReportUploaderRole = 'client' | 'dietitian' | 'admin';
+
 export interface ReportDocumentItem {
     id: string;
     fileName: string;
@@ -130,6 +132,9 @@ export interface ReportDocumentItem {
     processingError: string | null;
     uploadedAt: string;
     viewUrl: string | null;
+    uploaderRole?: ReportUploaderRole;
+    uploadedByUserId?: string | null;
+    uploadedByName?: string | null;
     summary: {
         summaryText: string | null;
         generatedAt: string;

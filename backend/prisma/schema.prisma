@@ -73,6 +73,7 @@ model User {
   createdInvoices     Invoice[]      @relation("InvoiceCreator")
   reviewedMealLogs    MealLog[]      @relation("MealLogReviewer")
   createdSessionNotes SessionNote[]  @relation("SessionNoteCreator")
+  uploadedReports     ClientReport[] @relation("UserUploadedReports")
   organization        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, email])
@@ -583,13 +584,17 @@ model ClientReport {
   processingError  String?
   processingStatus ReportProcessingStatus @default(pending)
   s3Key            String?
+  uploadedByUserId String?
+  uploaderRole     String                 @default("client")
   client           Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
   organization     Organization           @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  uploadedBy       User?                  @relation("UserUploadedReports", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
   summary          ReportSummary?
 
   @@index([clientId])
   @@index([orgId])
   @@index([clientId, processingStatus])
+  @@index([clientId, uploadedAt(sort: Desc)])
 }
 
 model ReportSummary {

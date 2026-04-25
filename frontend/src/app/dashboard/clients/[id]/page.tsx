@@ -29,6 +29,7 @@ import { useMealLogs } from '@/lib/hooks/use-meal-logs';
 import { getInitials, calculateAge } from '@/lib/utils/formatters';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { EditClientModal, type EditClientFormData } from '@/components/modals/edit-client-modal';
+import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 
 // ============ TYPES ============
 
@@ -61,7 +62,6 @@ const COMPLIANCE_BAR_COLOR: Record<string, string> = {
     RED: 'bg-red-400',
 };
 
-const MEAL_TYPE_ORDER = ['breakfast', 'lunch', 'snack', 'dinner'] as const;
 
 // ============ PLAN SECTION (fetches its own full plan data) ============
 
@@ -311,8 +311,9 @@ export default function ClientProfilePage() {
                         <ArrowLeft className="w-5 h-5" />
                         <span className="text-sm font-medium">Back to Clients</span>
                     </Link>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
+                            type="button"
                             onClick={() => setEditClientOpen(true)}
                             className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors"
                         >
@@ -320,16 +321,20 @@ export default function ClientProfilePage() {
                             Edit Client
                         </button>
                         <Link
+                            href={`/dashboard/messages?client=${clientId}`}
+                            aria-label="Send Message"
+                            title="Send Message"
+                            className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                        >
+                            <Send className="w-5 h-5" />
+                        </Link>
+                        <Link
                             href={`/dashboard/diet-plans/new?clientId=${clientId}`}
-                            className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors"
+                            className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
                         >
                             <Flag className="w-4 h-4" />
                             Create Diet Plan
                         </Link>
-                        <button className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors">
-                            <Send className="w-4 h-4" />
-                            Send Message
-                        </button>
                     </div>
                 </div>
 
@@ -340,16 +345,25 @@ export default function ClientProfilePage() {
                             {getInitials(client.fullName)}
                         </div>
                         <div className="flex flex-col justify-center">
+                          <div className="flex items-center gap-2">
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-                                {client.fullName}
+                              {client.fullName}
                             </h1>
+                            <WhatsAppButton
+                              phone={client.phone}
+                              clientName={client.fullName}
+                              size="md"
+                            />
+                          </div>
+                
                             <p className="text-[#4e9767]">
                                 {age && `Age: ${age}, `}
                                 {client.gender && `Gender: ${client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}`}
                             </p>
-                            <p className="text-[#4e9767]">
-                                {client.email} • {client.phone || 'No phone'}
-                            </p>
+                            <div className="flex items-center gap-2 flex-wrap text-[#4e9767]">
+                                <span>{client.email} • {client.phone || 'No phone'}</span>
+                                
+                            </div>
                         </div>
                     </div>
 
@@ -540,7 +554,15 @@ export default function ClientProfilePage() {
                                         <p className="text-sm text-[#4e9767]">{activePlan.description || 'No description'}</p>
                                     </>
                                 ) : (
-                                    <p className="text-gray-500 text-sm">No active diet plan</p>
+                                    <div className="space-y-1">
+                                        <p className="text-gray-500 text-sm">No active diet plan</p>
+                                        <Link
+                                            href={`/dashboard/diet-plans/new?clientId=${clientId}`}
+                                            className="inline-flex text-sm font-medium text-brand hover:underline"
+                                        >
+                                            Create your first diet plan
+                                        </Link>
+                                    </div>
                                 )}
                             </div>
 

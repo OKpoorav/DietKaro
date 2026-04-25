@@ -13,7 +13,9 @@ import {
     AlertCircle,
     Clock,
     RotateCcw,
+    Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
     useClientDocumentSummary,
     useRegenerateDocumentSummary,
@@ -22,6 +24,8 @@ import {
     type ReportDocumentItem,
     type ReportProcessingStatus,
 } from '@/lib/hooks/use-medical-summary';
+import { useDeleteClientReport } from '@/lib/hooks/use-upload-client-report';
+import { UploadReportButton } from '@/components/clients/upload-report-button';
 
 interface MedicalSidebarProps {
     clientId: string;
@@ -186,12 +190,28 @@ function ReportRow({
     const [expanded, setExpanded] = useState(false);
     const [tab, setTab] = useState<DocTab>('summary');
     const retrigger = useRetriggerSummarize(clientId);
+    const deleteReport = useDeleteClientReport(clientId);
     const cfg = STATUS_CONFIG[report.processingStatus];
     const processing = isProcessing(report.processingStatus);
     const hasSummary = report.processingStatus === 'done' && report.summary?.summaryText;
     const hasValues = report.processingStatus === 'done' && report.summary?.extractedData;
     const typeLabel = REPORT_TYPE_LABELS[report.reportType ?? 'other'] ?? 'Report';
     const canExpand = hasSummary || hasValues || report.processingStatus === 'failed';
+    const isStaffUpload = report.uploaderRole === 'dietitian' || report.uploaderRole === 'admin';
+
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm(`Delete "${report.fileName}"? This cannot be undone.`)) return;
+        try {
+            await deleteReport.mutateAsync(report.id);
+            toast.success('Report deleted');
+        } catch (err: unknown) {
+            const message =
+                (err as { response?: { data?: { error?: { message?: string } } } })
+                    ?.response?.data?.error?.message ?? 'Delete failed';
+            toast.error(message);
+        }
+    };
 
     return (
         <div className="rounded-lg border border-gray-100 overflow-hidden">
@@ -208,12 +228,20 @@ function ReportRow({
 
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{report.fileName}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <span className="text-xs text-gray-400">{typeLabel}</span>
                         <span className="text-gray-300">·</span>
                         <span className="text-xs text-gray-400">
                             {new Date(report.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                         </span>
+                        {isStaffUpload && (
+                            <>
+                                <span className="text-gray-300">·</span>
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-brand/10 text-brand">
+                                    {report.uploadedByName ? `Added by ${report.uploadedByName}` : 'Added by dietitian'}
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -234,6 +262,19 @@ function ReportRow({
                         <ExternalLink className="w-3 h-3" />
                         View
                     </a>
+                )}
+
+                {isStaffUpload && (
+                    <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={deleteReport.isPending}
+                        aria-label={`Delete ${report.fileName}`}
+                        title="Delete report"
+                        className="shrink-0 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                 )}
             </div>
 
@@ -313,10 +354,13 @@ export function MedicalSidebar({ clientId, className = '' }: MedicalSidebarProps
     return (
         <div className={`bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col min-h-0 ${className}`}>
             {/* Header — fixed, never scrolls */}
-            <h3 className="text-gray-900 font-medium px-4 pt-4 pb-3 flex-shrink-0 flex items-center gap-2 border-b border-gray-100">
-                <FileText className="w-4 h-4 text-brand" />
-                Uploaded Reports
-            </h3>
+            <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 flex-shrink-0 border-b border-gray-100">
+                <h3 className="text-gray-900 font-medium flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-brand" />
+                    Uploaded Reports
+                </h3>
+                <UploadReportButton clientId={clientId} size="sm" />
+            </div>
 
             {/* Scrollable body: AI summary + search + doc list */}
             <div className="flex-1 min-h-0 overflow-y-auto">

@@ -183,8 +183,31 @@ export default function DietPlansPage() {
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <FileText className="w-8 h-8 text-gray-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">No diet plans found</h3>
-                    <p className="text-gray-500 mb-4">Get started by creating a new diet plan for a client.</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-1">
+                        {isTemplateView ? 'No templates found' : 'No diet plans found'}
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                        {isTemplateView
+                            ? 'Save reusable templates to speed up plan creation.'
+                            : 'Get started by creating a new diet plan for a client.'}
+                    </p>
+                    <div className="flex flex-col items-center gap-2">
+                        <Link
+                            href="/dashboard/diet-plans/new"
+                            className="text-sm font-medium text-brand hover:underline"
+                        >
+                            Create New Plan
+                        </Link>
+                        <Link
+                            href="/dashboard/diet-plans/new?template=true"
+                            className="text-sm font-medium text-brand hover:underline"
+                        >
+                            Create Template
+                        </Link>
+                        <p className="text-xs text-gray-400 mt-1">
+                            Build templates to reuse across clients
+                        </p>
+                    </div>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

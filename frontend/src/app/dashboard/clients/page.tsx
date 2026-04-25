@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import Link from 'next/link';
 import {
@@ -12,26 +12,54 @@ import {
     MessageSquare,
     Eye,
     Loader2,
+    X,
 } from 'lucide-react';
 import { AddClientModal } from '@/components/modals/add-client-modal';
+import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 import { useClients, useCreateClient, useDeleteClient, Client } from '@/lib/hooks/use-clients';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 type FilterType = 'all' | 'active' | 'at-risk' | 'completed';
 
+const FILTER_VALUES: FilterType[] = ['all', 'active', 'at-risk', 'completed'];
+
+function parseFilter(value: string | null): FilterType {
+    return FILTER_VALUES.includes(value as FilterType) ? (value as FilterType) : 'all';
+}
+
 export default function ClientsPage() {
-    const [filter, setFilter] = useState<FilterType>('all');
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const [filter, setFilter] = useState<FilterType>(() => parseFilter(searchParams.get('filter')));
+    const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
+    const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get('page') ?? '1') || 1));
     const [showAddClientModal, setShowAddClientModal] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
 
-    const router = useRouter();
     const { canDeleteClient } = usePermissions();
     const debouncedSearch = useDebouncedValue(search, 300);
+
+    // Mirror filter / search / page to URL so refresh + share preserves state.
+    useEffect(() => {
+        const params = new URLSearchParams();
+        if (debouncedSearch) params.set('q', debouncedSearch);
+        if (filter !== 'all') params.set('filter', filter);
+        if (page > 1) params.set('page', String(page));
+        const qs = params.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }, [debouncedSearch, filter, page, pathname, router]);
+
+    const hasActiveFilters = search !== '' || filter !== 'all';
+    const clearFilters = () => {
+        setSearch('');
+        setFilter('all');
+        setPage(1);
+    };
 
     // API hooks
     const { data, isLoading, error } = useClients({
@@ -46,9 +74,12 @@ export default function ClientsPage() {
     const clients = data?.data || [];
     const meta = data?.meta;
 
-    const handleAddClient = async (clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string; goal?: string; goalDeadline?: string; healthNotes?: string }, reactivate?: boolean) => {
+    const handleAddClient = async (
+        clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string; goal?: string; goalDeadline?: string; healthNotes?: string },
+        reactivate?: boolean,
+    ): Promise<{ id: string } | void> => {
         try {
-            await createClient.mutateAsync({
+            const created: Client = await createClient.mutateAsync({
                 fullName: clientData.name,
                 email: clientData.email,
                 phone: clientData.phone,
@@ -63,18 +94,24 @@ export default function ClientsPage() {
                 healthNotes: clientData.healthNotes || undefined,
                 ...(reactivate ? { reactivate: true } : {}),
             } as any);
-            setShowAddClientModal(false);
             toast.success(reactivate ? 'Client reactivated successfully' : 'Client added successfully');
+            return { id: created.id };
         } catch (err: any) {
             const code = err?.response?.data?.error?.code;
             const message = err?.response?.data?.error?.message || 'Failed to create client';
 
             if (code === 'CLIENT_DEACTIVATED') {
-                // Ask for confirmation to reactivate
+                // Ask for confirmation to reactivate. The modal stays on its form;
+                // on reactivate success we close it manually since the original
+                // submit promise has already resolved.
                 toast(message, {
                     action: {
                         label: 'Reactivate',
-                        onClick: () => handleAddClient(clientData, true),
+                        onClick: () => {
+                            handleAddClient(clientData, true).then((res) => {
+                                if (res) setShowAddClientModal(false);
+                            });
+                        },
                     },
                     duration: 10000,
                 });
@@ -135,7 +172,7 @@ export default function ClientsPage() {
 
                 {/* Filter Chips */}
                 <div className="flex gap-2 items-center flex-wrap">
-                    {(['all', 'active', 'at-risk', 'completed'] as FilterType[]).map((f) => (
+                    {FILTER_VALUES.map((f) => (
                         <button
                             key={f}
                             onClick={() => {
@@ -150,6 +187,16 @@ export default function ClientsPage() {
                             {f === 'at-risk' ? 'At Risk' : f}
                         </button>
                     ))}
+                    {hasActiveFilters && (
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="flex h-8 items-center gap-1 px-3 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                            Clear filters
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -220,6 +267,11 @@ export default function ClientsPage() {
                                                     {client.status === 'at-risk' && (
                                                         <span className="w-2.5 h-2.5 rounded-full bg-orange-400" title="At risk" />
                                                     )}
+                                                    <WhatsAppButton
+                                                        phone={client.phone}
+                                                        clientName={client.fullName}
+                                                        size="sm"
+                                                    />
                                                 </div>
                                             </div>
                                         </td>

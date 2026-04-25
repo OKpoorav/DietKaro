@@ -94,6 +94,9 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
                 uploadedAt: true,
                 s3Key: true,
                 fileUrl: true,
+                uploaderRole: true,
+                uploadedByUserId: true,
+                uploadedBy: { select: { fullName: true } },
                 summary: { select: { summaryText: true, generatedAt: true, extractedData: true } },
             },
             orderBy: { uploadedAt: 'desc' },
@@ -112,8 +115,8 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
         const key = r.s3Key || (r.fileUrl?.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
         const token = key ? signDownloadToken(key, orgId) : '';
         const viewUrl = key ? `${baseUrl}/media/${key}?token=${token}` : r.fileUrl;
-        const { s3Key, fileUrl, ...rest } = r;
-        return { ...rest, viewUrl };
+        const { s3Key, fileUrl, uploadedBy, ...rest } = r;
+        return { ...rest, uploadedByName: uploadedBy?.fullName ?? null, viewUrl };
     });
 
     res.status(200).json({

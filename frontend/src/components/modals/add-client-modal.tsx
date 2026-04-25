@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle, ThumbsDown, Goal, CalendarClock, FileText } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, ThumbsDown, Goal, CalendarClock, FileText, Check, Flag } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
 interface AddClientModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit?: (data: ClientFormData) => void;
+    onSubmit?: (data: ClientFormData) => Promise<{ id: string } | void> | void;
+    postCreateBehavior?: 'ask' | 'close';
 }
 
 interface ClientFormData {
@@ -29,35 +31,79 @@ interface ClientFormData {
     healthNotes: string;
 }
 
-export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProps) {
-    const [formData, setFormData] = useState<ClientFormData>({
-        name: '',
-        email: '',
-        phone: '',
-        dateOfBirth: '',
-        gender: '',
-        height: '',
-        weight: '',
-        targetWeight: '',
-        allergies: '',
-        medicalConditions: '',
-        dislikes: '',
-        goal: '',
-        goalDeadline: '',
-        healthNotes: '',
-    });
+const INITIAL_FORM: ClientFormData = {
+    name: '',
+    email: '',
+    phone: '',
+    dateOfBirth: '',
+    gender: '',
+    height: '',
+    weight: '',
+    targetWeight: '',
+    allergies: '',
+    medicalConditions: '',
+    dislikes: '',
+    goal: '',
+    goalDeadline: '',
+    healthNotes: '',
+};
+
+export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior = 'ask' }: AddClientModalProps) {
+    const router = useRouter();
+    const [formData, setFormData] = useState<ClientFormData>(INITIAL_FORM);
+    const [step, setStep] = useState<'form' | 'next-action'>('form');
+    const [submitting, setSubmitting] = useState(false);
+    const [createdClientId, setCreatedClientId] = useState<string | null>(null);
+    const [createdClientName, setCreatedClientName] = useState('');
+
+    // Reset internal state once the close animation finishes so a re-open is fresh.
+    useEffect(() => {
+        if (isOpen) return;
+        const timer = setTimeout(() => {
+            setFormData(INITIAL_FORM);
+            setStep('form');
+            setSubmitting(false);
+            setCreatedClientId(null);
+            setCreatedClientName('');
+        }, 200);
+        return () => clearTimeout(timer);
+    }, [isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit?.(formData);
+        if (!onSubmit || submitting) return;
+        setSubmitting(true);
+        try {
+            const result = await onSubmit(formData);
+            const id = result && typeof result === 'object' && 'id' in result ? result.id : null;
+            if (!id) return; // error path — caller surfaces a toast; modal stays on form
+            if (postCreateBehavior === 'close') {
+                onClose();
+                return;
+            }
+            setCreatedClientId(id);
+            setCreatedClientName(formData.name);
+            setStep('next-action');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
+    const handleCreateDietPlan = () => {
+        if (!createdClientId) return;
+        router.push(`/dashboard/diet-plans/new?clientId=${createdClientId}`);
+        onClose();
+    };
+
+    const title = step === 'form' ? 'Add New Client' : 'Client Added';
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Add New Client" size="lg">
+        <Modal isOpen={isOpen} onClose={onClose} title={title} size={step === 'form' ? 'lg' : 'md'}>
+            {step === 'form' ? (
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 {/* Basic Info */}
                 <div className="space-y-4">
@@ -310,18 +356,54 @@ export function AddClientModal({ isOpen, onClose, onSubmit }: AddClientModalProp
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        disabled={submitting}
+                        className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-60"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        className="px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
+                        disabled={submitting}
+                        className="px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        Add Client
+                        {submitting ? 'Adding…' : 'Add Client'}
                     </button>
                 </div>
             </form>
+            ) : (
+                <div className="p-6 space-y-6">
+                    <div className="flex flex-col items-center text-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center">
+                            <Check className="w-6 h-6 text-brand" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                {createdClientName || 'Client'} added
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                                Create a diet plan now to get them started, or do it later from the client page.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-200">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        >
+                            Later
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleCreateDietPlan}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
+                        >
+                            <Flag className="w-4 h-4" />
+                            Create Diet Plan
+                        </button>
+                    </div>
+                </div>
+            )}
         </Modal>
     );
 }

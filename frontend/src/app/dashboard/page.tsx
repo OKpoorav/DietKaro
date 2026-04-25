@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
     Users,
@@ -11,7 +13,10 @@ import {
     ChevronRight,
     Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useDashboardStats } from '@/lib/hooks/use-dashboard';
+import { useCreateClient, Client } from '@/lib/hooks/use-clients';
+import { AddClientModal } from '@/components/modals/add-client-modal';
 import { formatTimeAgo } from '@/lib/utils/formatters';
 
 export default function DashboardPage() {
@@ -19,6 +24,59 @@ export default function DashboardPage() {
     const firstName = user?.firstName || 'Doctor';
 
     const { data, isLoading, error } = useDashboardStats();
+    const createClient = useCreateClient();
+    const queryClient = useQueryClient();
+    const [showAddClientModal, setShowAddClientModal] = useState(false);
+
+    const handleAddClient = async (
+        clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string; goal?: string; goalDeadline?: string; healthNotes?: string },
+        reactivate?: boolean,
+    ): Promise<{ id: string } | void> => {
+        try {
+            const created: Client = await createClient.mutateAsync({
+                fullName: clientData.name,
+                email: clientData.email,
+                phone: clientData.phone,
+                dateOfBirth: clientData.dateOfBirth || undefined,
+                gender: (clientData.gender || undefined) as Client['gender'],
+                heightCm: clientData.height ? Number(clientData.height) : undefined,
+                currentWeightKg: clientData.weight ? Number(clientData.weight) : undefined,
+                targetWeightKg: clientData.targetWeight ? Number(clientData.targetWeight) : undefined,
+                dislikes: clientData.dislikes ? clientData.dislikes.split(',').map(s => s.trim()).filter(Boolean) : [],
+                goal: clientData.goal || undefined,
+                goalDeadline: clientData.goalDeadline || undefined,
+                healthNotes: clientData.healthNotes || undefined,
+                ...(reactivate ? { reactivate: true } : {}),
+            } as any);
+            toast.success(reactivate ? 'Client reactivated successfully' : 'Client added successfully');
+            return { id: created.id };
+        } catch (err: any) {
+            const code = err?.response?.data?.error?.code;
+            const message = err?.response?.data?.error?.message || 'Failed to create client';
+
+            if (code === 'CLIENT_DEACTIVATED') {
+                toast(message, {
+                    action: {
+                        label: 'Reactivate',
+                        onClick: () => {
+                            handleAddClient(clientData, true).then((res) => {
+                                if (res) setShowAddClientModal(false);
+                            });
+                        },
+                    },
+                    duration: 10000,
+                });
+                return;
+            }
+
+            toast.error(message);
+        }
+    };
+
+    const handleModalClose = () => {
+        setShowAddClientModal(false);
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    };
 
     const stats = [
         { label: 'Total Active Clients', value: data?.stats.totalClients ?? '-', icon: Users },
@@ -51,13 +109,14 @@ export default function DashboardPage() {
                     <p className="text-gray-500 mt-1">Here&apos;s what&apos;s happening with your clients today.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Link
-                        href="/dashboard/clients"
+                    <button
+                        type="button"
+                        onClick={() => setShowAddClientModal(true)}
                         className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-[#0e1b12] rounded-lg text-sm font-bold transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         Add New Client
-                    </Link>
+                    </button>
                     <Link
                         href="/dashboard/diet-plans/new"
                         className="flex items-center gap-2 h-10 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 rounded-lg text-sm font-bold transition-colors"
@@ -201,6 +260,12 @@ export default function DashboardPage() {
                     )}
                 </div>
             </div>
+
+            <AddClientModal
+                isOpen={showAddClientModal}
+                onClose={handleModalClose}
+                onSubmit={handleAddClient}
+            />
         </div>
     );
 }
