@@ -205,6 +205,10 @@ export class ClientService {
                             snackTime: true,
                         },
                     },
+                    tagAssignments: {
+                        where: { tag: { deletedAt: null } },
+                        include: { tag: true },
+                    },
                 },
             }),
             prisma.bodyMeasurement.findFirst({
@@ -240,7 +244,7 @@ export class ClientService {
     private static CLIENT_SORT_FIELDS = new Set(['createdAt', 'fullName', 'email', 'currentWeightKg', 'updatedAt']);
 
     async listClients(orgId: string, query: ClientListQuery, userRole: string, userId: string) {
-        const { search, status, primaryDietitianId, sortBy = 'createdAt' } = query;
+        const { search, status, primaryDietitianId, sortBy = 'createdAt', tags } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
         const validSortBy = safeSortBy(sortBy, ClientService.CLIENT_SORT_FIELDS, 'createdAt');
 
@@ -257,18 +261,73 @@ export class ClientService {
         if (primaryDietitianId) where.primaryDietitianId = String(primaryDietitianId);
         if (userRole === 'dietitian') where.primaryDietitianId = userId;
 
+        const tagIds = (tags ? String(tags).split(',') : []).map((t) => t.trim()).filter(Boolean);
+        if (tagIds.length > 0) {
+            where.tagAssignments = { some: { tagId: { in: tagIds } } };
+        }
+
         const [clients, total] = await prisma.$transaction([
             prisma.client.findMany({
                 where,
                 skip: pagination.skip,
                 take: pagination.take,
                 orderBy: { [validSortBy]: 'desc' },
-                include: { primaryDietitian: { select: { id: true, fullName: true } } },
+                include: {
+                    primaryDietitian: { select: { id: true, fullName: true } },
+                    tagAssignments: {
+                        where: { tag: { deletedAt: null } },
+                        include: { tag: true },
+                    },
+                },
             }),
             prisma.client.count({ where }),
         ]);
 
         return { clients, meta: buildPaginationMeta(total, pagination) };
+    }
+
+    async setClientTags(
+        clientId: string,
+        orgId: string,
+        userRole: string,
+        userId: string,
+        tagIds: string[],
+    ) {
+        const existing = await prisma.client.findFirst({ where: { id: clientId, orgId } });
+        if (!existing) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+        this.assertDietitianAccess(existing, userRole, userId);
+
+        const uniqueIds = Array.from(new Set(tagIds.filter((id) => typeof id === 'string' && id.length > 0)));
+
+        // Validate every tag belongs to the same org and is not deleted
+        const tags = uniqueIds.length > 0
+            ? await prisma.clientTag.findMany({
+                where: { id: { in: uniqueIds }, orgId, deletedAt: null },
+                select: { id: true },
+            })
+            : [];
+        if (tags.length !== uniqueIds.length) {
+            throw AppError.badRequest('One or more tag IDs are invalid for this org');
+        }
+
+        await prisma.$transaction([
+            prisma.clientTagAssignment.deleteMany({ where: { clientId } }),
+            ...(uniqueIds.length > 0
+                ? [prisma.clientTagAssignment.createMany({
+                    data: uniqueIds.map((tagId) => ({
+                        clientId,
+                        tagId,
+                        assignedByUserId: userId || null,
+                    })),
+                    skipDuplicates: true,
+                })]
+                : []),
+        ]);
+
+        return prisma.clientTagAssignment.findMany({
+            where: { clientId },
+            include: { tag: true },
+        });
     }
 
     async updateClient(clientId: string, rawData: UpdateClientInput, orgId: string, userRole: string = 'owner', userId: string = '') {

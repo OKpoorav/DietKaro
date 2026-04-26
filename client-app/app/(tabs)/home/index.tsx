@@ -9,6 +9,7 @@ import { MealLog } from '../../../types';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, StatusColors } from '../../../constants/theme';
 import { LoadingScreen } from '../../../components/LoadingScreen';
 import { EmptyState } from '../../../components/EmptyState';
+import { RenewalPrompt } from '../../../components/RenewalPrompt';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
@@ -496,6 +497,9 @@ export default function HomeScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Renewal banner + one-time-per-session popup */}
+                <RenewalPrompt showPopup />
+
                 {/* Header */}
                 <View style={styles.header}>
                     <View style={styles.headerTop}>

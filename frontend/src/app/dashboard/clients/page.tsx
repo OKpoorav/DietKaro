@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { AddClientModal } from '@/components/modals/add-client-modal';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
+import { TagChip } from '@/components/clients/tag-chip';
+import { useTags } from '@/lib/hooks/use-tags';
 import { useClients, useCreateClient, useDeleteClient, Client } from '@/lib/hooks/use-clients';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
@@ -38,26 +40,40 @@ export default function ClientsPage() {
     const [filter, setFilter] = useState<FilterType>(() => parseFilter(searchParams.get('filter')));
     const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
     const [page, setPage] = useState(() => Math.max(1, Number(searchParams.get('page') ?? '1') || 1));
+    const [tagFilter, setTagFilter] = useState<string[]>(() => {
+        const raw = searchParams.get('tags');
+        return raw ? raw.split(',').filter(Boolean) : [];
+    });
     const [showAddClientModal, setShowAddClientModal] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
 
     const { canDeleteClient } = usePermissions();
     const debouncedSearch = useDebouncedValue(search, 300);
+    const { data: allTags } = useTags();
 
-    // Mirror filter / search / page to URL so refresh + share preserves state.
+    // Mirror filter / search / page / tags to URL so refresh + share preserves state.
     useEffect(() => {
         const params = new URLSearchParams();
         if (debouncedSearch) params.set('q', debouncedSearch);
         if (filter !== 'all') params.set('filter', filter);
         if (page > 1) params.set('page', String(page));
+        if (tagFilter.length > 0) params.set('tags', tagFilter.join(','));
         const qs = params.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    }, [debouncedSearch, filter, page, pathname, router]);
+    }, [debouncedSearch, filter, page, tagFilter, pathname, router]);
 
-    const hasActiveFilters = search !== '' || filter !== 'all';
+    const hasActiveFilters = search !== '' || filter !== 'all' || tagFilter.length > 0;
     const clearFilters = () => {
         setSearch('');
         setFilter('all');
+        setPage(1);
+        setTagFilter([]);
+    };
+
+    const toggleTagFilter = (tagId: string) => {
+        setTagFilter((current) =>
+            current.includes(tagId) ? current.filter((id) => id !== tagId) : [...current, tagId],
+        );
         setPage(1);
     };
 
@@ -67,6 +83,7 @@ export default function ClientsPage() {
         pageSize: 20,
         search: debouncedSearch || undefined,
         status: filter !== 'all' ? filter : undefined,
+        tags: tagFilter.length > 0 ? tagFilter.join(',') : undefined,
     });
     const createClient = useCreateClient();
     const deleteClient = useDeleteClient();
@@ -200,6 +217,28 @@ export default function ClientsPage() {
                 </div>
             </div>
 
+            {/* Tag filter row */}
+            {(allTags?.length ?? 0) > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tags:</span>
+                    {(allTags ?? [])
+                        .filter((t) => t.active)
+                        .map((tag) => {
+                            const selected = tagFilter.includes(tag.id);
+                            return (
+                                <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => toggleTagFilter(tag.id)}
+                                    className={`transition-opacity ${selected ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}
+                                >
+                                    <TagChip name={tag.name} color={tag.color} size="sm" />
+                                </button>
+                            );
+                        })}
+                </div>
+            )}
+
             {/* Loading State */}
             {isLoading && (
                 <div className="flex items-center justify-center py-12">
@@ -262,16 +301,35 @@ export default function ClientsPage() {
                                                 <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
                                                     {getInitials(client.fullName)}
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium text-gray-900">{client.fullName}</span>
-                                                    {client.status === 'at-risk' && (
-                                                        <span className="w-2.5 h-2.5 rounded-full bg-orange-400" title="At risk" />
+                                                <div className="flex flex-col gap-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="font-medium text-gray-900">{client.fullName}</span>
+                                                        {client.status === 'at-risk' && (
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-orange-400" title="At risk" />
+                                                        )}
+                                                        <WhatsAppButton
+                                                            phone={client.phone}
+                                                            clientName={client.fullName}
+                                                            size="sm"
+                                                        />
+                                                    </div>
+                                                    {(client.tagAssignments?.length ?? 0) > 0 && (
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {client.tagAssignments!.slice(0, 3).map((a) => (
+                                                                <TagChip
+                                                                    key={a.tagId}
+                                                                    name={a.tag.name}
+                                                                    color={a.tag.color}
+                                                                    size="xs"
+                                                                />
+                                                            ))}
+                                                            {client.tagAssignments!.length > 3 && (
+                                                                <span className="text-[10px] text-gray-400 px-1">
+                                                                    +{client.tagAssignments!.length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
-                                                    <WhatsAppButton
-                                                        phone={client.phone}
-                                                        clientName={client.fullName}
-                                                        size="sm"
-                                                    />
                                                 </div>
                                             </div>
                                         </td>

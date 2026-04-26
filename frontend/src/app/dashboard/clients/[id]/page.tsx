@@ -30,6 +30,10 @@ import { getInitials, calculateAge } from '@/lib/utils/formatters';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { EditClientModal, type EditClientFormData } from '@/components/modals/edit-client-modal';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
+import { useSetClientTags } from '@/lib/hooks/use-tags';
+import { TagChip } from '@/components/clients/tag-chip';
+import { ClientSubscriptionCard } from '@/components/subscriptions/client-subscription-card';
+import { PaymentHistoryList } from '@/components/subscriptions/payment-history-list';
 
 // ============ TYPES ============
 
@@ -226,6 +230,8 @@ export default function ClientProfilePage() {
     // Edit client modal state
     const [editClientOpen, setEditClientOpen] = useState(false);
 
+    const setClientTags = useSetClientTags();
+
     const handleEditClient = (data: EditClientFormData) => {
         const parseList = (s: string) => s.split(',').map(v => v.trim()).filter(Boolean);
         updateClient.mutate({
@@ -241,7 +247,10 @@ export default function ClientProfilePage() {
             allergies: parseList(data.allergies),
             medicalConditions: parseList(data.medicalConditions),
         } as Parameters<typeof updateClient.mutate>[0], {
-            onSuccess: () => setEditClientOpen(false),
+            onSuccess: () => {
+                setClientTags.mutate({ clientId, tagIds: data.tagIds });
+                setEditClientOpen(false);
+            },
         });
     };
 
@@ -362,8 +371,24 @@ export default function ClientProfilePage() {
                             </p>
                             <div className="flex items-center gap-2 flex-wrap text-[#4e9767]">
                                 <span>{client.email} • {client.phone || 'No phone'}</span>
-                                
+                                <WhatsAppButton
+                                    phone={client.phone}
+                                    clientName={client.fullName}
+                                    size="sm"
+                                />
                             </div>
+                            {(client.tagAssignments?.length ?? 0) > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                    {client.tagAssignments!.map((a) => (
+                                        <TagChip
+                                            key={a.tagId}
+                                            name={a.tag.name}
+                                            color={a.tag.color}
+                                            size="sm"
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -394,6 +419,12 @@ export default function ClientProfilePage() {
                     )}
                 </div>
             </header>
+
+            {/* Subscription + Payment History */}
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <ClientSubscriptionCard clientId={clientId} clientName={client.fullName} />
+                <PaymentHistoryList clientId={clientId} />
+            </section>
 
             {/* Key Metrics */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">

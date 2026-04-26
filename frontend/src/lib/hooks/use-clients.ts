@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../api/use-api-client';
 import type { FoodRestriction } from './use-validation';
+import type { ClientTag } from './use-tags';
 
 // Types
 export interface Client {
@@ -63,6 +64,13 @@ export interface Client {
         armsCm: number | null;
         bodyFatPercentage: number | null;
     } | null;
+    // Smart tags (org-wide master, assigned to this client)
+    tagAssignments?: Array<{
+        clientId: string;
+        tagId: string;
+        assignedAt: string;
+        tag: ClientTag;
+    }>;
 }
 
 export interface ClientProgress {
@@ -105,18 +113,19 @@ interface ClientsParams {
     pageSize?: number;
     search?: string;
     status?: string;
+    tags?: string; // csv tag IDs
 }
 
 // Hooks
 export function useClients(params: ClientsParams = {}) {
     const api = useApiClient();
-    const { page = 1, pageSize = 20, search, status } = params;
+    const { page = 1, pageSize = 20, search, status, tags } = params;
 
     return useQuery({
-        queryKey: ['clients', page, pageSize, search, status],
+        queryKey: ['clients', page, pageSize, search, status, tags],
         queryFn: async () => {
             const { data } = await api.get<PaginatedResponse<Client>>('/clients', {
-                params: { page, pageSize, search, status },
+                params: { page, pageSize, search, status, tags },
             });
             return data;
         },

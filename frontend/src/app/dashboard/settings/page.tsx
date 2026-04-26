@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
     User,
     Bell,
@@ -11,12 +12,15 @@ import {
     HelpCircle,
     LogOut,
     Check,
-    Loader2
+    Loader2,
+    Tag,
+    ChevronRight,
 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { useClerk } from '@clerk/nextjs';
 import { useProfile, useUpdateProfile } from '@/lib/hooks/use-profile';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { toast } from 'sonner';
 
 const settingsSections = [
@@ -33,6 +37,8 @@ export default function SettingsPage() {
     const { signOut } = useClerk();
     const { data: profile, isLoading } = useProfile();
     const updateProfile = useUpdateProfile();
+    const { isAdmin, isOwner } = usePermissions();
+    const canManageOrg = isAdmin || isOwner;
 
     const [activeSection, setActiveSection] = useState('profile');
     const [notifications, setNotifications] = useState({
@@ -105,6 +111,16 @@ export default function SettingsPage() {
                                 <span className="text-sm font-medium">{section.name}</span>
                             </button>
                         ))}
+                        {canManageOrg && (
+                            <Link
+                                href="/dashboard/settings/tags"
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                            >
+                                <Tag className="w-5 h-5" />
+                                <span className="text-sm font-medium flex-1">Client Tags</span>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                            </Link>
+                        )}
                         <button
                             onClick={() => signOut()}
                             className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100"

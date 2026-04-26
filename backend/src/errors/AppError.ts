@@ -49,6 +49,14 @@ export class AppError extends Error {
         return new AppError(message, 500, code, false);
     }
 
+    static badGateway(message: string = 'Upstream service error', code: string = 'BAD_GATEWAY') {
+        return new AppError(message, 502, code);
+    }
+
+    static serviceUnavailable(message: string = 'Service temporarily unavailable', code: string = 'SERVICE_UNAVAILABLE') {
+        return new AppError(message, 503, code);
+    }
+
     static validation(message: string, details?: unknown) {
         return new AppError(message, 400, 'VALIDATION_ERROR', true, details);
     }

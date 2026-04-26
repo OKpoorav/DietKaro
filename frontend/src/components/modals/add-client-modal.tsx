@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle, ThumbsDown, Goal, CalendarClock, FileText, Check, Flag } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, ThumbsDown, Goal, CalendarClock, FileText, Check, Flag, Tag } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
+import { suggestTagIds, useSetClientTags, useTags } from '@/lib/hooks/use-tags';
+import { TagMultiSelect } from '@/components/clients/tag-multiselect';
 
 interface AddClientModalProps {
     isOpen: boolean;
@@ -55,6 +57,28 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
     const [submitting, setSubmitting] = useState(false);
     const [createdClientId, setCreatedClientId] = useState<string | null>(null);
     const [createdClientName, setCreatedClientName] = useState('');
+    const [tagIds, setTagIds] = useState<string[]>([]);
+    const [tagsTouched, setTagsTouched] = useState(false);
+
+    const { data: tags } = useTags();
+    const setClientTags = useSetClientTags();
+
+    const suggestedTagIds = useMemo(
+        () =>
+            suggestTagIds(tags ?? [], {
+                goal: formData.goal,
+                medicalConditions: formData.medicalConditions
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+            }),
+        [tags, formData.goal, formData.medicalConditions],
+    );
+
+    // Auto-fill suggestions until the user touches the multi-select.
+    useEffect(() => {
+        if (!tagsTouched) setTagIds(suggestedTagIds);
+    }, [suggestedTagIds, tagsTouched]);
 
     // Reset internal state once the close animation finishes so a re-open is fresh.
     useEffect(() => {
@@ -65,12 +89,19 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
             setSubmitting(false);
             setCreatedClientId(null);
             setCreatedClientName('');
+            setTagIds([]);
+            setTagsTouched(false);
         }, 200);
         return () => clearTimeout(timer);
     }, [isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleTagsChange = (next: string[]) => {
+        setTagsTouched(true);
+        setTagIds(next);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +112,12 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
             const result = await onSubmit(formData);
             const id = result && typeof result === 'object' && 'id' in result ? result.id : null;
             if (!id) return; // error path — caller surfaces a toast; modal stays on form
+
+            if (tagIds.length > 0) {
+                // Best-effort tag assignment; client is already created.
+                setClientTags.mutate({ clientId: id, tagIds });
+            }
+
             if (postCreateBehavior === 'close') {
                 onClose();
                 return;
@@ -348,6 +385,20 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 placeholder="Any extra information about the client..."
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-brand" />
+                            Tags
+                        </label>
+                        <TagMultiSelect
+                            selectedIds={tagIds}
+                            onChange={handleTagsChange}
+                            suggestedIds={suggestedTagIds}
+                        />
+                        <p className="mt-1 text-xs text-gray-400">
+                            Suggestions are pre-checked from goal &amp; medical conditions. Adjust as needed.
+                        </p>
                     </div>
                 </div>
 

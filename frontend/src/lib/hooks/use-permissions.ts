@@ -14,6 +14,7 @@ export function usePermissions() {
         canViewTeam: role === 'owner' || role === 'admin',
         canViewAnalytics: role === 'owner' || role === 'admin',
         canViewReferrals: role === 'owner' || role === 'admin',
+        canViewSubscriptions: role === 'owner' || role === 'admin' || role === 'dietitian',
 
         // Action permissions
         canInviteTeam: role === 'owner' || role === 'admin',

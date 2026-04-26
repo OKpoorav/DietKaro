@@ -31,6 +31,9 @@ model Organization {
   bodyMeasurements      BodyMeasurement[]
   clients               Client[]
   clientReports         ClientReport[]
+  clientTags            ClientTag[]
+  subscriptionPlans     SubscriptionPlan[]
+  payments              Payment[]
   conversations         Conversation[]
   dietPlans             DietPlan[]
   foodItems             FoodItem[]
@@ -74,6 +77,11 @@ model User {
   reviewedMealLogs    MealLog[]      @relation("MealLogReviewer")
   createdSessionNotes SessionNote[]  @relation("SessionNoteCreator")
   uploadedReports     ClientReport[] @relation("UserUploadedReports")
+  createdTags         ClientTag[]    @relation("ClientTagCreator")
+  tagAssignments      ClientTagAssignment[] @relation("TagAssignmentActor")
+  createdPlans        SubscriptionPlan[]    @relation("SubscriptionPlanCreator")
+  assignedSubscriptions ClientSubscription[] @relation("SubscriptionAssignor")
+  recordedPayments    Payment[]      @relation("PaymentRecorder")
   organization        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, email])
@@ -140,6 +148,9 @@ model Client {
   preferences           ClientPreferences?
   refreshTokens         ClientRefreshToken[]
   clientReports         ClientReport[]
+  tagAssignments        ClientTagAssignment[]
+  subscription          ClientSubscription?
+  payments              Payment[]
   conversations         Conversation[]
   dietPlans             DietPlan[]
   invoices              Invoice[]
@@ -792,4 +803,145 @@ enum ReferralSource {
   social_media
   website
   other
+}
+
+model ClientTag {
+  id              String                @id @default(uuid())
+  orgId           String
+  name            String
+  color           String                @default("green")
+  keywords        String[]              @default([])
+  active          Boolean               @default(true)
+  createdByUserId String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  deletedAt       DateTime?
+  organization    Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy       User?                 @relation("ClientTagCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  assignments     ClientTagAssignment[]
+
+  @@unique([orgId, name])
+  @@index([orgId, active])
+}
+
+model ClientTagAssignment {
+  clientId       String
+  tagId          String
+  assignedByUserId String?
+  assignedAt     DateTime  @default(now())
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tag            ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  assignedBy     User?     @relation("TagAssignmentActor", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@id([clientId, tagId])
+  @@index([clientId])
+  @@index([tagId])
+}
+
+// ============ SUBSCRIPTIONS ============
+
+enum RecurrenceUnit {
+  day
+  week
+  month
+  year
+}
+
+enum SubscriptionState {
+  active
+  paused
+  deactivated
+}
+
+enum PaymentState {
+  paid
+  unpaid
+}
+
+enum PaymentTxStatus {
+  pending
+  succeeded
+  failed
+  expired
+}
+
+enum PaymentMethod {
+  razorpay_link
+  razorpay_checkout
+  manual_cash
+  manual_upi
+  manual_bank
+  manual_other
+  mark_active
+}
+
+model SubscriptionPlan {
+  id              String         @id @default(uuid())
+  orgId           String
+  name            String
+  recurrenceUnit  RecurrenceUnit
+  intervalCount   Int            @default(1)
+  durationDays    Int
+  costInr         Decimal        @db.Decimal(10, 2)
+  active          Boolean        @default(true)
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+  organization    Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy       User?          @relation("SubscriptionPlanCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  subscriptions   ClientSubscription[]
+
+  @@unique([orgId, name])
+  @@index([orgId, active])
+}
+
+model ClientSubscription {
+  id                String            @id @default(uuid())
+  clientId          String            @unique
+  planId            String
+  activeDate        DateTime          @db.Date
+  renewalDate       DateTime          @db.Date
+  status            SubscriptionState @default(active)
+  paymentStatus     PaymentState      @default(unpaid)
+  pausedUntil       DateTime?         @db.Date
+  pausedAt          DateTime?
+  deactivatedAt     DateTime?
+  lastPaidAt        DateTime?
+  assignedByUserId  String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  client            Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan              SubscriptionPlan  @relation(fields: [planId], references: [id])
+  assignedBy        User?             @relation("SubscriptionAssignor", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  payments          Payment[]
+
+  @@index([renewalDate])
+  @@index([status, paymentStatus])
+}
+
+model Payment {
+  id                    String              @id @default(uuid())
+  orgId                 String
+  clientId              String
+  clientSubscriptionId  String?
+  amountInr             Decimal             @db.Decimal(10, 2)
+  status                PaymentTxStatus     @default(pending)
+  method                PaymentMethod
+  razorpayPaymentId     String?             @unique
+  razorpayLinkId        String?             @unique
+  paidAt                DateTime?
+  note                  String?
+  rawPayload            Json?
+  recordedByUserId      String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  organization          Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client                Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscription          ClientSubscription? @relation(fields: [clientSubscriptionId], references: [id], onDelete: SetNull)
+  recordedBy            User?               @relation("PaymentRecorder", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([clientId, createdAt])
+  @@index([status])
 }

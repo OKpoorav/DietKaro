@@ -60,7 +60,16 @@ const corsOptions: cors.CorsOptions = {
 };
 
 // Middleware
-app.use(express.json({ limit: '1mb' }));
+// `verify` captures the raw request body for webhook signature verification.
+// Razorpay (and similar providers) require the byte-exact body to compute HMAC.
+app.use(express.json({
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+        if (req.url && req.url.startsWith('/api/v1/webhooks/')) {
+            (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+        }
+    },
+}));
 app.use(cors(corsOptions));
 app.use(helmet({
     contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false, // CSP in prod only
@@ -137,6 +146,13 @@ import clientAuthRoutes from './routes/clientAuth.routes';
 import clientApiRoutes from './routes/clientApi.routes';
 import referralRoutes from './routes/referral.routes';
 import reportsRoutes from './routes/reports.routes';
+import tagsRoutes from './routes/tags.routes';
+import subscriptionPlanRoutes from './routes/subscriptionPlan.routes';
+import subscriptionListRoutes from './routes/subscription.routes';
+import clientSubscriptionRoutes from './routes/clientSubscription.routes';
+import clientPaymentRoutes from './routes/clientPayment.routes';
+import webhookRoutes from './routes/webhook.routes';
+import clientSubscriptionApiRoutes from './routes/clientSubscriptionApi.routes';
 import shareRoutes from './routes/share.routes';
 import adminReferralRoutes from './routes/adminReferral.routes';
 import validationRoutes from './routes/validation.routes';
@@ -168,6 +184,12 @@ app.use('/api/v1/diet-validation', validationRoutes); // Real-time diet validati
 app.use('/api/v1/invoices', invoiceRoutes); // Invoice management
 app.use('/api/v1/chat', chatRoutes); // Dietitian chat
 app.use('/api/v1/reports', reportSummaryRoutes); // Per-document AI summaries (dietitian)
+app.use('/api/v1/tags', tagsRoutes); // Org-wide client smart tags (admin write, all read)
+app.use('/api/v1/plans', subscriptionPlanRoutes); // Subscription plan master (admin CRUD)
+app.use('/api/v1/subscriptions', subscriptionListRoutes); // Aggregate listing for Subscriptions tab
+app.use('/api/v1/clients/:clientId/subscription', clientSubscriptionRoutes); // Per-client subscription lifecycle
+app.use('/api/v1/clients/:clientId/payments', clientPaymentRoutes); // Per-client payment ops (manual + Razorpay link)
+app.use('/api/v1/webhooks', webhookRoutes); // External webhooks (Razorpay) — signature-verified
 app.use('/api/v1/clients/:clientId/document-summary', clientDocumentSummaryRoutes); // Unified client summary
 app.use('/media', mediaRoutes); // Public media proxy (no auth required)
 
@@ -176,6 +198,7 @@ app.use('/api/v1/client-auth', clientAuthRoutes);
 app.use('/api/v1/client', clientApiRoutes);
 app.use('/api/v1/client/referral', referralRoutes);
 app.use('/api/v1/client/reports', reportsRoutes);
+app.use('/api/v1/client/subscription', clientSubscriptionApiRoutes);
 
 
 

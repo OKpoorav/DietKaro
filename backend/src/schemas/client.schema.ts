@@ -71,6 +71,7 @@ export const clientListQuerySchema = z.object({
     sortBy: z.string().optional(),
     page: z.string().optional(),
     pageSize: z.string().optional(),
+    tags: z.string().optional(), // csv tag IDs — OR semantics
 });
 
 export const clientProgressQuerySchema = z.object({

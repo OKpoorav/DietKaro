@@ -90,29 +90,21 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Subscription Card */}
-                <View style={styles.subscriptionCard}>
+                {/* Subscription Card — taps through to dedicated screen with live data */}
+                <TouchableOpacity
+                    style={styles.subscriptionCard}
+                    onPress={() => router.push('/(tabs)/profile/subscription' as never)}
+                    activeOpacity={0.85}
+                >
                     <View style={styles.subscriptionHeader}>
                         <CreditCard size={20} color={Colors.primary} />
                         <Text style={styles.subscriptionTitle}>Subscription</Text>
+                        <ChevronRight size={20} color={Colors.textSecondary} style={{ marginLeft: 'auto' }} />
                     </View>
-                    <View style={styles.subscriptionDetails}>
-                        <View style={styles.subscriptionRow}>
-                            <Text style={styles.subscriptionLabel}>Status</Text>
-                            <View style={styles.activeBadge}>
-                                <Text style={styles.activeBadgeText}>Active</Text>
-                            </View>
-                        </View>
-                        <View style={styles.subscriptionRow}>
-                            <Text style={styles.subscriptionLabel}>Plan</Text>
-                            <Text style={styles.subscriptionValue}>Monthly</Text>
-                        </View>
-                        <View style={styles.subscriptionRow}>
-                            <Text style={styles.subscriptionLabel}>Renews</Text>
-                            <Text style={styles.subscriptionValue}>-- / -- / ----</Text>
-                        </View>
-                    </View>
-                </View>
+                    <Text style={[styles.subscriptionLabel, { marginTop: 4 }]}>
+                        Tap to view plan, renewal date, and payment history.
+                    </Text>
+                </TouchableOpacity>
 
                 {/* Referral Card */}
                 <TouchableOpacity

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, Tag } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { Client } from '@/lib/hooks/use-clients';
+import { suggestTagIds, useTags } from '@/lib/hooks/use-tags';
+import { TagMultiSelect } from '@/components/clients/tag-multiselect';
 
 interface EditClientModalProps {
     isOpen: boolean;
@@ -26,6 +28,7 @@ export interface EditClientFormData {
     targetWeightKg: string;
     allergies: string;
     medicalConditions: string;
+    tagIds: string[];
 }
 
 export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }: EditClientModalProps) {
@@ -40,7 +43,10 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
         targetWeightKg: '',
         allergies: '',
         medicalConditions: '',
+        tagIds: [],
     });
+
+    const { data: tags } = useTags();
 
     useEffect(() => {
         if (isOpen && client) {
@@ -55,9 +61,22 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                 targetWeightKg: client.targetWeightKg ? String(client.targetWeightKg) : '',
                 allergies: (client.medicalProfile?.allergies ?? client.allergies ?? []).join(', '),
                 medicalConditions: (client.medicalProfile?.conditions ?? client.medicalConditions ?? []).join(', '),
+                tagIds: client.tagAssignments?.map((a) => a.tagId) ?? [],
             });
         }
     }, [isOpen, client]);
+
+    const suggestedTagIds = useMemo(
+        () =>
+            suggestTagIds(tags ?? [], {
+                goal: client.goal,
+                medicalConditions: formData.medicalConditions
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+            }),
+        [tags, client.goal, formData.medicalConditions],
+    );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -242,6 +261,19 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             />
                         </div>
                     </div>
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-brand" />
+                        Tags
+                    </h3>
+                    <TagMultiSelect
+                        selectedIds={formData.tagIds}
+                        onChange={(tagIds) => setFormData({ ...formData, tagIds })}
+                        suggestedIds={suggestedTagIds}
+                    />
                 </div>
 
                 {/* Actions */}

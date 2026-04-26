@@ -77,6 +77,33 @@ router.put('/:clientId/lab-values', writeOperationLimiter, asyncHandler(async (r
     res.status(200).json({ success: true, data: result });
 }));
 
+// ============ CLIENT TAGS ============
+
+router.put(
+    '/:id/tags',
+    writeOperationLimiter,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        if (!req.user) throw AppError.unauthorized();
+        const { tagIds } = req.body ?? {};
+        if (!Array.isArray(tagIds)) {
+            throw AppError.badRequest('tagIds must be an array of strings');
+        }
+
+        const assignments = await clientService.setClientTags(
+            req.params.id,
+            req.user.organizationId,
+            req.user.role,
+            req.user.id,
+            tagIds.filter((id: unknown): id is string => typeof id === 'string'),
+        );
+
+        res.status(200).json({
+            success: true,
+            data: { tags: assignments.map((a) => a.tag) },
+        });
+    }),
+);
+
 // ============ CLIENT REPORTS (for dietitian view) ============
 
 /**

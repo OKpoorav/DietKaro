@@ -7,6 +7,15 @@ const API_URL = 'https://api.elasticemail.com/v2/email/send';
 
 const EMAIL_TIMEOUT_MS = 10_000; // 10s timeout for email API calls
 
+function escapeHtml(s: string): string {
+    return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 async function send(to: string, subject: string, bodyHtml: string): Promise<boolean> {
     if (!API_KEY) {
         logger.warn('ELASTIC_EMAIL_PASS not set — skipping email', { to, subject });
@@ -41,6 +50,41 @@ async function send(to: string, subject: string, bodyHtml: string): Promise<bool
 }
 
 export const emailService = {
+    async sendPaymentLink(args: {
+        to: string;
+        clientName: string;
+        planName: string;
+        amountInr: number;
+        shortUrl: string;
+        message?: string;
+        orgName?: string;
+    }) {
+        const orgName = args.orgName ?? 'HealthPractix';
+        const subject = `Renewal payment for your ${args.planName} plan`;
+        const greeting = args.message?.trim() ||
+            `Hi ${args.clientName},\n\nHere's your payment link for the ${args.planName} plan: ${args.shortUrl}\nAmount: ₹${args.amountInr.toFixed(2)}.`;
+        const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="font-family:-apple-system,Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f9fafb;">
+  <div style="max-width:520px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#10b981;padding:24px 32px;">
+      <h1 style="color:#fff;margin:0;font-size:20px;">${orgName}</h1>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="font-size:16px;color:#111;margin:0 0 12px;">Hi ${args.clientName},</p>
+      <p style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-line;margin:0 0 18px;">${escapeHtml(greeting)}</p>
+      <p style="margin:24px 0;">
+        <a href="${args.shortUrl}" style="display:inline-block;background:#10b981;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;">Pay ₹${args.amountInr.toFixed(2)}</a>
+      </p>
+      <p style="font-size:13px;color:#6b7280;margin:0;">If the button doesn't open, copy and paste this link:<br/><a href="${args.shortUrl}">${args.shortUrl}</a></p>
+    </div>
+  </div>
+</body>
+</html>`;
+        await send(args.to, subject, html);
+    },
+
     async sendClientWelcome(to: string, clientName: string, orgName: string) {
         const subject = `Welcome to ${orgName} – Your nutrition journey starts now`;
         const html = `<!DOCTYPE html>
