@@ -44,6 +44,10 @@ model Organization {
   sessionNotes          SessionNote[]
   users                 User[]
   weightLogs            WeightLog[]
+  leads                 Lead[]
+  leadSources           LeadSource[]
+  leadStatuses          LeadStatus[]
+  proposalTemplate      ProposalTemplate?
 
   @@index([subscriptionStatus])
   @@index([isActive])
@@ -82,6 +86,9 @@ model User {
   createdPlans        SubscriptionPlan[]    @relation("SubscriptionPlanCreator")
   assignedSubscriptions ClientSubscription[] @relation("SubscriptionAssignor")
   recordedPayments    Payment[]      @relation("PaymentRecorder")
+  ownedLeads          Lead[]         @relation("LeadOwner")
+  authoredFollowups   LeadFollowup[] @relation("FollowupAuthor")
+  loggedTouchpoints   LeadTouchpoint[] @relation("TouchpointActor")
   organization        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, email])
@@ -159,6 +166,7 @@ model Client {
   referralBenefit       ReferralBenefit?
   sessionNotes          SessionNote[]
   weightLogs            WeightLog[]
+  convertedFromLead     Lead?                  @relation("LeadConvertedClient")
 
   @@unique([orgId, email])
   @@unique([orgId, referralCode])
@@ -819,6 +827,7 @@ model ClientTag {
   organization    Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
   createdBy       User?                 @relation("ClientTagCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   assignments     ClientTagAssignment[]
+  leadAssignments LeadTagAssignment[]
 
   @@unique([orgId, name])
   @@index([orgId, active])
@@ -925,6 +934,7 @@ model Payment {
   orgId                 String
   clientId              String
   clientSubscriptionId  String?
+  leadId                String?
   amountInr             Decimal             @db.Decimal(10, 2)
   status                PaymentTxStatus     @default(pending)
   method                PaymentMethod
@@ -940,8 +950,171 @@ model Payment {
   client                Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
   subscription          ClientSubscription? @relation(fields: [clientSubscriptionId], references: [id], onDelete: SetNull)
   recordedBy            User?               @relation("PaymentRecorder", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+  lead                  Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
   @@index([clientId, createdAt])
   @@index([status])
+  @@index([leadId])
+}
+
+// ============ CRM / LEADS ============
+
+enum ReferralType {
+  existing_client
+  doctor
+  gym_trainer
+  friend_family
+  other
+}
+
+enum LeadTemperature {
+  hot
+  warm
+  cold
+}
+
+enum FollowupType {
+  call
+  whatsapp
+  visit
+  reminder
+}
+
+enum TouchpointKind {
+  field_change
+  note_added
+  proposal_shared
+  payment_link_shared
+  followup_scheduled
+  followup_completed
+  converted
+  archived
+  restored
+  manual_call
+  manual_whatsapp
+  manual_visit
+  manual_other
+}
+
+model Lead {
+  id                String              @id @default(uuid())
+  orgId             String
+  name              String
+  primaryMobile     String
+  altMobile         String?
+  email             String?
+  age               Int?
+  gender            Gender?
+  city              String?
+  sourceId          String?
+  reference         String?
+  referralType      ReferralType?
+  ownerUserId       String?
+  statusId          String
+  temperature       LeadTemperature     @default(warm)
+  notes             String?
+  convertedClientId String?             @unique
+  archivedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  organization      Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  source            LeadSource?         @relation(fields: [sourceId], references: [id])
+  status            LeadStatus          @relation(fields: [statusId], references: [id])
+  ownerUser         User?               @relation("LeadOwner", fields: [ownerUserId], references: [id])
+  convertedClient   Client?             @relation("LeadConvertedClient", fields: [convertedClientId], references: [id])
+  followups         LeadFollowup[]
+  touchpoints       LeadTouchpoint[]
+  tagAssignments    LeadTagAssignment[]
+  payments          Payment[]
+
+  @@index([orgId, archivedAt])
+  @@index([orgId, statusId])
+  @@index([ownerUserId])
+  @@index([orgId, createdAt])
+}
+
+model LeadSource {
+  id           String       @id @default(uuid())
+  orgId        String
+  name         String
+  active       Boolean      @default(true)
+  isSystem     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  deletedAt    DateTime?
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leads        Lead[]
+
+  @@unique([orgId, name])
+  @@index([orgId, deletedAt])
+}
+
+model LeadStatus {
+  id                String       @id @default(uuid())
+  orgId             String
+  name              String
+  color             String       @default("#6B7280")
+  sortOrder         Int          @default(0)
+  isSystemDefault   Boolean      @default(false)
+  isSystemConverted Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  deletedAt         DateTime?
+  organization      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  leads             Lead[]
+
+  @@unique([orgId, name])
+  @@index([orgId, sortOrder])
+}
+
+model LeadFollowup {
+  id              String       @id @default(uuid())
+  leadId          String
+  dueAt           DateTime
+  type            FollowupType
+  notes           String?
+  completedAt     DateTime?
+  notifiedAt      DateTime?
+  createdByUserId String?
+  createdAt       DateTime     @default(now())
+  lead            Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy       User?        @relation("FollowupAuthor", fields: [createdByUserId], references: [id])
+
+  @@index([dueAt, completedAt, notifiedAt])
+  @@index([leadId])
+}
+
+model LeadTouchpoint {
+  id          String         @id @default(uuid())
+  leadId      String
+  kind        TouchpointKind
+  payload     Json?
+  actorUserId String?
+  createdAt   DateTime       @default(now())
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor       User?          @relation("TouchpointActor", fields: [actorUserId], references: [id])
+
+  @@index([leadId, createdAt])
+}
+
+model LeadTagAssignment {
+  leadId           String
+  tagId            String
+  assignedByUserId String?
+  assignedAt       DateTime  @default(now())
+  lead             Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  tag              ClientTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([leadId, tagId])
+}
+
+model ProposalTemplate {
+  id            String       @id @default(uuid())
+  orgId         String       @unique
+  headerCopy    String?
+  logoUrl       String?
+  footerNote    String?
+  signatureLine String?
+  customFields  Json         @default("[]")
+  updatedAt     DateTime     @updatedAt
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }

@@ -12,6 +12,7 @@ import { startUnifiedSummaryWorker, stopUnifiedSummaryWorker } from './jobs/work
 import { startMealReminderWorker, stopMealReminderWorker } from './jobs/workers/meal-reminder.worker';
 import { startPlanExpiryWorker, stopPlanExpiryWorker } from './jobs/workers/plan-expiry.worker';
 import { startComplianceAlertWorker, stopComplianceAlertWorker } from './jobs/workers/compliance-alert.worker';
+import { startLeadFollowupReminderWorker, stopLeadFollowupReminderWorker } from './jobs/workers/lead-followup-reminder.worker';
 import { setupScheduledJobs, ALL_QUEUES } from './jobs/queue';
 import logger from './utils/logger';
 import prisma from './utils/prisma';
@@ -27,6 +28,7 @@ startUnifiedSummaryWorker();
 startMealReminderWorker();
 startPlanExpiryWorker();
 startComplianceAlertWorker();
+startLeadFollowupReminderWorker();
 
 // Register repeatable job schedules (meal reminders, plan expiry, compliance alerts)
 setupScheduledJobs().catch((err) => {
@@ -73,6 +75,7 @@ async function gracefulShutdown(signal: string) {
             stopMealReminderWorker(),
             stopPlanExpiryWorker(),
             stopComplianceAlertWorker(),
+            stopLeadFollowupReminderWorker(),
         ]);
 
         // 4. Close BullMQ queues (flush pending commands)

@@ -135,6 +135,17 @@ export const complianceAlertQueue = new Queue('compliance-alert', {
     },
 });
 
+// Lead followup reminder — runs every 5 minutes
+export const leadFollowupReminderQueue = new Queue('lead-followup-reminder', {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 2,
+        backoff: { type: 'exponential', delay: 10000 },
+        removeOnComplete: { count: 50 },
+        removeOnFail: { count: 50 },
+    },
+});
+
 // ── All queues list (for graceful shutdown draining) ─────────────────
 export const ALL_QUEUES = [
     documentQueue,
@@ -143,6 +154,7 @@ export const ALL_QUEUES = [
     mealReminderQueue,
     planExpiryQueue,
     complianceAlertQueue,
+    leadFollowupReminderQueue,
 ];
 
 /** Call once on server start to register repeatable job schedules */
@@ -163,5 +175,11 @@ export async function setupScheduledJobs() {
     await complianceAlertQueue.upsertJobScheduler('compliance-alert-scheduler',
         { pattern: '0 10 * * *' },
         { name: 'check-compliance' }
+    );
+
+    // Lead followup reminder every 5 minutes
+    await leadFollowupReminderQueue.upsertJobScheduler('lead-followup-reminder-scheduler',
+        { every: 5 * 60 * 1000 },
+        { name: 'check-lead-followups' }
     );
 }

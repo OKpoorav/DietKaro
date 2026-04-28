@@ -16,6 +16,7 @@ import {
     X,
     MessageSquare,
     CreditCard,
+    UserPlus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMemo, useState } from 'react';
@@ -27,11 +28,12 @@ import { NotificationDropdown } from '@/components/notification-dropdown';
 import { useProfile } from '@/lib/hooks/use-profile';
 import { useClerk } from '@clerk/nextjs';
 
-type PermissionKey = 'canViewTeam' | 'canViewAnalytics' | 'canViewReferrals' | 'canViewSubscriptions';
+type PermissionKey = 'canViewTeam' | 'canViewAnalytics' | 'canViewReferrals' | 'canViewSubscriptions' | 'canViewLeads';
 
 const navigation: { name: string; href: string; icon: typeof LayoutDashboard; permission?: PermissionKey }[] = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Clients', href: '/dashboard/clients', icon: Users },
+    { name: 'Leads', href: '/dashboard/leads', icon: UserPlus, permission: 'canViewLeads' },
     { name: 'Subscriptions', href: '/dashboard/subscriptions', icon: CreditCard, permission: 'canViewSubscriptions' },
     { name: 'Diet Plans', href: '/dashboard/diet-plans', icon: UtensilsCrossed },
     { name: 'Food Library', href: '/dashboard/food-library', icon: Apple },

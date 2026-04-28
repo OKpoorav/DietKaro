@@ -163,6 +163,10 @@ import invoiceRoutes from './routes/invoice.routes';
 import chatRoutes from './routes/chat.routes';
 import reportSummaryRoutes from './routes/report-summary.routes';
 import clientDocumentSummaryRoutes from './routes/client-document-summary.routes';
+import leadsRoutes from './routes/leads.routes';
+import leadSourcesRoutes from './routes/leadSources.routes';
+import leadStatusesRoutes from './routes/leadStatuses.routes';
+import proposalTemplateRoutes from './routes/proposalTemplate.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -191,6 +195,10 @@ app.use('/api/v1/clients/:clientId/subscription', clientSubscriptionRoutes); // 
 app.use('/api/v1/clients/:clientId/payments', clientPaymentRoutes); // Per-client payment ops (manual + Razorpay link)
 app.use('/api/v1/webhooks', webhookRoutes); // External webhooks (Razorpay) — signature-verified
 app.use('/api/v1/clients/:clientId/document-summary', clientDocumentSummaryRoutes); // Unified client summary
+app.use('/api/v1/leads', leadsRoutes);                          // CRM leads
+app.use('/api/v1/lead-sources', leadSourcesRoutes);             // Lead source master
+app.use('/api/v1/lead-statuses', leadStatusesRoutes);           // Lead status master
+app.use('/api/v1/proposal-template', proposalTemplateRoutes);   // Proposal template
 app.use('/media', mediaRoutes); // Public media proxy (no auth required)
 
 // Client Mobile App Routes

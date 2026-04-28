@@ -156,4 +156,35 @@ export const emailService = {
 </html>`;
         await send(to, subject, html);
     },
+
+    async sendLeadFollowupReminder(args: {
+        to: string;
+        ownerName: string;
+        leadName: string;
+        followupType: string;
+        dueAt: string;
+        deepLink: string;
+    }) {
+        const subject = `Follow-up reminder: ${args.leadName}`;
+        const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="font-family:-apple-system,Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f9fafb;">
+  <div style="max-width:520px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+    <div style="background:#10b981;padding:24px 32px;">
+      <h1 style="color:#fff;margin:0;font-size:20px;">HealthPractix CRM</h1>
+    </div>
+    <div style="padding:28px 32px;">
+      <p style="font-size:16px;color:#111;margin:0 0 12px;">Hi ${escapeHtml(args.ownerName)},</p>
+      <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 18px;">
+        You have a <strong>${escapeHtml(args.followupType)}</strong> follow-up due for lead <strong>${escapeHtml(args.leadName)}</strong>.
+      </p>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 24px;">Due at: ${escapeHtml(args.dueAt)}</p>
+      <a href="${args.deepLink}" style="display:inline-block;background:#10b981;color:#fff;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;">View Lead</a>
+    </div>
+  </div>
+</body>
+</html>`;
+        await send(args.to, subject, html);
+    },
 };
