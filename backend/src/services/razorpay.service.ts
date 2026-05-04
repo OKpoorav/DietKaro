@@ -98,10 +98,24 @@ export async function createPaymentLink(args: PaymentLinkArgs): Promise<CreatedP
             status: link.status,
         };
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown Razorpay error';
-        logger.error('Razorpay createPaymentLink failed', { error: message, referenceId: args.referenceId });
+        const message = extractRazorpayError(err);
+        logger.error('Razorpay createPaymentLink failed', {
+            error: message,
+            referenceId: args.referenceId,
+            raw: err,
+        });
         throw AppError.badGateway(`Payment link creation failed: ${message}`, 'RAZORPAY_LINK_FAILED');
     }
+}
+
+function extractRazorpayError(err: unknown): string {
+    if (!err) return 'Unknown Razorpay error';
+    if (typeof err === 'string') return err;
+    if (err instanceof Error && err.message) return err.message;
+    const e = err as { error?: { description?: string; code?: string; reason?: string }; message?: string; statusCode?: number };
+    if (e.error?.description) return `${e.error.code ?? 'ERR'}: ${e.error.description}`;
+    if (e.message) return e.message;
+    try { return JSON.stringify(err); } catch { return 'Unknown Razorpay error'; }
 }
 
 /**
@@ -113,7 +127,7 @@ export async function cancelPaymentLink(linkId: string): Promise<void> {
     try {
         await client.paymentLink.cancel(linkId);
     } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown Razorpay error';
+        const message = extractRazorpayError(err);
         logger.warn('Razorpay cancelPaymentLink failed', { error: message, linkId });
     }
 }
