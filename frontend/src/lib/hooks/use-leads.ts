@@ -184,7 +184,7 @@ export function useRecordProposal(id: string) {
     const api = useApiClient();
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (body: { planId: string; pdfFilename: string }) => {
+        mutationFn: async (body: { planId: string; pdfFilename?: string }) => {
             const { data } = await api.post(`/leads/${id}/proposal`, body);
             return data;
         },

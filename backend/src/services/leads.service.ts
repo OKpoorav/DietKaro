@@ -126,6 +126,17 @@ export interface CreateLeadInput {
 export async function createLead(orgId: string, data: CreateLeadInput, actorUserId: string) {
     await seedDefaultStatusesIfEmpty(orgId);
 
+    const duplicate = await prisma.lead.findFirst({
+        where: { orgId, primaryMobile: data.primaryMobile, archivedAt: null },
+        select: { id: true, name: true },
+    });
+    if (duplicate) {
+        throw AppError.conflict(
+            `A lead with this phone number already exists (${duplicate.name})`,
+            'LEAD_DUPLICATE_MOBILE',
+        );
+    }
+
     let statusId = data.statusId;
     if (!statusId) {
         const defaultStatus = await findSystemStatus(orgId, 'default');
@@ -154,6 +165,19 @@ export async function updateLead(
 ) {
     const existing = await prisma.lead.findFirst({ where: { id, orgId } });
     if (!existing) throw AppError.notFound('Lead not found');
+
+    if (patch.primaryMobile && patch.primaryMobile !== existing.primaryMobile) {
+        const duplicate = await prisma.lead.findFirst({
+            where: { orgId, primaryMobile: patch.primaryMobile, archivedAt: null, NOT: { id } },
+            select: { id: true, name: true },
+        });
+        if (duplicate) {
+            throw AppError.conflict(
+                `A lead with this phone number already exists (${duplicate.name})`,
+                'LEAD_DUPLICATE_MOBILE',
+            );
+        }
+    }
 
     const updated = await prisma.lead.update({
         where: { id },

@@ -167,6 +167,7 @@ import leadsRoutes from './routes/leads.routes';
 import leadSourcesRoutes from './routes/leadSources.routes';
 import leadStatusesRoutes from './routes/leadStatuses.routes';
 import proposalTemplateRoutes from './routes/proposalTemplate.routes';
+import onboardingInviteRoutes from './routes/onboardingInvite.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -199,6 +200,7 @@ app.use('/api/v1/leads', leadsRoutes);                          // CRM leads
 app.use('/api/v1/lead-sources', leadSourcesRoutes);             // Lead source master
 app.use('/api/v1/lead-statuses', leadStatusesRoutes);           // Lead status master
 app.use('/api/v1/proposal-template', proposalTemplateRoutes);   // Proposal template
+app.use('/api/v1', onboardingInviteRoutes); // Onboarding invite links
 app.use('/media', mediaRoutes); // Public media proxy (no auth required)
 
 // Client Mobile App Routes

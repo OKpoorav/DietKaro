@@ -31,6 +31,21 @@ export function useLeadTouchpoints(leadId: string, page = 1) {
     });
 }
 
+export function useAddLeadNote(leadId: string) {
+    const api = useApiClient();
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (text: string) => {
+            const { data } = await api.post(`/leads/${leadId}/notes`, { text });
+            return data.data as LeadTouchpoint;
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['lead-touchpoints', leadId] });
+            qc.invalidateQueries({ queryKey: ['lead', leadId] });
+        },
+    });
+}
+
 export function useLogManualTouchpoint(leadId: string) {
     const api = useApiClient();
     const qc = useQueryClient();

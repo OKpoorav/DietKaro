@@ -21,6 +21,9 @@ import {
     Target,
     Pencil,
     Check,
+    Link2,
+    Copy,
+    RefreshCw,
 } from 'lucide-react';
 import { useClient, useClientProgress, useUpdateClient } from '@/lib/hooks/use-clients';
 import { useDietPlans, useDietPlan } from '@/lib/hooks/use-diet-plans';
@@ -34,6 +37,8 @@ import { useSetClientTags } from '@/lib/hooks/use-tags';
 import { TagChip } from '@/components/clients/tag-chip';
 import { ClientSubscriptionCard } from '@/components/subscriptions/client-subscription-card';
 import { PaymentHistoryList } from '@/components/subscriptions/payment-history-list';
+import { useOnboardingInviteStatus, useGenerateInvite } from '@/lib/hooks/use-onboarding-invite';
+import { toast } from 'sonner';
 
 // ============ TYPES ============
 
@@ -203,6 +208,132 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
     );
 }
 
+// ============ ONBOARDING INVITE CARD ============
+
+function OnboardingInviteCard({ clientId }: { clientId: string }) {
+    const { data: status, isLoading } = useOnboardingInviteStatus(clientId);
+    const generateInvite = useGenerateInvite();
+
+    const buildLink = (token: string) => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        return `${origin}/onboarding?token=${token}`;
+    };
+
+    const handleGenerate = async () => {
+        await generateInvite.mutateAsync({ clientId });
+    };
+
+    const handleCopy = (token: string) => {
+        navigator.clipboard.writeText(buildLink(token));
+        toast.success('Link copied');
+    };
+
+    const invite = status?.invite ?? null;
+    const now = new Date();
+    const isUsed = !!invite?.usedAt;
+    const isExpired = invite && !isUsed && new Date(invite.expiresAt) < now;
+    const isActive = invite && !isUsed && !isExpired;
+
+    return (
+        <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <Link2 className="w-4 h-4" />
+                </div>
+                <h3 className="font-semibold text-gray-900">Onboarding Link</h3>
+            </div>
+
+            {isLoading ? (
+                <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                    <span className="text-sm text-gray-400">Loading...</span>
+                </div>
+            ) : isUsed ? (
+                /* State 4: Used */
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-emerald-600">
+                        <CheckCircle className="w-4 h-4 shrink-0" />
+                        <p className="text-sm font-medium">
+                            Onboarding completed on{' '}
+                            {new Date(invite!.usedAt!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleGenerate}
+                        disabled={generateInvite.isPending}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {generateInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                        Send New Link
+                    </button>
+                </div>
+            ) : isExpired ? (
+                /* State 5: Expired */
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-orange-500">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <p className="text-sm font-medium">
+                            Link expired on{' '}
+                            {new Date(invite!.expiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleGenerate}
+                        disabled={generateInvite.isPending}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {generateInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                        Resend
+                    </button>
+                </div>
+            ) : isActive ? (
+                /* State 3: Active invite */
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <input
+                            readOnly
+                            value={buildLink(invite!.token)}
+                            className="flex-1 min-w-0 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 truncate focus:outline-none"
+                        />
+                        <button
+                            onClick={() => handleCopy(invite!.token)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors shrink-0"
+                        >
+                            <Copy className="w-3.5 h-3.5" />
+                            Copy
+                        </button>
+                        <button
+                            onClick={handleGenerate}
+                            disabled={generateInvite.isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors shrink-0"
+                        >
+                            {generateInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                            Resend
+                        </button>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                        Expires:{' '}
+                        {new Date(invite!.expiresAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                </div>
+            ) : (
+                /* State 2: No invite */
+                <div className="space-y-2">
+                    <p className="text-sm text-gray-500">No onboarding link has been sent yet.</p>
+                    <button
+                        onClick={handleGenerate}
+                        disabled={generateInvite.isPending}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        {generateInvite.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        Send Onboarding Link
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ============ COMPONENT ============
 
 export default function ClientProfilePage() {
@@ -233,19 +364,22 @@ export default function ClientProfilePage() {
     const setClientTags = useSetClientTags();
 
     const handleEditClient = (data: EditClientFormData) => {
-        const parseList = (s: string) => s.split(',').map(v => v.trim()).filter(Boolean);
         updateClient.mutate({
             id: clientId,
             fullName: data.fullName,
-            email: data.email,
+            email: data.email || undefined,
             phone: data.phone,
             dateOfBirth: data.dateOfBirth || undefined,
             gender: (data.gender as 'male' | 'female' | 'other') || undefined,
             heightCm: data.heightCm ? Number(data.heightCm) : undefined,
             currentWeightKg: data.currentWeightKg ? Number(data.currentWeightKg) : undefined,
             targetWeightKg: data.targetWeightKg ? Number(data.targetWeightKg) : undefined,
-            allergies: parseList(data.allergies),
-            medicalConditions: parseList(data.medicalConditions),
+            allergies: data.allergies,
+            medicalConditions: data.medicalConditions,
+            altPhone: data.altPhone || undefined,
+            altPhoneRelation: data.altPhoneRelation || undefined,
+            remarks: data.remarks || undefined,
+            loginEnabled: data.loginEnabled,
         } as Parameters<typeof updateClient.mutate>[0], {
             onSuccess: () => {
                 setClientTags.mutate({ clientId, tagIds: data.tagIds });
@@ -426,6 +560,9 @@ export default function ClientProfilePage() {
                 <PaymentHistoryList clientId={clientId} />
             </section>
 
+            {/* Onboarding Link */}
+            <OnboardingInviteCard clientId={clientId} />
+
             {/* Key Metrics */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Weight Trend */}
@@ -581,7 +718,12 @@ export default function ClientProfilePage() {
                                 {activePlan ? (
                                     <>
                                         <p className="text-[#4e9767]">Active since {new Date(activePlan.startDate).toLocaleDateString()}</p>
-                                        <p className="text-lg font-medium text-gray-900">{activePlan.name}</p>
+                                        <Link
+                                            href={`/dashboard/diet-plans/new?clientId=${clientId}&editId=${activePlan.id}`}
+                                            className="text-lg font-medium text-gray-900 hover:text-brand hover:underline transition-colors"
+                                        >
+                                            {activePlan.name}
+                                        </Link>
                                         <p className="text-sm text-[#4e9767]">{activePlan.description || 'No description'}</p>
                                     </>
                                 ) : (

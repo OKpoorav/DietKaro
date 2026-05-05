@@ -78,6 +78,7 @@ export function ClientSubscriptionCard({ clientId, clientName }: Props) {
     };
 
     const cost = sub ? Number(sub.plan.costInr) : 0;
+    const isPaid = sub?.paymentStatus === 'paid' || sub?.paymentStatus === 'completed';
 
     return (
         <>
@@ -104,9 +105,9 @@ export function ClientSubscriptionCard({ clientId, clientName }: Props) {
                         <div className="flex items-center gap-2 flex-wrap">
                             {sub.status === 'paused' && <StatusPill tone="amber">Paused</StatusPill>}
                             {sub.status === 'deactivated' && <StatusPill tone="red">Deactivated</StatusPill>}
-                            {sub.status === 'active' && (sub.paymentStatus === 'paid'
+                            {sub.status === 'active' && (isPaid
                                 ? <StatusPill tone="green">Paid</StatusPill>
-                                : <StatusPill tone="yellow">Unpaid</StatusPill>)}
+                                : <StatusPill tone="red">Unpaid</StatusPill>)}
                         </div>
                     )}
                 </div>
@@ -142,13 +143,15 @@ export function ClientSubscriptionCard({ clientId, clientName }: Props) {
                     )}
                     {sub && (
                         <>
-                            <button
-                                type="button"
-                                onClick={() => setLinkOpen(true)}
-                                className="inline-flex items-center gap-1.5 h-9 px-3 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold"
-                            >
-                                <Send className="w-4 h-4" /> Send payment link
-                            </button>
+                            {!isPaid && (
+                                <button
+                                    type="button"
+                                    onClick={() => setLinkOpen(true)}
+                                    className="inline-flex items-center gap-1.5 h-9 px-3 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold"
+                                >
+                                    <Send className="w-4 h-4" /> Send payment link
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => setManualOpen(true)}

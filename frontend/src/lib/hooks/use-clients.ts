@@ -45,6 +45,12 @@ export interface Client {
         dinnerTime?: string | null;
         snackTime?: string | null;
     } | null;
+    // Contact extras
+    altPhone?: string | null;
+    altPhoneRelation?: string | null;
+    // Internal
+    remarks?: string | null;
+    loginEnabled?: boolean;
     // Goal
     goal?: string | null;
     goalDeadline?: string | null;

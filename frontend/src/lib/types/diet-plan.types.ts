@@ -69,4 +69,6 @@ export interface TemplateData {
     name?: string;
     checkInFrequency?: string;
     templateCategory?: string;
+    visibility?: string;
+    creator?: { id: string; fullName: string } | null;
 }

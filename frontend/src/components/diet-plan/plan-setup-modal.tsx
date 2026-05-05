@@ -1,16 +1,40 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { Calendar, AlertTriangle, Clock, Utensils, Loader2 } from 'lucide-react';
+import { Calendar, AlertTriangle, Clock, Utensils, Loader2, Pin, Search } from 'lucide-react';
 import { useClientActiveRange, ClientPlanRange } from '@/lib/hooks/use-diet-plans';
+import type { TemplateData } from '@/lib/types/diet-plan.types';
+
+// Shared with template-sidebar — same key keeps pins in sync
+const PINS_KEY = 'meal-structure-pins';
+
+function loadPins(): Set<string> {
+    try {
+        const raw = localStorage.getItem(PINS_KEY);
+        return new Set(raw ? JSON.parse(raw) : []);
+    } catch { return new Set(); }
+}
+
+function savePins(pins: Set<string>) {
+    try { localStorage.setItem(PINS_KEY, JSON.stringify(Array.from(pins))); } catch { /* ignore */ }
+}
+
+const BUILT_IN_OPTIONS = [
+    { label: '3 Meals', count: 3, description: 'Breakfast, Lunch, Dinner' },
+    { label: '4 Meals', count: 4, description: 'Breakfast, Lunch, Snack, Dinner' },
+    { label: '5 Meals', count: 5, description: 'Breakfast, Mid-morning, Lunch, Snack, Dinner' },
+    { label: '6 Meals', count: 6, description: 'Breakfast, Mid-morning, Lunch, Snack, Dinner, Post-dinner' },
+];
 
 export interface PlanSetupResult {
     planName: string;
     startDate: Date;
     numDays: number;
+    mealCount: number;
     overlapStrategy: 'overwrite' | 'end_previous' | 'update';
     overlappingPlanIds?: string[];
+    slotTemplateId?: string;
 }
 
 interface PlanSetupModalProps {
@@ -18,6 +42,7 @@ interface PlanSetupModalProps {
     onClose: () => void;
     clientId: string;
     clientName: string;
+    slotTemplates?: TemplateData[];
     onConfirm: (result: PlanSetupResult) => void;
 }
 
@@ -29,17 +54,13 @@ function toDateInputValue(d: Date) {
     return d.toISOString().split('T')[0];
 }
 
-function datesOverlap(
-    aStart: Date, aEnd: Date,
-    bStart: Date, bEnd: Date
-): boolean {
+function datesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
     return aStart <= bEnd && bStart <= aEnd;
 }
 
-export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfirm }: PlanSetupModalProps) {
+export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemplates = [], onConfirm }: PlanSetupModalProps) {
     const { data: existingPlans, isLoading } = useClientActiveRange(clientId);
 
-    // Smart default: day after latest plan ends, or tomorrow
     const smartStartDate = useMemo(() => {
         if (!existingPlans?.length) {
             const tomorrow = new Date();
@@ -56,12 +77,44 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
         return dayAfter;
     }, [existingPlans]);
 
+    // Step 1 state
+    const [pins, setPins] = useState<Set<string>>(new Set());
+    const [search, setSearch] = useState('');
+    const [selectedSlotTemplateId, setSelectedSlotTemplateId] = useState<string | null>(null);
+
+    useEffect(() => { setPins(loadPins()); }, []);
+
+    const togglePin = useCallback((key: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setPins(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            savePins(next);
+            return next;
+        });
+    }, []);
+
+    const q = search.trim().toLowerCase();
+
+    const filteredBuiltIn = useMemo(() => {
+        const list = q ? BUILT_IN_OPTIONS.filter(o => o.label.toLowerCase().includes(q) || o.description.toLowerCase().includes(q)) : BUILT_IN_OPTIONS;
+        return list.slice().sort((a, b) => (pins.has(a.label) ? 0 : 1) - (pins.has(b.label) ? 0 : 1));
+    }, [q, pins]);
+
+    const filteredSlotTemplates = useMemo(() => {
+        const list = q ? slotTemplates.filter(t => t.name?.toLowerCase().includes(q)) : slotTemplates;
+        return list.slice().sort((a, b) => (pins.has(a.id) ? 0 : 1) - (pins.has(b.id) ? 0 : 1));
+    }, [q, slotTemplates, pins]);
+
+    // Step 2 state
+    const [mealCount, setMealCount] = useState<number | null>(null);
     const [planName, setPlanName] = useState('');
+    const [planNameError, setPlanNameError] = useState('');
     const [startDateStr, setStartDateStr] = useState('');
     const [numDays, setNumDays] = useState(7);
     const [overlapStrategy, setOverlapStrategy] = useState<'overwrite' | 'end_previous' | 'update'>('end_previous');
 
-    // Set smart default once data loads
     const startDate = startDateStr ? new Date(startDateStr + 'T00:00:00') : smartStartDate;
     const endDate = useMemo(() => {
         const d = new Date(startDate);
@@ -69,7 +122,6 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
         return d;
     }, [startDate, numDays]);
 
-    // Detect overlapping plans
     const overlappingPlans = useMemo(() => {
         if (!existingPlans?.length) return [];
         return existingPlans.filter(p => {
@@ -81,65 +133,156 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
 
     const hasOverlap = overlappingPlans.length > 0;
 
+    const selectOption = (count: number, templateId?: string) => {
+        setMealCount(count);
+        setSelectedSlotTemplateId(templateId || null);
+        setSearch('');
+    };
+
     const handleConfirm = () => {
+        if (!planName.trim()) { setPlanNameError('Plan name is required'); return; }
         onConfirm({
             planName,
             startDate,
             numDays,
+            mealCount: mealCount ?? 3,
             overlapStrategy: hasOverlap ? overlapStrategy : 'overwrite',
             overlappingPlanIds: hasOverlap ? overlappingPlans.map(p => p.id) : undefined,
+            slotTemplateId: selectedSlotTemplateId || undefined,
         });
     };
 
+    // Step 1 — meal structure selection
+    if (mealCount === null) {
+        return (
+            <Modal isOpen={isOpen} onClose={onClose} title="Plan Setup" size="md">
+                <div className="p-5 space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand font-semibold">
+                            {clientName.charAt(0)}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-gray-900">{clientName}</p>
+                            <p className="text-xs text-gray-500">How many meals per day?</p>
+                        </div>
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Search meal structures..."
+                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand outline-none"
+                        />
+                    </div>
+
+                    {/* Built-in options */}
+                    {filteredBuiltIn.length > 0 && (
+                        <div>
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Standard</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {filteredBuiltIn.map(opt => {
+                                    const isPinned = pins.has(opt.label);
+                                    return (
+                                        <BuiltInCard
+                                            key={opt.label}
+                                            opt={opt}
+                                            isPinned={isPinned}
+                                            onSelect={() => selectOption(opt.count)}
+                                            onTogglePin={(e) => togglePin(opt.label, e)}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Saved slot templates */}
+                    {filteredSlotTemplates.length > 0 && (
+                        <div>
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Saved Structures</p>
+                            <div className="space-y-2">
+                                {filteredSlotTemplates.map(t => {
+                                    const isPinned = pins.has(t.id);
+                                    return (
+                                        <SavedStructureCard
+                                            key={t.id}
+                                            template={t}
+                                            isPinned={isPinned}
+                                            onSelect={() => selectOption(3, t.id)}
+                                            onTogglePin={(e) => togglePin(t.id, e)}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {filteredBuiltIn.length === 0 && filteredSlotTemplates.length === 0 && (
+                        <p className="text-sm text-gray-500 italic text-center py-4">No matching structures</p>
+                    )}
+
+                    <div className="flex justify-end pt-1">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+                    </div>
+                </div>
+            </Modal>
+        );
+    }
+
+    // Step 2 — plan details
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Plan Setup" size="md">
             <div className="p-5 space-y-5">
-                {/* Client name */}
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand font-semibold">
                         {clientName.charAt(0)}
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <p className="font-semibold text-gray-900">{clientName}</p>
                         <p className="text-xs text-gray-500">Setting up new diet plan</p>
                     </div>
+                    <button onClick={() => setMealCount(null)}
+                        className="flex items-center gap-1 text-xs text-brand hover:underline">
+                        <Utensils className="w-3.5 h-3.5" />
+                        {selectedSlotTemplateId
+                            ? slotTemplates.find(t => t.id === selectedSlotTemplateId)?.name || 'Saved'
+                            : `${mealCount} meals/day`}
+                    </button>
                 </div>
 
-                {/* Existing plans */}
                 {isLoading ? (
                     <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading existing plans...
+                        <Loader2 className="w-4 h-4 animate-spin" />Loading existing plans...
                     </div>
                 ) : existingPlans && existingPlans.length > 0 ? (
                     <div className="space-y-2">
                         <p className="text-sm font-medium text-gray-700">Current Plans</p>
-                        {existingPlans.map(p => (
-                            <PlanRangeCard key={p.id} plan={p} />
-                        ))}
+                        {existingPlans.map(p => <PlanRangeCard key={p.id} plan={p} />)}
                     </div>
                 ) : (
                     <p className="text-sm text-gray-500 italic">No existing plans for this client.</p>
                 )}
 
-                {/* Plan name */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name <span className="text-red-500">*</span></label>
                     <input
                         type="text"
                         value={planName}
-                        onChange={e => setPlanName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
+                        onChange={e => { setPlanName(e.target.value); setPlanNameError(''); }}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none ${planNameError ? 'border-red-400' : 'border-gray-300'}`}
                         placeholder="e.g. Weight Loss Week 4"
                     />
+                    {planNameError && <p className="mt-1 text-xs text-red-500">{planNameError}</p>}
                 </div>
 
-                {/* Date + Duration row */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Calendar className="w-3.5 h-3.5 inline mr-1" />
-                            Start Date
+                            <Calendar className="w-3.5 h-3.5 inline mr-1" />Start Date
                         </label>
                         <input
                             type="date"
@@ -150,8 +293,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <Clock className="w-3.5 h-3.5 inline mr-1" />
-                            Duration
+                            <Clock className="w-3.5 h-3.5 inline mr-1" />Duration
                         </label>
                         <select
                             value={numDays}
@@ -160,21 +302,19 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
                         >
                             {[1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 30].map(d => (
                                 <option key={d} value={d}>
-                                    {d} {d === 1 ? 'day' : d <= 7 ? 'days' : d === 14 ? 'days (2 weeks)' : d === 21 ? 'days (3 weeks)' : 'days (4 weeks)'}
+                                    {d === 1 ? '1 day' : d <= 7 ? `${d} days` : d === 14 ? '14 days (2 weeks)' : d === 21 ? '21 days (3 weeks)' : '30 days (4 weeks)'}
                                 </option>
                             ))}
                         </select>
                     </div>
                 </div>
 
-                {/* Computed end date */}
                 <p className="text-xs text-gray-500">
                     Plan period: <span className="font-medium text-gray-700">{formatDate(startDate)}</span>
                     {' → '}
                     <span className="font-medium text-gray-700">{formatDate(endDate)}</span>
                 </p>
 
-                {/* Overlap warning */}
                 {hasOverlap && (
                     <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-3">
                         <div className="flex items-start gap-2">
@@ -182,70 +322,35 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
                             <div>
                                 <p className="text-sm font-medium text-amber-800">Date Overlap Detected</p>
                                 <p className="text-xs text-amber-700 mt-0.5">
-                                    This plan overlaps with: {Array.from(new Set(overlappingPlans.map(p => p.name))).map(n => `"${n}"`).join(', ')}
+                                    Overlaps with: {Array.from(new Set(overlappingPlans.map(p => p.name))).map(n => `"${n}"`).join(', ')}
                                 </p>
                             </div>
                         </div>
                         <div className="space-y-2 ml-6">
-                            <label className="flex items-start gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="overlap"
-                                    value="end_previous"
-                                    checked={overlapStrategy === 'end_previous'}
-                                    onChange={() => setOverlapStrategy('end_previous')}
-                                    className="mt-0.5 accent-brand"
-                                />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">End previous plan early</p>
-                                    <p className="text-xs text-gray-500">Previous plan ends the day before this one starts</p>
-                                </div>
-                            </label>
-                            <label className="flex items-start gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="overlap"
-                                    value="overwrite"
-                                    checked={overlapStrategy === 'overwrite'}
-                                    onChange={() => setOverlapStrategy('overwrite')}
-                                    className="mt-0.5 accent-brand"
-                                />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">Overwrite overlapping days</p>
-                                    <p className="text-xs text-gray-500">Deactivate old plan, pending logs removed</p>
-                                </div>
-                            </label>
-                            <label className="flex items-start gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="overlap"
-                                    value="update"
-                                    checked={overlapStrategy === 'update'}
-                                    onChange={() => setOverlapStrategy('update')}
-                                    className="mt-0.5 accent-brand"
-                                />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">Update existing plan</p>
-                                    <p className="text-xs text-gray-500">Copy overlapping days' meals into new plan, non-overlapping days start empty</p>
-                                </div>
-                            </label>
+                            {([
+                                { value: 'end_previous', label: 'End previous plan early', desc: 'Previous plan ends the day before this one starts' },
+                                { value: 'overwrite', label: 'Overwrite overlapping days', desc: 'Deactivate old plan, pending logs removed' },
+                                { value: 'update', label: 'Update existing plan', desc: 'Copy overlapping days\' meals into new plan' },
+                            ] as const).map(opt => (
+                                <label key={opt.value} className="flex items-start gap-2 cursor-pointer">
+                                    <input type="radio" name="overlap" value={opt.value}
+                                        checked={overlapStrategy === opt.value}
+                                        onChange={() => setOverlapStrategy(opt.value)}
+                                        className="mt-0.5 accent-brand" />
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-800">{opt.label}</p>
+                                        <p className="text-xs text-gray-500">{opt.desc}</p>
+                                    </div>
+                                </label>
+                            ))}
                         </div>
                     </div>
                 )}
 
-                {/* Actions */}
                 <div className="flex justify-end gap-3 pt-2">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleConfirm}
-                        disabled={!planName.trim()}
-                        className="px-5 py-2 text-sm font-medium text-white bg-brand hover:bg-brand/90 rounded-lg transition-colors disabled:opacity-50"
-                    >
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
+                    <button onClick={handleConfirm} disabled={!planName.trim()}
+                        className="px-5 py-2 text-sm font-medium text-white bg-brand hover:bg-brand/90 rounded-lg transition-colors disabled:opacity-50">
                         Start Building
                     </button>
                 </div>
@@ -254,10 +359,61 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, onConfir
     );
 }
 
+function BuiltInCard({ opt, isPinned, onSelect, onTogglePin }: {
+    opt: typeof BUILT_IN_OPTIONS[0];
+    isPinned: boolean;
+    onSelect: () => void;
+    onTogglePin: (e: React.MouseEvent) => void;
+}) {
+    const [hovered, setHovered] = useState(false);
+    return (
+        <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+            <button onClick={onSelect}
+                className={`w-full flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all ${isPinned ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand hover:bg-brand/5'}`}>
+                <Utensils className={`w-5 h-5 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
+                <span className={`text-lg font-bold ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{opt.count}</span>
+                <span className="text-xs text-gray-500">meals/day</span>
+            </button>
+            {(hovered || isPinned) && (
+                <button onClick={onTogglePin} title={isPinned ? 'Unpin' : 'Pin as default'}
+                    className={`absolute top-2 right-2 p-0.5 rounded transition-colors ${isPinned ? 'text-brand' : 'text-gray-300 hover:text-brand'}`}>
+                    <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
+                </button>
+            )}
+        </div>
+    );
+}
+
+function SavedStructureCard({ template, isPinned, onSelect, onTogglePin }: {
+    template: TemplateData;
+    isPinned: boolean;
+    onSelect: () => void;
+    onTogglePin: (e: React.MouseEvent) => void;
+}) {
+    const [hovered, setHovered] = useState(false);
+    return (
+        <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+            <button onClick={onSelect}
+                className={`w-full text-left p-3 rounded-xl border-2 transition-all ${isPinned ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand hover:bg-brand/5'}`}>
+                <div className="flex items-center gap-2 pr-5">
+                    <Utensils className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-semibold truncate ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{template.name}</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5 ml-6">Saved structure</p>
+            </button>
+            {(hovered || isPinned) && (
+                <button onClick={onTogglePin} title={isPinned ? 'Unpin' : 'Pin'}
+                    className={`absolute top-2.5 right-2 p-0.5 rounded transition-colors ${isPinned ? 'text-brand' : 'text-gray-300 hover:text-brand'}`}>
+                    <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
+                </button>
+            )}
+        </div>
+    );
+}
+
 function PlanRangeCard({ plan }: { plan: ClientPlanRange }) {
     const start = new Date(plan.startDate);
     const end = plan.endDate ? new Date(plan.endDate) : null;
-
     return (
         <div className="flex items-center gap-3 p-2.5 bg-white border border-gray-200 rounded-lg">
             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${plan.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
@@ -265,12 +421,9 @@ function PlanRangeCard({ plan }: { plan: ClientPlanRange }) {
                 <p className="text-sm font-medium text-gray-900 truncate">{plan.name}</p>
                 <p className="text-xs text-gray-500">
                     {formatDate(start)}{end ? ` → ${formatDate(end)}` : ''} &middot; {plan.mealCount} meals
-                    {plan.targetCalories ? ` &middot; ${plan.targetCalories} cal` : ''}
                 </p>
             </div>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                plan.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'
-            }`}>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${plan.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                 {plan.status}
             </span>
         </div>

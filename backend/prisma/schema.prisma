@@ -101,7 +101,7 @@ model Client {
   id                    String                 @id @default(uuid())
   orgId                 String
   primaryDietitianId    String?
-  email                 String
+  email                 String?
   phone                 String
   fullName              String
   dateOfBirth           DateTime?              @db.Date
@@ -126,6 +126,10 @@ model Client {
   deletedAt             DateTime?
   createdByUserId       String?
   isActive              Boolean                @default(true)
+  loginEnabled          Boolean                @default(false)
+  altPhone              String?
+  altPhoneRelation      String?
+  remarks               String?
   referralCode          String?
   referralSource        ReferralSource?
   referralSourceName    String?
@@ -167,6 +171,7 @@ model Client {
   sessionNotes          SessionNote[]
   weightLogs            WeightLog[]
   convertedFromLead     Lead?                  @relation("LeadConvertedClient")
+  onboardingInvites     OnboardingInvite[]
 
   @@unique([orgId, email])
   @@unique([orgId, referralCode])
@@ -976,9 +981,8 @@ enum LeadTemperature {
 
 enum FollowupType {
   call
-  whatsapp
   visit
-  reminder
+  todo
 }
 
 enum TouchpointKind {
@@ -1032,6 +1036,7 @@ model Lead {
   @@index([orgId, statusId])
   @@index([ownerUserId])
   @@index([orgId, createdAt])
+  @@index([orgId, primaryMobile])
 }
 
 model LeadSource {
@@ -1074,6 +1079,9 @@ model LeadFollowup {
   notes           String?
   completedAt     DateTime?
   notifiedAt      DateTime?
+  outcome         String?
+  lostReason      String?
+  callbackAt      DateTime?
   createdByUserId String?
   createdAt       DateTime     @default(now())
   lead            Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
@@ -1117,4 +1125,18 @@ model ProposalTemplate {
   customFields  Json         @default("[]")
   updatedAt     DateTime     @updatedAt
   organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model OnboardingInvite {
+  id        String    @id @default(uuid())
+  clientId  String
+  orgId     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([token])
 }

@@ -92,20 +92,20 @@ export default function ClientsPage() {
     const meta = data?.meta;
 
     const handleAddClient = async (
-        clientData: { name: string; email: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string; goal?: string; goalDeadline?: string; healthNotes?: string },
+        clientData: { name: string; email?: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string },
         reactivate?: boolean,
     ): Promise<{ id: string } | void> => {
         try {
             const created: Client = await createClient.mutateAsync({
                 fullName: clientData.name,
-                email: clientData.email,
+                email: clientData.email || undefined,
                 phone: clientData.phone,
                 dateOfBirth: clientData.dateOfBirth || undefined,
                 gender: (clientData.gender || undefined) as Client['gender'],
                 heightCm: clientData.height ? Number(clientData.height) : undefined,
                 currentWeightKg: clientData.weight ? Number(clientData.weight) : undefined,
                 targetWeightKg: clientData.targetWeight ? Number(clientData.targetWeight) : undefined,
-                dislikes: clientData.dislikes ? clientData.dislikes.split(',').map(s => s.trim()).filter(Boolean) : [],
+                dislikes: clientData.dislikes ?? [],
                 goal: clientData.goal || undefined,
                 goalDeadline: clientData.goalDeadline || undefined,
                 healthNotes: clientData.healthNotes || undefined,

@@ -37,9 +37,9 @@ export class ClientService {
     }
 
     async createClient(data: CreateClientInput, orgId: string, userId: string, reactivate?: boolean) {
-        const existingClient = await prisma.client.findFirst({
-            where: { orgId, email: data.email },
-        });
+        const existingClient = data.email
+            ? await prisma.client.findFirst({ where: { orgId, email: data.email } })
+            : null;
         if (existingClient) {
             if (!existingClient.isActive) {
                 if (!reactivate) {
@@ -63,6 +63,10 @@ export class ClientService {
                         heightCm: data.heightCm ?? existingClient.heightCm,
                         currentWeightKg: data.currentWeightKg ?? existingClient.currentWeightKg,
                         targetWeightKg: data.targetWeightKg ?? existingClient.targetWeightKg,
+                        altPhone: data.altPhone ?? existingClient.altPhone,
+                        altPhoneRelation: data.altPhoneRelation ?? existingClient.altPhoneRelation,
+                        remarks: data.remarks ?? existingClient.remarks,
+                        loginEnabled: data.loginEnabled ?? existingClient.loginEnabled,
                     },
                 });
                 logger.info('Reactivated soft-deleted client', { clientId: reactivated.id, email: data.email });
@@ -110,6 +114,10 @@ export class ClientService {
                     referralSourcePhone: data.referralSourcePhone,
                     referredByClientId,
                     referralCode,
+                    loginEnabled: data.loginEnabled ?? false,
+                    altPhone: data.altPhone,
+                    altPhoneRelation: data.altPhoneRelation,
+                    remarks: data.remarks,
                 },
                 include: {
                     primaryDietitian: { select: { id: true, fullName: true } },
@@ -138,7 +146,7 @@ export class ClientService {
         logger.info('Client created', { clientId: client.id, orgId, referralSource: data.referralSource, referredBy: referredByClientId });
 
         // Pre-create Clerk user so mobile login always uses the signIn flow
-        if (process.env.CLERK_SECRET_KEY) {
+        if (process.env.CLERK_SECRET_KEY && data.email) {
             const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
             const normalizedEmail = data.email.toLowerCase().trim();
             const nameParts = data.fullName.trim().split(/\s+/);
@@ -155,11 +163,13 @@ export class ClientService {
         }
 
         // Fire welcome email — fetch org name, don't await to avoid blocking the response
-        prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }).then((org) => {
-            emailService.sendClientWelcome(client.email, client.fullName, org?.name || 'HealthPractix');
-        }).catch((err) => {
-            logger.warn('Failed to send welcome email', { clientId: client.id, error: (err as Error).message });
-        });
+        if (client.email) {
+            prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }).then((org) => {
+                emailService.sendClientWelcome(client.email!, client.fullName, org?.name || 'HealthPractix');
+            }).catch((err) => {
+                logger.warn('Failed to send welcome email', { clientId: client.id, error: (err as Error).message });
+            });
+        }
 
         return client;
     }
@@ -344,6 +354,7 @@ export class ClientService {
             'intolerances', 'dietPattern', 'eggAllowed', 'eggAvoidDays',
             'dislikes', 'avoidCategories', 'likedFoods', 'preferredCuisines',
             'foodRestrictions',
+            'loginEnabled', 'altPhone', 'altPhoneRelation', 'remarks',
         ] as const;
 
         const updateData: Record<string, unknown> = {};

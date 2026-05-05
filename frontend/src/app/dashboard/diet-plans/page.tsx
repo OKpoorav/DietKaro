@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, Send, LayoutTemplate, Users, X, ChevronRight, UtensilsCrossed } from 'lucide-react';
-import { useDietPlans, usePublishDietPlan, useAssignTemplate, useDeleteDietPlan } from '@/lib/hooks/use-diet-plans';
+import { useDietPlans, usePublishDietPlan, useAssignTemplate, useDeleteDietPlan, type DietPlan } from '@/lib/hooks/use-diet-plans';
 import { useClients } from '@/lib/hooks/use-clients';
 import { useState, useRef, useEffect } from 'react';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
@@ -10,6 +10,143 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 type TabType = 'plans' | 'templates';
+
+interface PlanCardProps {
+    plan: DietPlan;
+    isTemplateView: boolean;
+    openMenuId: string | null;
+    menuRef: React.RefObject<HTMLDivElement>;
+    setOpenMenuId: (id: string | null) => void;
+    handlePublish: (id: string) => void;
+    handleDelete: (id: string, name: string) => void;
+    publishMutation: { isPending: boolean };
+    deleteMutation: { isPending: boolean };
+    setAssigningTemplateId: (id: string) => void;
+    setShowAssignModal: (v: boolean) => void;
+}
+
+function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, handlePublish, handleDelete, publishMutation, deleteMutation, setAssigningTemplateId, setShowAssignModal }: PlanCardProps) {
+    const isActive = plan.status === 'active';
+    return (
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow group">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-brand">
+                        {isTemplateView ? <LayoutTemplate className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-gray-900 group-hover:text-brand transition-colors line-clamp-1">
+                            {plan.name || 'Untitled Plan'}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            {plan.isTemplate ? (
+                                <span className="inline-flex items-center gap-1 text-purple-600">
+                                    <LayoutTemplate className="w-3 h-3" />
+                                    {plan.templateCategory === 'slot_template' ? 'Meal Structure' : 'Template'}
+                                </span>
+                            ) : (
+                                plan.client?.fullName || 'No Client'
+                            )}
+                        </p>
+                    </div>
+                </div>
+                <div className="relative" ref={openMenuId === plan.id ? menuRef : null}>
+                    <button
+                        onClick={() => setOpenMenuId(openMenuId === plan.id ? null : plan.id)}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
+                    >
+                        <MoreVertical className="w-5 h-5" />
+                    </button>
+                    {openMenuId === plan.id && (
+                        <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                            <Link
+                                href={isTemplateView
+                                    ? `/dashboard/diet-plans/new?template=true&editId=${plan.id}`
+                                    : `/dashboard/diet-plans/${plan.id}`
+                                }
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                            >
+                                <Edit className="w-4 h-4" />
+                                {isTemplateView ? 'Edit Template' : 'Edit Plan'}
+                            </Link>
+                            {!isActive && (
+                                <button
+                                    onClick={() => handlePublish(plan.id)}
+                                    disabled={publishMutation.isPending}
+                                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left disabled:opacity-50"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    {publishMutation.isPending ? 'Publishing...' : 'Publish'}
+                                </button>
+                            )}
+                            <button
+                                className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left disabled:opacity-50"
+                                disabled={deleteMutation.isPending}
+                                onClick={() => handleDelete(plan.id, plan.name || 'Untitled Plan')}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="space-y-3 mb-6">
+                {isTemplateView ? (
+                    <div className="flex items-center text-sm text-gray-600 gap-4">
+                        <div className="flex items-center gap-2">
+                            <UtensilsCrossed className="w-4 h-4 text-gray-400" />
+                            <span>{plan.mealCount || 0} meals</span>
+                        </div>
+                        {plan.endDate && plan.startDate && (
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                <span>
+                                    {Math.max(1, Math.ceil((new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex items-center text-sm text-gray-600 gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span>
+                                {new Date(plan.startDate).toLocaleDateString()}
+                                {plan.endDate ? ` - ${new Date(plan.endDate).toLocaleDateString()}` : ''}
+                            </span>
+                        </div>
+                        <div className="flex gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {isActive ? 'Active' : 'Draft'}
+                            </span>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="pt-4 border-t border-gray-100 flex gap-2">
+                {isTemplateView ? (
+                    <button
+                        onClick={() => { setAssigningTemplateId(plan.id); setShowAssignModal(true); }}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-white bg-brand rounded-lg hover:bg-brand/90 text-center transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Users className="w-4 h-4" />
+                        Assign to Client
+                    </button>
+                ) : (
+                    <Link
+                        href={`/dashboard/diet-plans/${plan.id}`}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 text-center transition-colors"
+                    >
+                        View Details
+                    </Link>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export default function DietPlansPage() {
     const [activeTab, setActiveTab] = useState<TabType>('plans');
@@ -52,6 +189,9 @@ export default function DietPlansPage() {
         const searchLower = debouncedSearch.toLowerCase();
         return planName.includes(searchLower) || clientName.includes(searchLower);
     });
+
+    const slotTemplates = isTemplateView ? filteredPlans.filter(p => p.templateCategory === 'slot_template') : [];
+    const fullTemplates = isTemplateView ? filteredPlans.filter(p => p.templateCategory !== 'slot_template') : filteredPlans;
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -209,133 +349,47 @@ export default function DietPlansPage() {
                         </p>
                     </div>
                 </div>
+            ) : isTemplateView ? (
+                <div className="space-y-8">
+                    {/* Meal Structures section */}
+                    {slotTemplates.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <LayoutTemplate className="w-4 h-4 text-brand" />
+                                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Meal Structures</h2>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-4">Applied as slot layout only — does not overwrite day count</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {slotTemplates.map((plan) => (
+                                    <PlanCard key={plan.id} plan={plan} isTemplateView={true} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} setAssigningTemplateId={setAssigningTemplateId} setShowAssignModal={setShowAssignModal} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {/* Full Templates section */}
+                    {fullTemplates.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <FileText className="w-4 h-4 text-brand" />
+                                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Full Templates</h2>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-4">Replaces all meals and days when applied</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {fullTemplates.map((plan) => (
+                                    <PlanCard key={plan.id} plan={plan} isTemplateView={true} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} setAssigningTemplateId={setAssigningTemplateId} setShowAssignModal={setShowAssignModal} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {slotTemplates.length === 0 && fullTemplates.length === 0 && (
+                        <p className="text-sm text-gray-400 italic text-center py-8">No templates match your search</p>
+                    )}
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredPlans.map((plan) => {
-                        const isActive = plan.status === 'active';
-                        return (
-                            <div key={plan.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow group">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center text-brand">
-                                            {isTemplateView ? <LayoutTemplate className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-gray-900 group-hover:text-brand transition-colors line-clamp-1">
-                                                {plan.name || 'Untitled Plan'}
-                                            </h3>
-                                            <p className="text-sm text-gray-500">
-                                                {plan.isTemplate ? (
-                                                    <span className="inline-flex items-center gap-1 text-purple-600">
-                                                        <LayoutTemplate className="w-3 h-3" />
-                                                        Template
-                                                    </span>
-                                                ) : (
-                                                    plan.client?.fullName || 'No Client'
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="relative" ref={openMenuId === plan.id ? menuRef : null}>
-                                        <button
-                                            onClick={() => setOpenMenuId(openMenuId === plan.id ? null : plan.id)}
-                                            className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100"
-                                        >
-                                            <MoreVertical className="w-5 h-5" />
-                                        </button>
-                                        {openMenuId === plan.id && (
-                                            <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                                                <Link
-                                                    href={isTemplateView
-                                                        ? `/dashboard/diet-plans/new?template=true&editId=${plan.id}`
-                                                        : `/dashboard/diet-plans/${plan.id}`
-                                                    }
-                                                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                    {isTemplateView ? 'Edit Template' : 'Edit Plan'}
-                                                </Link>
-                                                {!isActive && (
-                                                    <button
-                                                        onClick={() => handlePublish(plan.id)}
-                                                        disabled={publishMutation.isPending}
-                                                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 w-full text-left disabled:opacity-50"
-                                                    >
-                                                        <Send className="w-4 h-4" />
-                                                        {publishMutation.isPending ? 'Publishing...' : 'Publish'}
-                                                    </button>
-                                                )}
-                                                <button
-                                                    className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left disabled:opacity-50"
-                                                    disabled={deleteMutation.isPending}
-                                                    onClick={() => handleDelete(plan.id, plan.name || 'Untitled Plan')}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                    {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3 mb-6">
-                                    {isTemplateView ? (
-                                        <div className="flex items-center text-sm text-gray-600 gap-4">
-                                            <div className="flex items-center gap-2">
-                                                <UtensilsCrossed className="w-4 h-4 text-gray-400" />
-                                                <span>{plan.mealCount || 0} meals</span>
-                                            </div>
-                                            {plan.endDate && plan.startDate && (
-                                                <div className="flex items-center gap-2">
-                                                    <Calendar className="w-4 h-4 text-gray-400" />
-                                                    <span>
-                                                        {Math.max(1, Math.ceil((new Date(plan.endDate).getTime() - new Date(plan.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="flex items-center text-sm text-gray-600 gap-2">
-                                                <Calendar className="w-4 h-4 text-gray-400" />
-                                                <span>
-                                                    {new Date(plan.startDate).toLocaleDateString()}
-                                                    {plan.endDate ? ` - ${new Date(plan.endDate).toLocaleDateString()}` : ''}
-                                                </span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                                    {isActive ? 'Active' : 'Draft'}
-                                                </span>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="pt-4 border-t border-gray-100 flex gap-2">
-                                    {isTemplateView ? (
-                                        <button
-                                            onClick={() => {
-                                                setAssigningTemplateId(plan.id);
-                                                setShowAssignModal(true);
-                                            }}
-                                            className="flex-1 px-3 py-2 text-sm font-medium text-white bg-brand rounded-lg hover:bg-brand/90 text-center transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Users className="w-4 h-4" />
-                                            Assign to Client
-                                        </button>
-                                    ) : (
-                                        <Link
-                                            href={`/dashboard/diet-plans/${plan.id}`}
-                                            className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 text-center transition-colors"
-                                        >
-                                            View Details
-                                        </Link>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
+                    {filteredPlans.map((plan) => (
+                        <PlanCard key={plan.id} plan={plan} isTemplateView={false} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} setAssigningTemplateId={setAssigningTemplateId} setShowAssignModal={setShowAssignModal} />
+                    ))}
                 </div>
             )}
 

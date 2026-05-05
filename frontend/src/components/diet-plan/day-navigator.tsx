@@ -62,7 +62,7 @@ export function DayNavigator({ planDates, selectedDayIndex, onSelectDay, isTempl
                             )}
                         </button>
                     ))}
-                    {onAddDay && planDates.length < 7 && (
+                    {onAddDay && planDates.length < (isTemplateMode ? 30 : 7) && (
                         <button
                             onClick={onAddDay}
                             className="p-1.5 rounded-full hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"

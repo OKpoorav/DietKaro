@@ -9,7 +9,7 @@ export interface ClientAuthRequest extends Request {
         id: string;
         fullName: string;
         phone: string;
-        email: string;
+        email: string | null;
         orgId: string;
     };
 }

@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle, Tag } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, Tag, Phone } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { Client } from '@/lib/hooks/use-clients';
 import { suggestTagIds, useTags } from '@/lib/hooks/use-tags';
 import { TagMultiSelect } from '@/components/clients/tag-multiselect';
+import { TagInput } from '@/components/ui/tag-input';
 
 interface EditClientModalProps {
     isOpen: boolean;
@@ -26,10 +27,25 @@ export interface EditClientFormData {
     heightCm: string;
     currentWeightKg: string;
     targetWeightKg: string;
-    allergies: string;
-    medicalConditions: string;
+    allergies: string[];
+    medicalConditions: string[];
     tagIds: string[];
+    altPhone: string;
+    altPhoneRelation: string;
+    remarks: string;
+    loginEnabled: boolean;
 }
+
+const ALLERGY_SUGGESTIONS = [
+    'Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish',
+    'Sesame', 'Gluten', 'Lactose', 'Sulfites', 'MSG', 'Artificial Colors',
+];
+
+const MEDICAL_CONDITION_SUGGESTIONS = [
+    'Diabetes Type 1', 'Diabetes Type 2', 'Hypertension', 'Thyroid', 'PCOD/PCOS',
+    'Heart Disease', 'Kidney Disease', 'Liver Disease', 'Anemia', 'Osteoporosis',
+    'IBS', 'Celiac Disease', 'Asthma', 'Arthritis', 'High Cholesterol',
+];
 
 export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }: EditClientModalProps) {
     const [formData, setFormData] = useState<EditClientFormData>({
@@ -41,9 +57,13 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
         heightCm: '',
         currentWeightKg: '',
         targetWeightKg: '',
-        allergies: '',
-        medicalConditions: '',
+        allergies: [],
+        medicalConditions: [],
         tagIds: [],
+        altPhone: '',
+        altPhoneRelation: '',
+        remarks: '',
+        loginEnabled: false,
     });
 
     const { data: tags } = useTags();
@@ -59,9 +79,13 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                 heightCm: client.heightCm ? String(client.heightCm) : '',
                 currentWeightKg: client.currentWeightKg ? String(client.currentWeightKg) : '',
                 targetWeightKg: client.targetWeightKg ? String(client.targetWeightKg) : '',
-                allergies: (client.medicalProfile?.allergies ?? client.allergies ?? []).join(', '),
-                medicalConditions: (client.medicalProfile?.conditions ?? client.medicalConditions ?? []).join(', '),
+                allergies: client.medicalProfile?.allergies ?? client.allergies ?? [],
+                medicalConditions: client.medicalProfile?.conditions ?? client.medicalConditions ?? [],
                 tagIds: client.tagAssignments?.map((a) => a.tagId) ?? [],
+                altPhone: client.altPhone || '',
+                altPhoneRelation: client.altPhoneRelation || '',
+                remarks: client.remarks || '',
+                loginEnabled: client.loginEnabled ?? false,
             });
         }
     }, [isOpen, client]);
@@ -70,10 +94,7 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
         () =>
             suggestTagIds(tags ?? [], {
                 goal: client.goal,
-                medicalConditions: formData.medicalConditions
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
+                medicalConditions: formData.medicalConditions,
             }),
         [tags, client.goal, formData.medicalConditions],
     );
@@ -115,14 +136,13 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Email Address *
+                                Email Address
                             </label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
                                     type="email"
                                     name="email"
-                                    required
                                     value={formData.email}
                                     onChange={handleChange}
                                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
@@ -172,6 +192,44 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                                 <option value="female">Female</option>
                                 <option value="other">Other</option>
                             </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Alt Contact */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+                        Alternate Contact
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Alt Phone
+                            </label>
+                            <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <input
+                                    type="text"
+                                    name="altPhone"
+                                    value={formData.altPhone}
+                                    onChange={handleChange}
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                    placeholder="+91 99999 00000"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Relation (e.g. Spouse, Parent)
+                            </label>
+                            <input
+                                type="text"
+                                name="altPhoneRelation"
+                                value={formData.altPhoneRelation}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                placeholder="Spouse"
+                            />
                         </div>
                     </div>
                 </div>
@@ -238,26 +296,22 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Allergies
                             </label>
-                            <textarea
-                                name="allergies"
+                            <TagInput
                                 value={formData.allergies}
-                                onChange={handleChange}
-                                rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Dairy, Peanuts, Shellfish..."
+                                onChange={(tags) => setFormData({ ...formData, allergies: tags })}
+                                suggestions={ALLERGY_SUGGESTIONS}
+                                placeholder="Add allergies..."
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Medical Conditions
                             </label>
-                            <textarea
-                                name="medicalConditions"
+                            <TagInput
                                 value={formData.medicalConditions}
-                                onChange={handleChange}
-                                rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Diabetes, Hypertension..."
+                                onChange={(tags) => setFormData({ ...formData, medicalConditions: tags })}
+                                suggestions={MEDICAL_CONDITION_SUGGESTIONS}
+                                placeholder="Add conditions..."
                             />
                         </div>
                     </div>
@@ -274,6 +328,39 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                         onChange={(tagIds) => setFormData({ ...formData, tagIds })}
                         suggestedIds={suggestedTagIds}
                     />
+                </div>
+
+                {/* Internal Remarks & Login */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+                        Internal Notes & Access
+                    </h3>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Internal Remarks
+                        </label>
+                        <textarea
+                            name="remarks"
+                            value={formData.remarks}
+                            onChange={handleChange}
+                            rows={3}
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
+                            placeholder="Internal notes visible only to dietitians..."
+                        />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.loginEnabled}
+                                onChange={(e) => setFormData({ ...formData, loginEnabled: e.target.checked })}
+                                className="sr-only peer"
+                            />
+                            <div className="w-10 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-brand/30 rounded-full peer peer-checked:bg-brand transition-colors" />
+                            <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
+                        </label>
+                        <span className="text-sm font-medium text-gray-700">Allow app login</span>
+                    </div>
                 </div>
 
                 {/* Actions */}

@@ -61,11 +61,18 @@ export const ensureClerkUser = asyncHandler(async (req: Request, res: Response) 
 
     const client = await prisma.client.findFirst({
         where: { email: { equals: email.toLowerCase().trim(), mode: 'insensitive' }, isActive: true },
-        select: { id: true, fullName: true },
+        select: { id: true, fullName: true, loginEnabled: true },
     });
 
     if (!client) {
         throw AppError.notFound('No account found with this email.', 'CLIENT_NOT_FOUND');
+    }
+
+    if (!client.loginEnabled) {
+        throw AppError.forbidden(
+            'App access is not enabled for this account. Please contact your dietitian.',
+            'LOGIN_DISABLED',
+        );
     }
 
     const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
@@ -110,13 +117,20 @@ export const checkClientEmail = asyncHandler(async (req: Request, res: Response)
 
     const client = await prisma.client.findFirst({
         where: { email: { equals: email.toLowerCase().trim(), mode: 'insensitive' }, isActive: true },
-        select: { id: true, fullName: true },
+        select: { id: true, fullName: true, loginEnabled: true },
     });
 
     if (!client) {
         throw AppError.notFound(
             'No account found with this email. Please contact your dietitian.',
             'CLIENT_NOT_FOUND',
+        );
+    }
+
+    if (!client.loginEnabled) {
+        throw AppError.forbidden(
+            'App access is not enabled for this account. Please contact your dietitian.',
+            'LOGIN_DISABLED',
         );
     }
 
@@ -164,6 +178,13 @@ export const clerkLogin = asyncHandler(async (req: Request, res: Response) => {
 
     if (!client) {
         throw AppError.notFound('No account found with this email. Please contact your dietitian.', 'CLIENT_NOT_FOUND');
+    }
+
+    if (!client.loginEnabled) {
+        throw AppError.forbidden(
+            'App access is not enabled for this account. Please contact your dietitian.',
+            'LOGIN_DISABLED',
+        );
     }
 
     const accessToken = signClientAccessToken(client.id);

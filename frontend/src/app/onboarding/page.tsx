@@ -1,0 +1,253 @@
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import axios from 'axios';
+import { TagInput } from '@/components/ui/tag-input';
+
+const API = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/v1`;
+
+const ALLERGY_SUGGESTIONS = ['Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Gluten', 'Lactose'];
+const DISLIKE_SUGGESTIONS = ['Broccoli', 'Spinach', 'Bitter Gourd', 'Lady Finger', 'Mushroom', 'Onion', 'Garlic', 'Fish', 'Eggs', 'Paneer', 'Tofu'];
+
+interface ClientInfo {
+    id: string;
+    fullName: string;
+    email?: string;
+    phone: string;
+}
+
+function OnboardingForm() {
+    const searchParams = useSearchParams();
+    const token = searchParams.get('token');
+
+    const [state, setState] = useState<'loading' | 'form' | 'done' | 'error'>('loading');
+    const [client, setClient] = useState<ClientInfo | null>(null);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    const [form, setForm] = useState({
+        heightCm: '',
+        currentWeightKg: '',
+        targetWeightKg: '',
+        dateOfBirth: '',
+        gender: '',
+        activityLevel: '',
+        dietPattern: '',
+        eggAllowed: '',
+        goal: '',
+        goalDeadline: '',
+    });
+    const [allergies, setAllergies] = useState<string[]>([]);
+    const [dislikes, setDislikes] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (!token) { setState('error'); setErrorMsg('Invalid link. No token provided.'); return; }
+        axios.get(`${API}/onboarding-invite/${token}`)
+            .then((res) => { setClient(res.data.data.client); setState('form'); })
+            .catch((err) => {
+                const msg = err?.response?.data?.error?.message ?? 'This link is invalid or has expired.';
+                setErrorMsg(msg);
+                setState('error');
+            });
+    }, [token]);
+
+    const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            const payload: Record<string, unknown> = {};
+            if (form.heightCm) payload.heightCm = Number(form.heightCm);
+            if (form.currentWeightKg) payload.currentWeightKg = Number(form.currentWeightKg);
+            if (form.targetWeightKg) payload.targetWeightKg = Number(form.targetWeightKg);
+            if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
+            if (form.gender) payload.gender = form.gender;
+            if (form.activityLevel) payload.activityLevel = form.activityLevel;
+            if (form.dietPattern) payload.dietPattern = form.dietPattern;
+            if (form.eggAllowed !== '') payload.eggAllowed = form.eggAllowed === 'yes';
+            if (form.goal) payload.goal = form.goal;
+            if (form.goalDeadline) payload.goalDeadline = form.goalDeadline;
+            if (allergies.length > 0) payload.allergies = allergies;
+            if (dislikes.length > 0) payload.dislikes = dislikes;
+
+            await axios.post(`${API}/onboarding-invite/${token}/submit`, payload);
+            setState('done');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Something went wrong. Please try again.';
+            setErrorMsg(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const input = 'w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-colors';
+    const label = 'block text-sm font-medium text-gray-700 mb-1.5';
+
+    if (state === 'loading') return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+    );
+
+    if (state === 'error') return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center">
+                <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-2xl">⚠️</div>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">Link Unavailable</h2>
+                <p className="text-sm text-gray-500">{errorMsg}</p>
+                <p className="text-xs text-gray-400 mt-4">Contact your dietitian to get a new link.</p>
+            </div>
+        </div>
+    );
+
+    if (state === 'done') return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4 text-2xl">🎉</div>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">All Done!</h2>
+                <p className="text-sm text-gray-500">Your information has been submitted. Your dietitian will get started on your plan soon.</p>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-gray-50 py-8 px-4">
+            <div className="max-w-lg mx-auto">
+                {/* Header */}
+                <div className="text-center mb-6">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3 text-lg font-bold text-emerald-700">
+                        {client?.fullName?.charAt(0)}
+                    </div>
+                    <h1 className="text-xl font-bold text-gray-900">Welcome, {client?.fullName?.split(' ')[0]}!</h1>
+                    <p className="text-sm text-gray-500 mt-1">Fill in your details so we can build your personalised plan.</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+                    {/* Body Stats */}
+                    <section>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Body Stats</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className={label}>Date of Birth</label>
+                                <input type="date" className={input} value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className={label}>Gender</label>
+                                <select className={input} value={form.gender} onChange={(e) => set('gender', e.target.value)}>
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={label}>Height (cm)</label>
+                                <input type="number" className={input} placeholder="165" value={form.heightCm} onChange={(e) => set('heightCm', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className={label}>Current Weight (kg)</label>
+                                <input type="number" className={input} placeholder="70" value={form.currentWeightKg} onChange={(e) => set('currentWeightKg', e.target.value)} />
+                            </div>
+                            <div className="col-span-2">
+                                <label className={label}>Target Weight (kg)</label>
+                                <input type="number" className={input} placeholder="65" value={form.targetWeightKg} onChange={(e) => set('targetWeightKg', e.target.value)} />
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Lifestyle */}
+                    <section>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Lifestyle</p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className={label}>Activity Level</label>
+                                <select className={input} value={form.activityLevel} onChange={(e) => set('activityLevel', e.target.value)}>
+                                    <option value="">Select</option>
+                                    <option value="sedentary">Sedentary (desk job, little exercise)</option>
+                                    <option value="lightly_active">Lightly Active (1–3 days/week)</option>
+                                    <option value="moderately_active">Moderately Active (3–5 days/week)</option>
+                                    <option value="very_active">Very Active (daily intense exercise)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={label}>Diet Type</label>
+                                <select className={input} value={form.dietPattern} onChange={(e) => set('dietPattern', e.target.value)}>
+                                    <option value="">Select</option>
+                                    <option value="vegetarian">Vegetarian</option>
+                                    <option value="non_vegetarian">Non-Vegetarian</option>
+                                    <option value="vegan">Vegan</option>
+                                    <option value="eggetarian">Eggetarian</option>
+                                    <option value="jain">Jain</option>
+                                </select>
+                            </div>
+                            {(form.dietPattern === 'vegetarian' || form.dietPattern === 'jain') && (
+                                <div>
+                                    <label className={label}>Do you eat eggs?</label>
+                                    <div className="flex gap-3">
+                                        {['yes', 'no'].map((v) => (
+                                            <button key={v} type="button" onClick={() => set('eggAllowed', v)}
+                                                className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-colors ${form.eggAllowed === v ? 'bg-emerald-50 border-emerald-400 text-emerald-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                                                {v === 'yes' ? 'Yes' : 'No'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Food Preferences */}
+                    <section>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Food Preferences</p>
+                        <div className="space-y-4">
+                            <div>
+                                <label className={label}>Allergies</label>
+                                <TagInput value={allergies} onChange={setAllergies} suggestions={ALLERGY_SUGGESTIONS} placeholder="Type an allergy..." />
+                                <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
+                            </div>
+                            <div>
+                                <label className={label}>Food Dislikes</label>
+                                <TagInput value={dislikes} onChange={setDislikes} suggestions={DISLIKE_SUGGESTIONS} placeholder="Foods you don't like..." />
+                                <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Goal */}
+                    <section>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Your Goal</p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className={label}>What's your goal?</label>
+                                <input type="text" className={input} placeholder="e.g. Lose 10kg, Manage diabetes, Build muscle..." value={form.goal} onChange={(e) => set('goal', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className={label}>Target date (optional)</label>
+                                <input type="date" className={input} value={form.goalDeadline} onChange={(e) => set('goalDeadline', e.target.value)} />
+                            </div>
+                        </div>
+                    </section>
+
+                    {errorMsg && <p className="text-sm text-red-500 text-center">{errorMsg}</p>}
+
+                    <button type="submit" disabled={submitting}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                        {submitting ? 'Submitting...' : 'Submit My Details'}
+                    </button>
+                </form>
+
+                <p className="text-center text-xs text-gray-400 mt-4">Your information is private and only shared with your dietitian.</p>
+            </div>
+        </div>
+    );
+}
+
+export default function OnboardingPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>}>
+            <OnboardingForm />
+        </Suspense>
+    );
+}

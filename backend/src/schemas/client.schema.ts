@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createClientSchema = z.object({
     fullName: z.string().min(2, 'Full name must be at least 2 characters'),
-    email: z.string().email('Invalid email format'),
+    email: z.string().email('Invalid email format').optional(),
     phone: z.string().min(10, 'Phone must be at least 10 characters'),
     dateOfBirth: z.string().optional(),
     gender: z.enum(['male', 'female', 'other']).optional(),
@@ -27,6 +27,10 @@ export const createClientSchema = z.object({
     referralSource: z.enum(['doctor', 'dietitian', 'client_referral', 'social_media', 'website', 'other']).optional(),
     referralSourceName: z.string().optional(),
     referralSourcePhone: z.string().optional(),
+    loginEnabled: z.boolean().optional().default(false),
+    altPhone: z.string().min(10).max(20).optional(),
+    altPhoneRelation: z.string().max(100).optional(),
+    remarks: z.string().max(2000).optional(),
 });
 
 export const foodRestrictionSchema = z.object({

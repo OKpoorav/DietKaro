@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { Gender, LeadTemperature, ReferralType, FollowupType, TouchpointKind } from '@prisma/client';
+import { Gender, LeadTemperature, ReferralType, TouchpointKind } from '@prisma/client';
+import prisma from '../utils/prisma';
 import { requireAuth, requireRole } from '../middleware/auth.middleware';
 import { writeOperationLimiter } from '../middleware/rateLimiter';
 import { validateBody } from '../middleware/validation.middleware';
@@ -34,7 +35,17 @@ const createLeadSchema = z.object({
 
 const followupSchema = z.object({
     dueAt: z.string().datetime(),
-    type: z.nativeEnum(FollowupType),
+    type: z.enum(['call', 'visit', 'todo']),
+    notes: z.string().max(1000).optional(),
+    outcome: z.enum(['outgoing', 'incoming', 'answered', 'unanswered', 'callback_requested', 'meeting_scheduled', 'confirmed', 'lost']).optional(),
+    lostReason: z.string().max(500).optional(),
+    callbackAt: z.string().datetime().optional(),
+});
+
+const completeFollowupSchema = z.object({
+    outcome: z.enum(['outgoing', 'incoming', 'answered', 'unanswered', 'callback_requested', 'meeting_scheduled', 'confirmed', 'lost']).optional(),
+    lostReason: z.string().max(500).optional(),
+    callbackAt: z.string().datetime().optional(),
     notes: z.string().max(1000).optional(),
 });
 
@@ -48,7 +59,7 @@ const manualTouchpointSchema = z.object({
 
 const convertSchema = z.object({
     fullName: z.string().min(1),
-    email: z.string().email(),
+    email: z.string().email().optional(),
     phone: z.string().min(5).max(20),
     altPhone: z.string().optional(),
     gender: z.nativeEnum(Gender).optional(),
@@ -154,7 +165,11 @@ router.post('/:id/followups', writeOperationLimiter, validateBody(followupSchema
         if (!req.user) throw AppError.unauthorized();
         const followup = await followupsSvc.createFollowup(
             req.params.id, req.user.organizationId, req.user.id,
-            { ...req.body, dueAt: new Date(req.body.dueAt) },
+            {
+                ...req.body,
+                dueAt: new Date(req.body.dueAt),
+                callbackAt: req.body.callbackAt ? new Date(req.body.callbackAt) : undefined,
+            },
         );
         res.status(201).json({ success: true, data: followup });
     }),
@@ -165,16 +180,43 @@ router.patch('/:id/followups/:fId', writeOperationLimiter, validateBody(followup
         if (!req.user) throw AppError.unauthorized();
         const data = { ...req.body };
         if (data.dueAt) data.dueAt = new Date(data.dueAt);
+        if (data.callbackAt) data.callbackAt = new Date(data.callbackAt);
         const followup = await followupsSvc.updateFollowup(req.params.fId, req.params.id, req.user.organizationId, data);
         res.json({ success: true, data: followup });
     }),
 );
 
-router.post('/:id/followups/:fId/complete', writeOperationLimiter,
+router.post('/:id/followups/:fId/complete', writeOperationLimiter, validateBody(completeFollowupSchema),
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
         if (!req.user) throw AppError.unauthorized();
-        const followup = await followupsSvc.completeFollowup(req.params.fId, req.params.id, req.user.organizationId, req.user.id);
+        const outcomeData = {
+            ...req.body,
+            callbackAt: req.body.callbackAt ? new Date(req.body.callbackAt) : undefined,
+        };
+        const followup = await followupsSvc.completeFollowup(req.params.fId, req.params.id, req.user.organizationId, req.user.id, outcomeData);
         res.json({ success: true, data: followup });
+    }),
+);
+
+// ── Lead Notes (append-only) ───────────────────────────────────────────────
+const noteSchema = z.object({
+    text: z.string().min(1).max(5000),
+});
+
+router.post('/:id/notes', writeOperationLimiter, validateBody(noteSchema),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        if (!req.user) throw AppError.unauthorized();
+        // Create append-only touchpoint for history
+        const touchpoint = await touchpointsSvc.logTouchpoint(
+            req.params.id, 'note_added' as TouchpointKind, req.user.id,
+            { text: req.body.text },
+        );
+        // Also update lead's notes field (latest note = visible in detail view)
+        await prisma.lead.updateMany({
+            where: { id: req.params.id, orgId: req.user.organizationId },
+            data: { notes: req.body.text },
+        });
+        res.status(201).json({ success: true, data: touchpoint });
     }),
 );
 

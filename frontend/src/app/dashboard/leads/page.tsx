@@ -7,18 +7,19 @@ import Link from 'next/link';
 import {
     Plus, Search, MoreHorizontal, UserCheck, Archive,
     CalendarClock, ExternalLink, ChevronLeft, ChevronRight, MessageSquare,
-    FileText,
+    FileText, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useLeads, useArchiveLead, type Lead, type LeadFilters } from '@/lib/hooks/use-leads';
+import { useLeads, useArchiveLead, useUpdateLead, type Lead, type LeadFilters } from '@/lib/hooks/use-leads';
+import { useLeadStatuses, type LeadStatus } from '@/lib/hooks/use-lead-statuses';
 import { usePermissions } from '@/lib/hooks/use-permissions';
-import { LeadStatusPill } from '@/components/leads/lead-status-pill';
-import { LeadTemperaturePill } from '@/components/leads/lead-temperature-pill';
 import { LeadFormModal } from '@/components/leads/lead-form-modal';
 import { AddFollowupModal } from '@/components/leads/add-followup-modal';
 import { ConvertToClientModal } from '@/components/leads/convert-to-client-modal';
 import { ShareProposalModal } from '@/components/leads/share-proposal-modal';
 import { toast } from 'sonner';
+import { InlineDropdown, type DropdownOption } from '@/components/ui/inline-dropdown';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 const PAGE_SIZE = 25;
 
@@ -81,6 +82,12 @@ function LeadRowMenu({ lead, onFollowup, onProposal, onConvert, onArchive }: {
                         className="fixed z-[101] w-52 bg-white rounded-xl shadow-xl border border-gray-200 p-1.5 space-y-0.5"
                         style={{ top: menuPos.top, left: menuPos.left }}
                     >
+                        <Link href={`/dashboard/leads/${lead.id}`}
+                            className={cn(item, 'text-gray-700 hover:bg-gray-100')}
+                            onClick={() => setOpen(false)}>
+                            <ExternalLink className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            View Details
+                        </Link>
                         <button className={cn(item, 'text-gray-700 hover:bg-gray-100')}
                             onClick={() => { setOpen(false); onProposal(); }}>
                             <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -113,6 +120,69 @@ function LeadRowMenu({ lead, onFollowup, onProposal, onConvert, onArchive }: {
     );
 }
 
+function LeadStatusSelect({ lead, statuses }: { lead: Lead; statuses: LeadStatus[] }) {
+    const updateLead = useUpdateLead(lead.id);
+    const [value, setValue] = useState(lead.statusId);
+
+    const current = statuses.find((s) => s.id === value);
+    const options: DropdownOption[] = statuses.map(s => ({ value: s.id, label: s.name, color: s.color }));
+
+    const handleChange = async (newStatusId: string) => {
+        setValue(newStatusId);
+        try {
+            await updateLead.mutateAsync({ statusId: newStatusId });
+        } catch {
+            setValue(lead.statusId);
+            toast.error('Failed to update status');
+        }
+    };
+
+    return (
+        <InlineDropdown
+            value={value}
+            options={options}
+            onChange={handleChange}
+            disabled={updateLead.isPending}
+        />
+    );
+}
+
+const TEMP_CONFIG = {
+    hot:  { label: '🔥 Hot',  cls: 'bg-red-100 border-red-200 text-red-700' },
+    warm: { label: '☀ Warm', cls: 'bg-amber-100 border-amber-200 text-amber-700' },
+    cold: { label: '❄ Cold', cls: 'bg-blue-100 border-blue-200 text-blue-700' },
+} as const;
+
+const TEMP_OPTIONS: DropdownOption<Lead['temperature']>[] = [
+    { value: 'hot', label: '🔥 Hot', color: '#dc2626' },
+    { value: 'warm', label: '☀ Warm', color: '#d97706' },
+    { value: 'cold', label: '❄ Cold', color: '#2563eb' },
+];
+
+function LeadTemperatureSelect({ lead }: { lead: Lead }) {
+    const updateLead = useUpdateLead(lead.id);
+    const [value, setValue] = useState(lead.temperature);
+
+    const handleChange = async (newTemp: Lead['temperature']) => {
+        setValue(newTemp);
+        try {
+            await updateLead.mutateAsync({ temperature: newTemp });
+        } catch {
+            setValue(lead.temperature);
+            toast.error('Failed to update temperature');
+        }
+    };
+
+    return (
+        <InlineDropdown
+            value={value}
+            options={TEMP_OPTIONS}
+            onChange={handleChange}
+            disabled={updateLead.isPending}
+        />
+    );
+}
+
 export default function LeadsPage() {
     const router = useRouter();
     const pathname = usePathname();
@@ -123,6 +193,7 @@ export default function LeadsPage() {
     const [followupLead, setFollowupLead] = useState<Lead | null>(null);
     const [proposalLead, setProposalLead] = useState<Lead | null>(null);
     const [convertLead, setConvertLead] = useState<Lead | null>(null);
+    const [archiveTarget, setArchiveTarget] = useState<Lead | null>(null);
 
     const [search, setSearch] = useState(searchParams.get('q') ?? '');
     const [page, setPage] = useState(parseInt(searchParams.get('page') ?? '1'));
@@ -146,13 +217,18 @@ export default function LeadsPage() {
     };
 
     const { data, isLoading } = useLeads(filters);
+    const { data: statuses = [] } = useLeadStatuses();
 
     const archiveMutation = useArchiveLead();
 
     const handleArchive = async (lead: Lead) => {
-        if (!confirm(`Archive "${lead.name}"?`)) return;
+        setArchiveTarget(lead);
+    };
+
+    const doArchive = async () => {
+        if (!archiveTarget) return;
         try {
-            await archiveMutation.mutateAsync(lead.id);
+            await archiveMutation.mutateAsync(archiveTarget.id);
             toast.success('Lead archived');
         } catch {
             toast.error('Failed to archive');
@@ -169,6 +245,15 @@ export default function LeadsPage() {
 
     return (
         <div className="space-y-6">
+            <ConfirmModal
+                isOpen={!!archiveTarget}
+                title="Archive Lead"
+                message={archiveTarget ? `Archive "${archiveTarget.name}"? You can restore them later.` : ''}
+                confirmLabel="Archive"
+                variant="warning"
+                onConfirm={doArchive}
+                onClose={() => setArchiveTarget(null)}
+            />
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
@@ -222,9 +307,7 @@ export default function LeadsPage() {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Mobile</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Source</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Reference</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Created</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Referral</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Temp.</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Next To-Do</th>
@@ -250,34 +333,29 @@ export default function LeadsPage() {
                                             </a>
                                         </td>
                                         <td className="px-4 py-3 text-gray-600">{lead.source?.name ?? '—'}</td>
-                                        <td className="px-4 py-3 text-gray-600 max-w-[120px] truncate">{lead.reference ?? '—'}</td>
                                         <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                                             {new Date(lead.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </td>
-                                        <td className="px-4 py-3 text-gray-600 text-xs capitalize">{lead.referralType?.replace(/_/g, ' ') ?? '—'}</td>
                                         <td className="px-4 py-3">
-                                            <LeadStatusPill name={lead.status.name} color={lead.status.color} />
+                                            {statuses.length > 0
+                                                ? <LeadStatusSelect lead={lead} statuses={statuses} />
+                                                : <span className="text-xs text-gray-600">{lead.status.name}</span>
+                                            }
                                         </td>
                                         <td className="px-4 py-3">
-                                            <LeadTemperaturePill temperature={lead.temperature} />
+                                            <LeadTemperatureSelect lead={lead} />
                                         </td>
                                         <td className="px-4 py-3">
                                             <FollowupCell followup={lead.followups?.[0]} />
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className="flex items-center gap-1">
-                                                <Link href={`/dashboard/leads/${lead.id}`}
-                                                    className="p-1.5 rounded-md text-gray-400 hover:text-emerald-600 hover:bg-emerald-50">
-                                                    <ExternalLink className="w-4 h-4" />
-                                                </Link>
-                                                <LeadRowMenu
-                                                    lead={lead}
-                                                    onProposal={() => setProposalLead(lead)}
-                                                    onFollowup={() => setFollowupLead(lead)}
-                                                    onConvert={() => setConvertLead(lead)}
-                                                    onArchive={() => handleArchive(lead)}
-                                                />
-                                            </div>
+                                            <LeadRowMenu
+                                                lead={lead}
+                                                onProposal={() => setProposalLead(lead)}
+                                                onFollowup={() => setFollowupLead(lead)}
+                                                onConvert={() => setConvertLead(lead)}
+                                                onArchive={() => handleArchive(lead)}
+                                            />
                                         </td>
                                     </tr>
                                 ))}

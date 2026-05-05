@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle, ThumbsDown, Goal, CalendarClock, FileText, Check, Flag, Tag } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, Goal, CalendarClock, FileText, Check, Flag, Tag, Send, Loader2 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { suggestTagIds, useSetClientTags, useTags } from '@/lib/hooks/use-tags';
 import { TagMultiSelect } from '@/components/clients/tag-multiselect';
+import { TagInput } from '@/components/ui/tag-input';
+import { useGenerateInvite } from '@/lib/hooks/use-onboarding-invite';
+import { toast } from 'sonner';
 
 interface AddClientModalProps {
     isOpen: boolean;
@@ -18,7 +21,7 @@ interface AddClientModalProps {
 
 interface ClientFormData {
     name: string;
-    email: string;
+    email?: string;
     phone: string;
     dateOfBirth: string;
     gender: string;
@@ -27,7 +30,7 @@ interface ClientFormData {
     targetWeight: string;
     allergies: string;
     medicalConditions: string;
-    dislikes: string;
+    dislikes: string[];
     goal: string;
     goalDeadline: string;
     healthNotes: string;
@@ -44,7 +47,7 @@ const INITIAL_FORM: ClientFormData = {
     targetWeight: '',
     allergies: '',
     medicalConditions: '',
-    dislikes: '',
+    dislikes: [],
     goal: '',
     goalDeadline: '',
     healthNotes: '',
@@ -57,6 +60,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
     const [submitting, setSubmitting] = useState(false);
     const [createdClientId, setCreatedClientId] = useState<string | null>(null);
     const [createdClientName, setCreatedClientName] = useState('');
+    const generateInvite = useGenerateInvite();
     const [tagIds, setTagIds] = useState<string[]>([]);
     const [tagsTouched, setTagsTouched] = useState(false);
 
@@ -167,14 +171,13 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Email Address *
+                                Email Address
                             </label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
                                     type="email"
                                     name="email"
-                                    required
                                     value={formData.email}
                                     onChange={handleChange}
                                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
@@ -326,15 +329,12 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Food Dislikes
                             </label>
-                            <textarea
-                                name="dislikes"
+                            <TagInput
                                 value={formData.dislikes}
-                                onChange={handleChange}
-                                rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Bitter gourd, Broccoli, Tofu..."
+                                onChange={(tags) => setFormData({ ...formData, dislikes: tags })}
+                                placeholder="Type a food (e.g. Peanuts)..."
                             />
-                            <p className="mt-1 text-xs text-gray-400">Comma-separated list of foods the client dislikes</p>
+                            <p className="mt-1 text-xs text-gray-400">Type and press Enter or comma to add</p>
                         </div>
                         <div className="space-y-4">
                             <div>
@@ -371,6 +371,20 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                         </div>
                     </div>
                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-brand" />
+                            Tags
+                        </label>
+                        <TagMultiSelect
+                            selectedIds={tagIds}
+                            onChange={handleTagsChange}
+                            suggestedIds={suggestedTagIds}
+                        />
+                        <p className="mt-1 text-xs text-gray-400">
+                            Suggestions are pre-checked from goal &amp; medical conditions. Adjust as needed.
+                        </p>
+                    </div>
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Additional Notes
                         </label>
@@ -385,20 +399,6 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 placeholder="Any extra information about the client..."
                             />
                         </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                            <Tag className="w-4 h-4 text-brand" />
-                            Tags
-                        </label>
-                        <TagMultiSelect
-                            selectedIds={tagIds}
-                            onChange={handleTagsChange}
-                            suggestedIds={suggestedTagIds}
-                        />
-                        <p className="mt-1 text-xs text-gray-400">
-                            Suggestions are pre-checked from goal &amp; medical conditions. Adjust as needed.
-                        </p>
                     </div>
                 </div>
 
@@ -422,35 +422,62 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                 </div>
             </form>
             ) : (
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-5">
                     <div className="flex flex-col items-center text-center gap-3">
                         <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center">
                             <Check className="w-6 h-6 text-brand" />
                         </div>
                         <div className="space-y-1">
                             <h3 className="text-lg font-semibold text-gray-900">
-                                {createdClientName || 'Client'} added
+                                {createdClientName || 'Client'} added!
                             </h3>
-                            <p className="text-sm text-gray-600">
-                                Create a diet plan now to get them started, or do it later from the client page.
-                            </p>
+                            <p className="text-sm text-gray-500">What would you like to do next?</p>
                         </div>
                     </div>
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-200">
+                    <div className="grid gap-2">
                         <button
                             type="button"
-                            onClick={onClose}
-                            className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            onClick={async () => {
+                                if (!createdClientId) return;
+                                try {
+                                    await generateInvite.mutateAsync({ clientId: createdClientId });
+                                    toast.success('Onboarding link sent');
+                                } catch {
+                                    toast.error('Failed to send onboarding link');
+                                }
+                            }}
+                            disabled={generateInvite.isPending}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-left transition-colors disabled:opacity-60"
                         >
-                            Later
+                            {generateInvite.isPending
+                                ? <Loader2 className="w-5 h-5 text-emerald-600 animate-spin shrink-0" />
+                                : <Send className="w-5 h-5 text-emerald-600 shrink-0" />}
+                            <div>
+                                <p className="text-sm font-semibold text-emerald-700">Send Onboarding Form</p>
+                                <p className="text-xs text-emerald-600/80">Client fills in their details via a link</p>
+                            </div>
                         </button>
                         <button
                             type="button"
                             onClick={handleCreateDietPlan}
-                            className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-gray-200 hover:bg-gray-50 text-left transition-colors"
                         >
-                            <Flag className="w-4 h-4" />
-                            Create Diet Plan
+                            <Flag className="w-5 h-5 text-brand shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-gray-800">Create Diet Plan</p>
+                                <p className="text-xs text-gray-500">Start building their plan now</p>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-gray-100 hover:bg-gray-50 text-left transition-colors"
+                        >
+                            <Check className="w-5 h-5 text-gray-400 shrink-0" />
+                            <div>
+                                <p className="text-sm font-semibold text-gray-600">Done for now</p>
+                                <p className="text-xs text-gray-400">You can do these later from the client page</p>
+                            </div>
                         </button>
                     </div>
                 </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square, Clock } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -128,8 +128,13 @@ function BuilderContent() {
     const isTemplateMode = searchParams.get('template') === 'true';
     const editId = searchParams.get('editId');
 
-    // Plan setup state — modal shown after client selection, before builder
-    const [setupResult, setSetupResult] = useState<PlanSetupResult | null>(editId ? { planName: '', startDate: new Date(), numDays: 1, overlapStrategy: 'overwrite' } : null);
+    // Template setup: read from URL params so useMealBuilder initialises correctly on first mount
+    const templateNumDays = isTemplateMode && !editId ? (parseInt(searchParams.get('numDays') || '0') || null) : null;
+    const templatePlanName = isTemplateMode && !editId ? (searchParams.get('planName') || null) : null;
+    const showTemplateSetup = isTemplateMode && !editId && !templateNumDays;
+
+    // Plan setup state — modal shown after client selection, before builder (non-template only)
+    const [setupResult, setSetupResult] = useState<PlanSetupResult | null>(editId ? { planName: '', startDate: new Date(), numDays: 1, mealCount: 3, overlapStrategy: 'overwrite' } : null);
     const [showSetupModal, setShowSetupModal] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
 
@@ -163,8 +168,8 @@ function BuilderContent() {
         editId,
         client,
         initialStartDate: setupResult?.startDate,
-        initialNumDays: setupResult?.numDays,
-        initialPlanName: setupResult?.planName,
+        initialNumDays: templateNumDays ?? setupResult?.numDays,
+        initialPlanName: templatePlanName ?? setupResult?.planName,
         overlapStrategy: setupResult?.overlapStrategy,
         overlappingPlanIds: setupResult?.overlappingPlanIds,
         onSaved: (isTemplate) => {
@@ -184,6 +189,15 @@ function BuilderContent() {
         if (selectedDayB >= builder.numDays) setSelectedDayB(Math.max(0, builder.numDays - 1));
     }, [builder.numDays, selectedDayA, selectedDayB]);
 
+    // Auto-apply slot template selected during setup (skip confirm since plan is new)
+    const slotApplied = useRef(false);
+    useEffect(() => {
+        if (!setupResult?.slotTemplateId || slotApplied.current || builder.editLoading) return;
+        slotApplied.current = true;
+        builder.applyTemplate(setupResult.slotTemplateId, { skipConfirm: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setupResult?.slotTemplateId, builder.editLoading]);
+
     // Step 1: Client selection screen
     if (!isTemplateMode && !clientId) {
         return <ClientSelector />;
@@ -195,6 +209,23 @@ function BuilderContent() {
 
     if (!isTemplateMode && !client) {
         return <div className="p-8 text-center text-red-500">Client not found.</div>;
+    }
+
+    // Template setup gate — name + days before entering builder
+    if (showTemplateSetup) {
+        return (
+            <TemplateSetupModal
+                isOpen={true}
+                onClose={() => router.back()}
+                onConfirm={(result) => {
+                    // Pass via URL so useMealBuilder initialises with the correct numDays on first mount
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set('numDays', String(result.numDays));
+                    params.set('planName', result.planName);
+                    router.replace(`/dashboard/diet-plans/new?${params.toString()}`);
+                }}
+            />
+        );
     }
 
     // Step 2: Plan setup modal — shown once after client loads, skipped for templates/edits
@@ -213,6 +244,7 @@ function BuilderContent() {
                     onClose={() => router.back()}
                     clientId={clientId!}
                     clientName={client?.fullName || ''}
+                    slotTemplates={templates.filter(t => t.templateCategory === 'slot_template')}
                     onConfirm={(result) => {
                         setSetupResult(result);
                         setShowSetupModal(false);
@@ -275,7 +307,7 @@ function BuilderContent() {
                                 className="flex items-center gap-2 h-10 px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <LayoutTemplate className="w-4 h-4" />
-                                Save as Slot Template
+                                Save as Meal Structure
                             </button>
                             <button
                                 onClick={() => builder.save(false)}
@@ -409,6 +441,69 @@ function BuilderContent() {
                 currentCalories={builder.getDayNutrition(selectedDayA).calories}
                 onApply={(factor, scope) => builder.bulkAdjust(factor, scope, selectedDayA)}
             />
+        </div>
+    );
+}
+
+function TemplateSetupModal({ isOpen, onClose, onConfirm }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (result: PlanSetupResult) => void;
+}) {
+    const [name, setName] = useState('');
+    const [nameError, setNameError] = useState('');
+    const [numDays, setNumDays] = useState(7);
+
+    const handleConfirm = () => {
+        if (!name.trim()) { setNameError('Template name is required'); return; }
+        onConfirm({ planName: name.trim(), startDate: new Date(), numDays, mealCount: 3, overlapStrategy: 'overwrite' });
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+                <h2 className="text-lg font-bold text-gray-900">Template Setup</h2>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Template Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        autoFocus
+                        value={name}
+                        onChange={(e) => { setName(e.target.value); setNameError(''); }}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand ${nameError ? 'border-red-400' : 'border-gray-300'}`}
+                        placeholder="e.g. PCOD 1200 kcal, Weight Loss 7-day"
+                    />
+                    {nameError && <p className="mt-1 text-xs text-red-500">{nameError}</p>}
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" /> Duration
+                    </label>
+                    <select
+                        value={numDays}
+                        onChange={(e) => setNumDays(parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none bg-white"
+                    >
+                        {[1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 30].map((d) => (
+                            <option key={d} value={d}>
+                                {d === 1 ? '1 day' : d <= 7 ? `${d} days` : d === 14 ? '14 days (2 weeks)' : d === 21 ? '21 days (3 weeks)' : '28 days (4 weeks)'}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={handleConfirm} className="px-5 py-2 text-sm font-medium text-white bg-brand hover:bg-brand/90 rounded-lg transition-colors">
+                        Start Building
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

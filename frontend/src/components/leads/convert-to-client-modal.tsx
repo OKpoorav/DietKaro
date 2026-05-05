@@ -26,7 +26,7 @@ export function ConvertToClientModal({ isOpen, onClose, lead }: ConvertToClientM
         try {
             const result = await convertLead.mutateAsync({
                 fullName: fullName.trim(),
-                email: email.trim(),
+                email: email.trim() || undefined,
                 phone: phone.trim(),
                 gender: (gender || undefined) as Lead['gender'],
                 city: city.trim() || undefined,
@@ -57,8 +57,8 @@ export function ConvertToClientModal({ isOpen, onClose, lead }: ConvertToClientM
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
-                        <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500" />
                     </div>
                     <div>

@@ -107,7 +107,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
         if (initialStartDate) setStartDate(initialStartDate);
         if (initialPlanName) setPlanName(initialPlanName);
-        if (initialNumDays && initialNumDays > 1) {
+        if (initialNumDays && initialNumDays >= 1) {
             setNumDays(initialNumDays);
             setWeeklyMeals(() => {
                 const meals: Record<number, LocalMeal[]> = {};
@@ -444,7 +444,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
     // Day management
     const addDay = useCallback(() => {
-        if (numDays >= 7) return;
+        if (numDays >= (isTemplateMode ? 30 : 7)) return;
         const newIndex = numDays;
         setNumDays(prev => prev + 1);
         setWeeklyMealsDirty(prev => ({ ...prev, [newIndex]: defaultMeals(client?.preferences) }));
@@ -691,8 +691,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [editId]);
 
     // Apply template with optional portion scaling
-    const applyTemplate = useCallback(async (templateId: string) => {
-        if (!confirm('This will replace all current meal entries with the selected template. Continue?')) return;
+    const applyTemplate = useCallback(async (templateId: string, opts?: { skipConfirm?: boolean }) => {
+        if (!opts?.skipConfirm && !confirm('This will replace all current meal entries with the selected template. Continue?')) return;
 
         setApplyingTemplateId(templateId);
         try {
@@ -703,6 +703,35 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 toast.error('Template has no meals');
                 return;
             }
+
+            // ── Slot template: apply meal structure to every existing day, don't touch numDays ──
+            if (template.templateCategory === 'slot_template') {
+                // Get day-0 meals as the structure blueprint
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const blueprint: LocalMeal[] = template.meals.map((tm: any) => ({
+                    id: makeId(),
+                    name: tm.name || tm.mealType,
+                    type: tm.mealType,
+                    time: tm.timeOfDay || '08:00',
+                    description: tm.description || '',
+                    instructions: tm.instructions || '',
+                    foods: [],
+                }));
+
+                setWeeklyMealsDirty(prev => {
+                    const updated: Record<number, LocalMeal[]> = {};
+                    const days = Object.keys(prev).map(Number);
+                    const count = days.length > 0 ? Math.max(...days) + 1 : numDays;
+                    for (let i = 0; i < count; i++) {
+                        updated[i] = blueprint.map(m => ({ ...m, id: makeId() }));
+                    }
+                    return updated;
+                });
+                toast.success(`Meal structure applied to all ${numDays} days`);
+                return;
+            }
+
+            // ── Full template: replace all days and sync numDays ──
 
             // Check if portion scaling needed
             let scaleFactor = 1;
@@ -783,7 +812,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             // Sync numDays to match template's day count
             const dayKeys = Object.keys(newWeeklyMeals).map(Number);
             const templateDayCount = dayKeys.length > 0 ? Math.max(...dayKeys) + 1 : 1;
-            setNumDays(Math.min(templateDayCount, 7));
+            setNumDays(Math.min(templateDayCount, isTemplateMode ? 30 : 7));
 
             if (!newWeeklyMeals[selectedDayIndex]) {
                 const firstDay = dayKeys.sort((a, b) => a - b)[0];
@@ -798,7 +827,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         } finally {
             setApplyingTemplateId(null);
         }
-    }, [api, client, selectedDayIndex]);
+    }, [api, client, selectedDayIndex, numDays, isTemplateMode]);
 
     // Apply a preset meal structure (empty slots)
     const applyPreset = useCallback((preset: MealSlotPreset) => {
@@ -825,8 +854,15 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         Object.entries(weeklyMeals).forEach(([dayIdx, dayMeals]) => {
             dayMeals.forEach(m => {
                 const mealType = inferMealType(m.name);
+                // Meal structure saves: strip all food items, keep only slots
+                const foodItems = slotOnly ? [] : m.foods.map(f => ({
+                    foodId: f.id,
+                    quantityG: f.quantityValue,
+                    notes: f.quantity,
+                    optionGroup: f.optionGroup,
+                    optionLabel: f.optionLabel,
+                }));
                 if (isTemplateMode) {
-                    // Templates: use relative dayOfWeek index
                     apiMeals.push({
                         dayOfWeek: parseInt(dayIdx),
                         mealType,
@@ -834,16 +870,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                         name: m.name,
                         description: m.description,
                         instructions: m.instructions,
-                        foodItems: slotOnly ? [] : m.foods.map(f => ({
-                            foodId: f.id,
-                            quantityG: f.quantityValue,
-                            notes: f.quantity,
-                            optionGroup: f.optionGroup,
-                            optionLabel: f.optionLabel,
-                        }))
+                        foodItems,
                     });
                 } else {
-                    // Individual plans: use specific mealDate
                     const mealDate = new Date(startDate);
                     mealDate.setDate(mealDate.getDate() + parseInt(dayIdx));
                     apiMeals.push({
@@ -853,13 +882,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                         name: m.name,
                         description: m.description,
                         instructions: m.instructions,
-                        foodItems: m.foods.map(f => ({
-                            foodId: f.id,
-                            quantityG: f.quantityValue,
-                            notes: f.quantity,
-                            optionGroup: f.optionGroup,
-                            optionLabel: f.optionLabel,
-                        }))
+                        foodItems,
                     });
                 }
             });

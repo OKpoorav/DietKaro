@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Copy, MessageCircle, Link } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useSubscriptionPlans } from '@/lib/hooks/use-subscription-plans';
 import { useProposalTemplate } from '@/lib/hooks/use-proposal-template';
@@ -21,60 +21,57 @@ export function ShareProposalModal({ isOpen, onClose, lead }: ShareProposalModal
     const recordProposal = useRecordProposal(lead.id);
 
     const [planId, setPlanId] = useState('');
-    const [generating, setGenerating] = useState(false);
-    const previewRef = useRef<HTMLDivElement>(null);
+    const [includePaymentLink, setIncludePaymentLink] = useState(false);
+    const [paymentLink, setPaymentLink] = useState('');
 
     const activePlans = plans.filter((p) => p.active);
     const selectedPlan = activePlans.find((p) => p.id === planId);
 
-    const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-    const dateStamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const fileName = `proposal-${lead.name.replace(/\s+/g, '-')}-${dateStamp}.pdf`;
+    const cost = selectedPlan ? `₹${Number(selectedPlan.costInr).toLocaleString('en-IN')}` : '';
+    const duration = selectedPlan
+        ? `${selectedPlan.intervalCount} ${selectedPlan.recurrenceUnit}${selectedPlan.intervalCount > 1 ? 's' : ''}`
+        : '';
 
-    const handleDownload = async () => {
+    const whatsappMessage = [
+        `Hi ${lead.name}! 👋`,
+        '',
+        `We've prepared a personalised diet plan for you:`,
+        '',
+        selectedPlan ? `📋 *${selectedPlan.name}*` : '📋 _(select a plan)_',
+        selectedPlan ? `⏱️ Duration: ${duration}` : null,
+        selectedPlan ? `💰 Price: ${cost}` : null,
+        includePaymentLink && paymentLink.trim() ? '' : null,
+        includePaymentLink && paymentLink.trim() ? `💳 Pay here: ${paymentLink.trim()}` : null,
+        '',
+        `Please review and let us know if you'd like to proceed.`,
+        '',
+        `Looking forward to helping you reach your goals! 🥗`,
+    ].filter((l) => l !== null).join('\n');
+
+    const handleWhatsApp = async () => {
         if (!planId) { toast.error('Select a plan first'); return; }
-        if (!previewRef.current) return;
-
-        setGenerating(true);
+        const phone = lead.primaryMobile.replace(/\D/g, '');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
         try {
-            const { default: jsPDF } = await import('jspdf');
-            const { default: html2canvas } = await import('html2canvas');
-
-            const canvas = await html2canvas(previewRef.current, {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-            });
-
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            const pageW = pdf.internal.pageSize.getWidth();
-            const pageH = pdf.internal.pageSize.getHeight();
-            const ratio = canvas.height / canvas.width;
-            const imgH = pageW * ratio;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pageW, Math.min(imgH, pageH));
-            pdf.save(fileName);
-
-            await recordProposal.mutateAsync({ planId, pdfFilename: fileName });
-            toast.success('Proposal downloaded');
-            onClose();
-        } catch (err) {
-            console.error(err);
-            toast.error('Failed to generate PDF');
-        } finally {
-            setGenerating(false);
+            await recordProposal.mutateAsync({ planId });
+        } catch {
+            // non-fatal — just record the touchpoint
         }
     };
 
-    const cost = selectedPlan ? Number(selectedPlan.costInr).toLocaleString('en-IN') : '—';
-    const duration = selectedPlan
-        ? `${selectedPlan.intervalCount} ${selectedPlan.recurrenceUnit}${selectedPlan.intervalCount > 1 ? 's' : ''}`
-        : '—';
+    const handleCopyMessage = async () => {
+        try {
+            await navigator.clipboard.writeText(whatsappMessage);
+            toast.success('Message copied');
+        } catch {
+            toast.error('Failed to copy');
+        }
+    };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Share Proposal" size="xl">
-            <div className="flex flex-col gap-5 p-1">
+        <Modal isOpen={isOpen} onClose={onClose} title="Share Proposal" size="md">
+            <div className="flex flex-col gap-4 p-1">
+
                 {/* Plan selector */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -83,7 +80,7 @@ export function ShareProposalModal({ isOpen, onClose, lead }: ShareProposalModal
                     <select
                         value={planId}
                         onChange={(e) => setPlanId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                     >
                         <option value="">Choose a plan...</option>
                         {activePlans.map((p) => (
@@ -92,87 +89,69 @@ export function ShareProposalModal({ isOpen, onClose, lead }: ShareProposalModal
                             </option>
                         ))}
                     </select>
+
+                    {/* Plan details pill */}
+                    {selectedPlan && (
+                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full font-medium">{duration}</span>
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">₹{Number(selectedPlan.costInr).toLocaleString('en-IN')}</span>
+                        </div>
+                    )}
                 </div>
 
-                {/* PDF Preview */}
-                <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
-                    <p className="text-xs text-gray-400 px-4 py-2 border-b border-gray-200 bg-white">Preview</p>
-                    <div className="overflow-y-auto max-h-[420px] p-4">
-                        <div
-                            ref={previewRef}
-                            className="bg-white font-sans text-gray-900 p-8 w-full"
-                            style={{ minHeight: 500, fontSize: 13 }}
-                        >
-                            {/* Header */}
-                            <div className="border-b-2 border-emerald-600 pb-4 mb-5">
-                                <h1 className="text-2xl font-bold text-gray-900">
-                                    {template?.headerCopy || 'Your Practice'}
-                                </h1>
-                                <p className="text-xs text-gray-500 mt-0.5">Personalised Nutrition Proposal</p>
-                            </div>
+                {/* Payment link toggle */}
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            checked={includePaymentLink}
+                            onChange={(e) => setIncludePaymentLink(e.target.checked)}
+                            className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                            <Link className="w-3.5 h-3.5 text-gray-400" />
+                            Include payment link in message
+                        </span>
+                    </label>
+                    {includePaymentLink && (
+                        <input
+                            type="url"
+                            value={paymentLink}
+                            onChange={(e) => setPaymentLink(e.target.value)}
+                            placeholder="https://rzp.io/... or any payment URL"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                        />
+                    )}
+                </div>
 
-                            {/* Lead info */}
-                            <div className="mb-5 space-y-1">
-                                <p><span className="font-semibold">Prepared for:</span> {lead.name}</p>
-                                {lead.primaryMobile && <p><span className="font-semibold">Mobile:</span> {lead.primaryMobile}</p>}
-                                {lead.email && <p><span className="font-semibold">Email:</span> {lead.email}</p>}
-                                <p className="text-gray-500 text-xs mt-1">Date: {today}</p>
-                            </div>
-
-                            {/* Plan details box */}
-                            <div className="border border-gray-200 rounded-lg p-5 mb-5 bg-gray-50 space-y-2">
-                                <p className="font-semibold text-base text-gray-800">
-                                    {selectedPlan?.name ?? 'Plan not selected'}
-                                </p>
-                                <p>Duration: <span className="font-medium">{duration}</span></p>
-                                <p>Price: <span className="font-bold text-emerald-700">₹{cost}</span></p>
-
-                                {template?.customFields?.map((f, i) => (
-                                    <p key={i} className="text-gray-700">
-                                        {f.label}: <span className="italic text-gray-400">___________</span>
-                                    </p>
-                                ))}
-                            </div>
-
-                            {/* Footer note */}
-                            {template?.footerNote && (
-                                <p className="text-xs text-gray-500 italic mb-5">{template.footerNote}</p>
-                            )}
-
-                            {/* Signature */}
-                            {template?.signatureLine && (
-                                <div className="border-t border-gray-200 pt-4 text-right text-xs text-gray-600">
-                                    {template.signatureLine}
-                                </div>
-                            )}
-                        </div>
+                {/* Message preview */}
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-gray-700">Message Preview</label>
+                        <button type="button" onClick={handleCopyMessage}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-emerald-600 transition-colors">
+                            <Copy className="w-3.5 h-3.5" /> Copy
+                        </button>
                     </div>
+                    <textarea
+                        readOnly
+                        rows={8}
+                        value={whatsappMessage}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 bg-gray-50 resize-none outline-none"
+                    />
                 </div>
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
-                    >
+                    <button type="button" onClick={onClose}
+                        className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">
                         Cancel
                     </button>
-                    <button
-                        onClick={handleDownload}
-                        disabled={!planId || generating}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                    >
-                        {generating ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
-                        ) : (
-                            <><Download className="w-4 h-4" /> Download PDF</>
-                        )}
+                    <button onClick={handleWhatsApp} disabled={!planId}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                        <MessageCircle className="w-4 h-4" /> Share on WhatsApp
                     </button>
                 </div>
-                <p className="text-xs text-gray-400 text-center -mt-2">
-                    PDF is generated in your browser. Share it manually via WhatsApp or email.
-                </p>
             </div>
         </Modal>
     );

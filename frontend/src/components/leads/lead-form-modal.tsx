@@ -6,6 +6,8 @@ import { useLeadSources } from '@/lib/hooks/use-lead-sources';
 import { useLeadStatuses } from '@/lib/hooks/use-lead-statuses';
 import { useCreateLead, useUpdateLead, type Lead, type LeadTemperature, type ReferralType } from '@/lib/hooks/use-leads';
 import { toast } from 'sonner';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 
 const REFERRAL_TYPES: { value: ReferralType; label: string }[] = [
     { value: 'existing_client', label: 'Existing Client' },
@@ -106,6 +108,9 @@ export function LeadFormModal({ isOpen, onClose, lead }: LeadFormModalProps) {
 
     const isPending = createLead.isPending || updateLead.isPending;
 
+    const isReferralSource = sources.find((s) => s.id === form.sourceId)?.name?.toLowerCase().includes('referral') ?? false;
+    const showReferralFields = isReferralSource || (isEdit && !!form.referralType);
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit Lead' : 'Add Lead'} size="lg">
             <form onSubmit={handleSubmit} className="space-y-5 p-1">
@@ -120,8 +125,13 @@ export function LeadFormModal({ isOpen, onClose, lead }: LeadFormModalProps) {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Primary Mobile <span className="text-red-500">*</span></label>
-                            <input required value={form.primaryMobile} onChange={(e) => set('primaryMobile', e.target.value)}
-                                className={INPUT} placeholder="+91 XXXXX XXXXX" />
+                            <PhoneInput
+                                international
+                                defaultCountry="IN"
+                                value={form.primaryMobile}
+                                onChange={(value) => set('primaryMobile', value || '')}
+                                className="phone-input-field"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Alt Mobile / WhatsApp</label>
@@ -166,18 +176,22 @@ export function LeadFormModal({ isOpen, onClose, lead }: LeadFormModalProps) {
                                 {sources.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Reference (Person)</label>
-                            <input value={form.reference} onChange={(e) => set('reference', e.target.value)}
-                                className={INPUT} placeholder="e.g. Dr. Mehta" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Referral Type</label>
-                            <select value={form.referralType} onChange={(e) => set('referralType', e.target.value)} className={INPUT}>
-                                <option value="">None</option>
-                                {REFERRAL_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                            </select>
-                        </div>
+                        {showReferralFields && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Reference (Person)</label>
+                                    <input value={form.reference} onChange={(e) => set('reference', e.target.value)}
+                                        className={INPUT} placeholder="e.g. Dr. Mehta" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Referral Type</label>
+                                    <select value={form.referralType} onChange={(e) => set('referralType', e.target.value)} className={INPUT}>
+                                        <option value="">None</option>
+                                        {REFERRAL_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                    </select>
+                                </div>
+                            </>
+                        )}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                             <select value={form.statusId} onChange={(e) => set('statusId', e.target.value)} className={INPUT}>
