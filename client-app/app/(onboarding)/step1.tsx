@@ -12,6 +12,8 @@ export default function BasicInfoScreen() {
     const [targetWeight, setTargetWeight] = useState('');
     const [gender, setGender] = useState('male');
     const [activityLevel, setActivityLevel] = useState('SEDENTARY');
+    const [altPhone, setAltPhone] = useState('');
+    const [altPhoneRelation, setAltPhoneRelation] = useState('');
     const [saving, setSaving] = useState(false);
 
     const handleNext = async () => {
@@ -28,6 +30,8 @@ export default function BasicInfoScreen() {
                 targetWeightKg: targetWeight ? parseFloat(targetWeight) : undefined,
                 gender,
                 activityLevel: activityLevel.toLowerCase(),
+                altPhone: altPhone || undefined,
+                altPhoneRelation: altPhoneRelation || undefined,
             });
             router.push('/(onboarding)/step2');
         } catch (error) {
@@ -105,6 +109,30 @@ export default function BasicInfoScreen() {
                         <Picker.Item label="Extremely Active (Physical job)" value="EXTREMELY_ACTIVE" />
                     </Picker>
                 </View>
+            </View>
+
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionLabel}>Emergency / Alt Contact (Optional)</Text>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Alt. Phone Number</Text>
+                <TextInput
+                    style={styles.input}
+                    value={altPhone}
+                    onChangeText={setAltPhone}
+                    keyboardType="phone-pad"
+                    placeholder="e.g. +91 98765 43210"
+                />
+            </View>
+
+            <View style={styles.formGroup}>
+                <Text style={styles.label}>Relation</Text>
+                <TextInput
+                    style={styles.input}
+                    value={altPhoneRelation}
+                    onChangeText={setAltPhoneRelation}
+                    placeholder="e.g. Spouse, Parent, Guardian"
+                />
             </View>
 
             <TouchableOpacity
@@ -188,5 +216,18 @@ const styles = StyleSheet.create({
         color: Colors.surface,
         fontSize: FontSizes.lg,
         fontWeight: FontWeights.semibold,
-    }
+    },
+    sectionDivider: {
+        height: 1,
+        backgroundColor: Colors.border,
+        marginBottom: Spacing.xl,
+    },
+    sectionLabel: {
+        fontSize: FontSizes.sm,
+        fontWeight: FontWeights.semibold,
+        color: Colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginBottom: Spacing.lg,
+    },
 });

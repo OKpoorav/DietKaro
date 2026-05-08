@@ -7,11 +7,15 @@ import { onboardingApi } from '../../services/api';
 
 export default function BodyMeasurementsScreen() {
     const router = useRouter();
+    const [upperArm, setUpperArm] = useState('');
     const [chest, setChest] = useState('');
     const [waist, setWaist] = useState('');
+    const [stomach, setStomach] = useState('');
+    const [bellyAboveNavel, setBellyAboveNavel] = useState('');
+    const [bellyBelowNavel, setBellyBelowNavel] = useState('');
     const [hips, setHips] = useState('');
-    const [thighs, setThighs] = useState('');
-    const [arms, setArms] = useState('');
+    const [upperThigh, setUpperThigh] = useState('');
+    const [calf, setCalf] = useState('');
     const [bodyFat, setBodyFat] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -36,21 +40,29 @@ export default function BodyMeasurementsScreen() {
     };
 
     const handleSave = async () => {
+        if (!validateMeasurement(upperArm, 'Upper Arm')) return;
         if (!validateMeasurement(chest, 'Chest')) return;
         if (!validateMeasurement(waist, 'Waist')) return;
+        if (!validateMeasurement(stomach, 'Stomach')) return;
+        if (!validateMeasurement(bellyAboveNavel, 'Belly (above navel)')) return;
+        if (!validateMeasurement(bellyBelowNavel, 'Belly (below navel)')) return;
         if (!validateMeasurement(hips, 'Hips')) return;
-        if (!validateMeasurement(thighs, 'Thighs')) return;
-        if (!validateMeasurement(arms, 'Arms')) return;
+        if (!validateMeasurement(upperThigh, 'Upper Thigh')) return;
+        if (!validateMeasurement(calf, 'Calf')) return;
         if (!validateBodyFat(bodyFat)) return;
 
         setSaving(true);
         try {
             await onboardingApi.saveStep(6, {
+                armsCm: upperArm ? parseFloat(upperArm) : undefined,
                 chestCm: chest ? parseFloat(chest) : undefined,
                 waistCm: waist ? parseFloat(waist) : undefined,
+                stomachCm: stomach ? parseFloat(stomach) : undefined,
+                bellyAboveNavelCm: bellyAboveNavel ? parseFloat(bellyAboveNavel) : undefined,
+                bellyBelowNavelCm: bellyBelowNavel ? parseFloat(bellyBelowNavel) : undefined,
                 hipsCm: hips ? parseFloat(hips) : undefined,
-                thighsCm: thighs ? parseFloat(thighs) : undefined,
-                armsCm: arms ? parseFloat(arms) : undefined,
+                thighsCm: upperThigh ? parseFloat(upperThigh) : undefined,
+                calfCm: calf ? parseFloat(calf) : undefined,
                 bodyFatPercentage: bodyFat ? parseFloat(bodyFat) : undefined,
             });
             router.replace('/(onboarding)/complete');
@@ -77,6 +89,16 @@ export default function BodyMeasurementsScreen() {
 
             <View style={styles.row}>
                 <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                    <Text style={styles.label}>Upper Arm (cm)</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={upperArm}
+                        onChangeText={setUpperArm}
+                        keyboardType="numeric"
+                        placeholder="e.g. 32"
+                    />
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Chest (cm)</Text>
                     <TextInput
                         style={styles.input}
@@ -86,7 +108,10 @@ export default function BodyMeasurementsScreen() {
                         placeholder="e.g. 95"
                     />
                 </View>
-                <View style={[styles.formGroup, { flex: 1 }]}>
+            </View>
+
+            <View style={styles.row}>
+                <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
                     <Text style={styles.label}>Waist (cm)</Text>
                     <TextInput
                         style={styles.input}
@@ -96,11 +121,44 @@ export default function BodyMeasurementsScreen() {
                         placeholder="e.g. 80"
                     />
                 </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>Stomach (cm)</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={stomach}
+                        onChangeText={setStomach}
+                        keyboardType="numeric"
+                        placeholder="around navel"
+                    />
+                </View>
             </View>
 
             <View style={styles.row}>
                 <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
-                    <Text style={styles.label}>Hips (cm)</Text>
+                    <Text style={styles.label}>Belly +2" above navel</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={bellyAboveNavel}
+                        onChangeText={setBellyAboveNavel}
+                        keyboardType="numeric"
+                        placeholder="e.g. 88"
+                    />
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>Belly +2" below navel</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={bellyBelowNavel}
+                        onChangeText={setBellyBelowNavel}
+                        keyboardType="numeric"
+                        placeholder="e.g. 92"
+                    />
+                </View>
+            </View>
+
+            <View style={styles.row}>
+                <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                    <Text style={styles.label}>Hip (cm)</Text>
                     <TextInput
                         style={styles.input}
                         value={hips}
@@ -110,11 +168,11 @@ export default function BodyMeasurementsScreen() {
                     />
                 </View>
                 <View style={[styles.formGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Thighs (cm)</Text>
+                    <Text style={styles.label}>Upper Thigh (cm)</Text>
                     <TextInput
                         style={styles.input}
-                        value={thighs}
-                        onChangeText={setThighs}
+                        value={upperThigh}
+                        onChangeText={setUpperThigh}
                         keyboardType="numeric"
                         placeholder="e.g. 55"
                     />
@@ -123,13 +181,13 @@ export default function BodyMeasurementsScreen() {
 
             <View style={styles.row}>
                 <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
-                    <Text style={styles.label}>Arms (cm)</Text>
+                    <Text style={styles.label}>Calf (cm)</Text>
                     <TextInput
                         style={styles.input}
-                        value={arms}
-                        onChangeText={setArms}
+                        value={calf}
+                        onChangeText={setCalf}
                         keyboardType="numeric"
-                        placeholder="e.g. 32"
+                        placeholder="e.g. 36"
                     />
                 </View>
                 <View style={[styles.formGroup, { flex: 1 }]}>

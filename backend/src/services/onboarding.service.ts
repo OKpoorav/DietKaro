@@ -136,6 +136,8 @@ export interface Step1Data {
     dateOfBirth?: string;
     gender?: 'male' | 'female' | 'other';
     activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'extremely_active';
+    altPhone?: string;
+    altPhoneRelation?: string;
 }
 
 export interface Step2Data {
@@ -167,6 +169,10 @@ export interface Step6Data {
     thighsCm?: number;
     armsCm?: number;
     bodyFatPercentage?: number;
+    stomachCm?: number;
+    bellyAboveNavelCm?: number;
+    bellyBelowNavelCm?: number;
+    calfCm?: number;
 }
 
 // ============ SERVICE ============
@@ -288,6 +294,10 @@ export class OnboardingService {
             thighsCm: bodyMeasurement.thighsCm ? Number(bodyMeasurement.thighsCm) : null,
             armsCm: bodyMeasurement.armsCm ? Number(bodyMeasurement.armsCm) : null,
             bodyFatPercentage: bodyMeasurement.bodyFatPercentage ? Number(bodyMeasurement.bodyFatPercentage) : null,
+            stomachCm: bodyMeasurement.stomachCm ? Number(bodyMeasurement.stomachCm) : null,
+            bellyAboveNavelCm: bodyMeasurement.bellyAboveNavelCm ? Number(bodyMeasurement.bellyAboveNavelCm) : null,
+            bellyBelowNavelCm: bodyMeasurement.bellyBelowNavelCm ? Number(bodyMeasurement.bellyBelowNavelCm) : null,
+            calfCm: bodyMeasurement.calfCm ? Number(bodyMeasurement.calfCm) : null,
         } : null;
 
         const totalSteps = ONBOARDING_STEPS.length;
@@ -315,6 +325,8 @@ export class OnboardingService {
                 dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
                 gender: data.gender,
                 activityLevel: data.activityLevel as ActivityLevel,
+                altPhone: data.altPhone || undefined,
+                altPhoneRelation: data.altPhoneRelation || undefined,
             }
         });
         logger.info('Onboarding step 1 saved', { clientId });
@@ -416,6 +428,10 @@ export class OnboardingService {
                 thighsCm: data.thighsCm,
                 armsCm: data.armsCm,
                 bodyFatPercentage: data.bodyFatPercentage,
+                stomachCm: data.stomachCm,
+                bellyAboveNavelCm: data.bellyAboveNavelCm,
+                bellyBelowNavelCm: data.bellyBelowNavelCm,
+                calfCm: data.calfCm,
             }
         });
         logger.info('Onboarding step 6 saved', { clientId });

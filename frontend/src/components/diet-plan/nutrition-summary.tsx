@@ -148,7 +148,7 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                                     min={min}
                                     max={max}
                                     value={draft[key]}
-                                    onChange={e => setDraft(prev => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
+                                    onChange={e => setDraft(prev => ({ ...prev, [key]: e.target.value === '' ? 0 : Number(e.target.value) }))}
                                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                                 />
                             </div>

@@ -71,6 +71,33 @@ const COMPLIANCE_BAR_COLOR: Record<string, string> = {
     RED: 'bg-red-400',
 };
 
+// ============ GOAL RING ============
+
+function GoalRing({ percent }: { percent: number }) {
+    const r = 54;
+    const circ = 2 * Math.PI * r;
+    const offset = circ * (1 - Math.min(Math.max(percent, 0), 100) / 100);
+    return (
+        <div className="relative w-40 h-40 mx-auto">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 140 140">
+                <circle cx="70" cy="70" r={r} fill="none" stroke="#f3f4f6" strokeWidth="14" />
+                <circle
+                    cx="70" cy="70" r={r}
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="14"
+                    strokeLinecap="round"
+                    strokeDasharray={circ}
+                    strokeDashoffset={offset}
+                />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-gray-900">{percent}%</span>
+                <span className="text-xs text-gray-500 text-center leading-tight">Goal<br />Complete</span>
+            </div>
+        </div>
+    );
+}
 
 // ============ PLAN SECTION (fetches its own full plan data) ============
 
@@ -80,7 +107,6 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
 
     const typeOrder: Record<string, number> = { breakfast: 0, lunch: 1, snack: 2, dinner: 3 };
 
-    // Group meals by date
     const mealsByDate = new Map<string, any[]>();
     if (fullPlan?.meals?.length) {
         const planStart = new Date(fullPlan.startDate);
@@ -104,8 +130,7 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
     const isCurrent = plan.status === 'active';
 
     return (
-        <div className={`rounded-xl bg-white shadow-sm border ${isCurrent ? 'border-brand/30' : 'border-gray-100'}`}>
-            {/* Plan header — always visible, clickable to expand/collapse */}
+        <div className={`rounded-2xl bg-white shadow-sm border ${isCurrent ? 'border-brand/30' : 'border-gray-100'}`}>
             <button
                 onClick={() => setCollapsed(c => !c)}
                 className="w-full p-5 flex items-center justify-between text-left"
@@ -133,44 +158,41 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
                 </div>
             </button>
 
-            {/* Expandable content */}
             {!collapsed && (
                 <div className="px-5 pb-5 space-y-4">
-                    {/* Macro targets */}
                     <div className="grid grid-cols-4 gap-3">
-                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                        <div className="bg-gray-50 p-2.5 rounded-xl text-center">
                             <p className="font-bold text-gray-900 text-sm">{plan.targetCalories ?? client?.targetCalories ?? '-'}</p>
                             <p className="text-gray-500 text-xs">Calories</p>
                         </div>
-                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                        <div className="bg-gray-50 p-2.5 rounded-xl text-center">
                             <p className="font-bold text-gray-900 text-sm">{plan.targetProteinG ?? client?.targetProteinG ?? '-'}g</p>
                             <p className="text-gray-500 text-xs">Protein</p>
                         </div>
-                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                        <div className="bg-gray-50 p-2.5 rounded-xl text-center">
                             <p className="font-bold text-gray-900 text-sm">{plan.targetCarbsG ?? client?.targetCarbsG ?? '-'}g</p>
                             <p className="text-gray-500 text-xs">Carbs</p>
                         </div>
-                        <div className="bg-gray-50 p-2.5 rounded text-center">
+                        <div className="bg-gray-50 p-2.5 rounded-xl text-center">
                             <p className="font-bold text-gray-900 text-sm">{plan.targetFatsG ?? client?.targetFatsG ?? '-'}g</p>
                             <p className="text-gray-500 text-xs">Fat</p>
                         </div>
                     </div>
 
-                    {/* Meals by day */}
                     {isLoading ? (
                         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
                     ) : mealsByDate.size > 0 ? (
                         <div className="space-y-4">
                             {Array.from(mealsByDate.entries()).map(([dateLabel, dayMeals]) => (
                                 <div key={dateLabel}>
-                                    <h4 className="text-xs font-semibold text-[#4e9767] uppercase tracking-wide mb-2 pb-1 border-b border-gray-100">
+                                    <h4 className="text-xs font-semibold text-brand uppercase tracking-wide mb-2 pb-1 border-b border-gray-100">
                                         {dateLabel}
                                     </h4>
                                     <div className="space-y-2">
                                         {dayMeals
                                             .sort((a: any, b: any) => (typeOrder[a.mealType] ?? 9) - (typeOrder[b.mealType] ?? 9))
                                             .map((meal: any) => (
-                                            <div key={meal.id} className="p-3 bg-gray-50 rounded-lg">
+                                            <div key={meal.id} className="p-3 bg-gray-50 rounded-xl">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-[10px] font-medium text-gray-400 uppercase">{meal.mealType}</span>
@@ -235,7 +257,7 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
     const isActive = invite && !isUsed && !isExpired;
 
     return (
-        <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-5">
+        <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <Link2 className="w-4 h-4" />
@@ -249,7 +271,6 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                     <span className="text-sm text-gray-400">Loading...</span>
                 </div>
             ) : isUsed ? (
-                /* State 4: Used */
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-emerald-600">
                         <CheckCircle className="w-4 h-4 shrink-0" />
@@ -268,7 +289,6 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                     </button>
                 </div>
             ) : isExpired ? (
-                /* State 5: Expired */
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-orange-500">
                         <AlertCircle className="w-4 h-4 shrink-0" />
@@ -287,7 +307,6 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                     </button>
                 </div>
             ) : isActive ? (
-                /* State 3: Active invite */
                 <div className="space-y-3">
                     <div className="flex items-center gap-2">
                         <input
@@ -317,7 +336,6 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                     </p>
                 </div>
             ) : (
-                /* State 2: No invite */
                 <div className="space-y-2">
                     <p className="text-sm text-gray-500">No onboarding link has been sent yet.</p>
                     <button
@@ -340,27 +358,22 @@ export default function ClientProfilePage() {
     const params = useParams();
     const clientId = params.id as string;
 
-    // Tab state
     const [activeTab, setActiveTab] = useState<ClientTab>('overview');
 
-    // API hooks — all data comes pre-computed from backend
     const { data: client, isLoading: clientLoading, error: clientError } = useClient(clientId);
     const { data: progress, isLoading: progressLoading } = useClientProgress(clientId);
     const { data: plansData } = useDietPlans({ clientId, isPublished: true });
     const { data: weeklyAdherence } = useWeeklyAdherence(clientId);
 
     const allPlans = (plansData?.data || []).slice().sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
-    const activePlan = allPlans[0]; // keep for backward compat (overview tab etc.)
+    const activePlan = allPlans[0];
 
-    // Tab-specific hooks (called unconditionally per React rules)
     const { data: fullPlan } = useDietPlan(activePlan?.id || '');
     const { data: mealLogsData, isLoading: mealLogsLoading } = useMealLogs({ clientId, pageSize: 20 });
     const { data: complianceHistory } = useComplianceHistory(clientId, 30);
     const updateClient = useUpdateClient();
 
-    // Edit client modal state
     const [editClientOpen, setEditClientOpen] = useState(false);
-
     const setClientTags = useSetClientTags();
 
     const handleEditClient = (data: EditClientFormData) => {
@@ -388,7 +401,6 @@ export default function ClientProfilePage() {
         });
     };
 
-    // Editable nutrition targets state
     const [editingTargets, setEditingTargets] = useState(false);
     const [targetDraft, setTargetDraft] = useState({
         targetCalories: 0,
@@ -437,19 +449,19 @@ export default function ClientProfilePage() {
         );
     }
 
-    // All values below come directly from backend — zero computation
     const age = calculateAge(client.dateOfBirth);
     const adherencePercent = progress?.meals?.adherencePercentage ?? 0;
     const weightChange = progress?.weight?.last30DaysChange;
+    const goalPercent = progress?.weight?.progressToGoal ?? 0;
 
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* ── Header ── */}
             <header className="flex flex-col gap-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <Link
                         href="/dashboard/clients"
-                        className="flex items-center gap-2 text-[#4e9767] hover:text-[#0e1b12] transition-colors"
+                        className="flex items-center gap-2 text-brand hover:text-gray-900 transition-colors"
                     >
                         <ArrowLeft className="w-5 h-5" />
                         <span className="text-sm font-medium">Back to Clients</span>
@@ -458,7 +470,7 @@ export default function ClientProfilePage() {
                         <button
                             type="button"
                             onClick={() => setEditClientOpen(true)}
-                            className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-bold transition-colors"
+                            className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-colors"
                         >
                             <Settings className="w-4 h-4" />
                             Edit Client
@@ -467,13 +479,13 @@ export default function ClientProfilePage() {
                             href={`/dashboard/messages?client=${clientId}`}
                             aria-label="Send Message"
                             title="Send Message"
-                            className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                            className="flex items-center justify-center w-10 h-10 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                         >
                             <Send className="w-5 h-5" />
                         </Link>
                         <Link
                             href={`/dashboard/diet-plans/new?clientId=${clientId}`}
-                            className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
+                            className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
                         >
                             <Flag className="w-4 h-4" />
                             Create Diet Plan
@@ -481,54 +493,33 @@ export default function ClientProfilePage() {
                     </div>
                 </div>
 
-                {/* Profile Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Profile card */}
+                <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
-                        <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-brand/20 flex items-center justify-center text-brand text-3xl md:text-4xl font-bold">
+                        <div className="w-20 h-20 rounded-full bg-brand/10 flex items-center justify-center text-brand text-2xl font-bold shrink-0">
                             {getInitials(client.fullName)}
                         </div>
                         <div className="flex flex-col justify-center">
-                          <div className="flex items-center gap-2">
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
-                              {client.fullName}
-                            </h1>
-                            <WhatsAppButton
-                              phone={client.phone}
-                              clientName={client.fullName}
-                              size="md"
-                            />
-                          </div>
-                
-                            <p className="text-[#4e9767]">
-                                {age && `Age: ${age}, `}
-                                {client.gender && `Gender: ${client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}`}
-                            </p>
-                            <div className="flex items-center gap-2 flex-wrap text-[#4e9767]">
-                                <span>{client.email} • {client.phone || 'No phone'}</span>
-                                <WhatsAppButton
-                                    phone={client.phone}
-                                    clientName={client.fullName}
-                                    size="sm"
-                                />
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{client.fullName}</h1>
+                                <WhatsAppButton phone={client.phone} clientName={client.fullName} size="md" />
                             </div>
+                            <p className="text-sm text-gray-500 mt-0.5">
+                                {age && `Age ${age}`}{age && client.gender && ' · '}{client.gender && client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}
+                            </p>
+                            <p className="text-sm text-gray-500">{client.email}{client.phone ? ` · ${client.phone}` : ''}</p>
                             {(client.tagAssignments?.length ?? 0) > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                <div className="flex flex-wrap gap-1.5 mt-2">
                                     {client.tagAssignments!.map((a) => (
-                                        <TagChip
-                                            key={a.tagId}
-                                            name={a.tag.name}
-                                            color={a.tag.color}
-                                            size="sm"
-                                        />
+                                        <TagChip key={a.tagId} name={a.tag.name} color={a.tag.color} size="sm" />
                                     ))}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Goal & Deadline */}
                     {(client.goal || client.goalDeadline) && (
-                        <div className="flex flex-col gap-2 rounded-xl bg-white border border-gray-100 shadow-sm p-4 md:min-w-[280px]">
+                        <div className="flex flex-col gap-2 md:min-w-[240px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
                             {client.goal && (
                                 <div className="flex items-start gap-2">
                                     <Target className="w-4 h-4 text-brand mt-0.5 shrink-0" />
@@ -554,136 +545,7 @@ export default function ClientProfilePage() {
                 </div>
             </header>
 
-            {/* Subscription + Payment History */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                <ClientSubscriptionCard clientId={clientId} clientName={client.fullName} />
-                <PaymentHistoryList clientId={clientId} />
-            </section>
-
-            {/* Onboarding Link */}
-            <OnboardingInviteCard clientId={clientId} />
-
-            {/* Key Metrics */}
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Weight Trend */}
-                <div className="flex flex-col gap-2 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-                    <p className="text-gray-900 font-medium">Weight Trend</p>
-                    <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold text-gray-900">
-                            {progress?.weight?.currentWeight ?? client.currentWeightKg ?? '-'} kg
-                        </p>
-                        <span className="text-gray-400 text-lg">/ {client.targetWeightKg ?? '-'} kg goal</span>
-                    </div>
-                    {weightChange !== null && weightChange !== undefined && (
-                        <div className="flex gap-1 items-center">
-                            <span className="text-sm text-[#4e9767]">Last 30 Days</span>
-                            <span className={`text-sm font-medium flex items-center gap-1 ${weightChange < 0 ? 'text-brand' : 'text-orange-500'}`}>
-                                {weightChange < 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
-                                {weightChange > 0 ? '+' : ''}{weightChange} kg
-                            </span>
-                        </div>
-                    )}
-                    {/* Weight progress bar — all values from backend */}
-                    <div className="mt-4">
-                        {progress?.weight?.startWeight && progress?.weight?.targetWeight ? (
-                            <div className="space-y-2">
-                                <div className="flex justify-between text-xs text-gray-400">
-                                    <span>Start: {progress.weight.startWeight} kg</span>
-                                    <span>Target: {progress.weight.targetWeight} kg</span>
-                                </div>
-                                <div className="h-3 rounded-full bg-gray-100">
-                                    <div
-                                        className="h-3 rounded-full bg-brand transition-all"
-                                        style={{ width: `${progress.weight.progressToGoal ?? 0}%` }}
-                                    />
-                                </div>
-                                <p className="text-xs text-[#4e9767] text-center">
-                                    {progress.weight.progressToGoal != null
-                                        ? `${progress.weight.progressToGoal}% to goal`
-                                        : 'Progress data unavailable'}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="h-16 flex items-center justify-center text-sm text-gray-400">
-                                No weight history available
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Adherence Score */}
-                <div className="flex flex-col gap-3 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between">
-                        <p className="text-gray-900 font-medium">Adherence Score</p>
-                        <div className="flex items-center gap-2">
-                            {weeklyAdherence?.trend && weeklyAdherence.trend !== 'stable' && (
-                                <span className={`text-xs font-medium flex items-center gap-1 ${weeklyAdherence.trend === 'improving' ? 'text-brand' : 'text-orange-500'}`}>
-                                    {weeklyAdherence.trend === 'improving' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                    {weeklyAdherence.trend === 'improving' ? 'Improving' : 'Declining'}
-                                </span>
-                            )}
-                            <p className={`text-2xl font-bold ${
-                                weeklyAdherence?.color === 'GREEN' ? 'text-brand' :
-                                weeklyAdherence?.color === 'YELLOW' ? 'text-yellow-500' :
-                                weeklyAdherence?.color === 'RED' ? 'text-red-500' :
-                                'text-brand'
-                            }`}>
-                                {weeklyAdherence ? `${weeklyAdherence.averageScore}%` : (progressLoading ? '...' : `${adherencePercent}%`)}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="h-2 rounded-full bg-brand/20">
-                        <div
-                            className="h-2 rounded-full bg-brand transition-all"
-                            style={{ width: `${weeklyAdherence?.averageScore ?? adherencePercent}%` }}
-                        />
-                    </div>
-                    <p className="text-sm text-[#4e9767]">
-                        {client.fullName.split(' ')[0]} has logged {progress?.meals?.eaten ?? 0} of {progress?.meals?.total ?? 0} meals.
-                    </p>
-
-                    {/* Weekly adherence chart — colors from backend */}
-                    {weeklyAdherence?.dailyBreakdown && (
-                        <div className="h-28 mt-2 flex gap-1">
-                            {weeklyAdherence.dailyBreakdown.map((day, i) => {
-                                const barColor = day.mealsLogged === 0
-                                    ? 'bg-gray-200'
-                                    : (COMPLIANCE_BAR_COLOR[day.color] || 'bg-gray-200');
-                                const dayLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' });
-                                return (
-                                    <div key={i} className="flex-1 flex flex-col items-center">
-                                        <div className="flex-1 w-full relative">
-                                            <div
-                                                className={`absolute bottom-0 inset-x-0 ${barColor} rounded-t transition-all`}
-                                                style={{ height: `${day.score || 4}%` }}
-                                                title={`${dayLabel}: ${day.score}%`}
-                                            />
-                                        </div>
-                                        <span className="text-[10px] text-gray-400 mt-1 shrink-0">{dayLabel}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    <div className="mt-auto pt-4 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-sm">
-                        <div>
-                            <p className="font-bold text-gray-900">{progress?.meals?.eaten ?? 0}</p>
-                            <p className="text-gray-500">Eaten</p>
-                        </div>
-                        <div>
-                            <p className="font-bold text-gray-900">{progress?.meals?.skipped ?? 0}</p>
-                            <p className="text-gray-500">Skipped</p>
-                        </div>
-                        <div>
-                            <p className="font-bold text-gray-900">{progress?.meals?.pending ?? 0}</p>
-                            <p className="text-gray-500">Pending</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Tab Navigation */}
+            {/* ── Tab Navigation ── */}
             <section>
                 <div className="border-b border-gray-200">
                     <nav className="-mb-px flex space-x-6">
@@ -694,7 +556,7 @@ export default function ClientProfilePage() {
                                 className={`whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
                                     activeTab === tab.key
                                         ? 'border-brand text-brand font-semibold'
-                                        : 'border-transparent text-[#4e9767] hover:border-gray-300 hover:text-gray-900'
+                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-900'
                                 }`}
                             >
                                 {tab.label}
@@ -705,46 +567,235 @@ export default function ClientProfilePage() {
 
                 {/* ===== OVERVIEW TAB ===== */}
                 {activeTab === 'overview' && (
-                    <div className="mt-6 space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Current Diet Plan */}
-                            <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand">
-                                        <Flag className="w-5 h-5" />
+                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        {/* ── Left column (2/3) ── */}
+                        <div className="lg:col-span-2 space-y-6">
+
+                            {/* Progress Overview */}
+                            <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6">
+                                <h2 className="text-lg font-bold text-gray-900 mb-5">Progress Overview</h2>
+
+                                {/* 4 stat boxes */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                                    <div className="bg-gray-50 rounded-xl p-4">
+                                        <p className="text-2xl font-bold text-gray-900">
+                                            {weeklyAdherence?.averageScore ?? adherencePercent}%
+                                        </p>
+                                        <p className="text-sm text-gray-500 mt-0.5">Diet Adherence</p>
                                     </div>
-                                    <h3 className="font-semibold text-gray-900">Current Diet Plan</h3>
+                                    <div className="bg-gray-50 rounded-xl p-4">
+                                        <p className="text-2xl font-bold text-gray-900">{progress?.meals?.eaten ?? 0}</p>
+                                        <p className="text-sm text-gray-500 mt-0.5">Meals Logged</p>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-xl p-4">
+                                        <p className="text-2xl font-bold text-gray-900">{progress?.meals?.skipped ?? 0}</p>
+                                        <p className="text-sm text-gray-500 mt-0.5">Meals Missed</p>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-xl p-4">
+                                        <p className="text-2xl font-bold text-gray-900">
+                                            {weightChange != null
+                                                ? `${weightChange > 0 ? '+' : ''}${weightChange}kg`
+                                                : '-'}
+                                        </p>
+                                        <p className="text-sm text-gray-500 mt-0.5">This Month</p>
+                                    </div>
                                 </div>
-                                {activePlan ? (
-                                    <>
-                                        <p className="text-[#4e9767]">Active since {new Date(activePlan.startDate).toLocaleDateString()}</p>
+
+                                {/* Weekly adherence chart — green-tinted area */}
+                                <div className="rounded-xl bg-green-50/80 p-4">
+                                    <p className="text-sm font-semibold text-brand mb-3">Weight Trend Graph</p>
+                                    {weeklyAdherence?.dailyBreakdown && weeklyAdherence.dailyBreakdown.length > 0 ? (
+                                        <div className="h-20 flex gap-1.5 items-end">
+                                            {weeklyAdherence.dailyBreakdown.map((day, i) => {
+                                                const barColor = day.mealsLogged === 0
+                                                    ? 'bg-brand/20'
+                                                    : (COMPLIANCE_BAR_COLOR[day.color] || 'bg-brand/40');
+                                                const dayLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' });
+                                                return (
+                                                    <div key={i} className="flex-1 flex flex-col items-center">
+                                                        <div className="flex-1 w-full relative">
+                                                            <div
+                                                                className={`absolute bottom-0 inset-x-0 ${barColor} rounded-t transition-all`}
+                                                                style={{ height: `${Math.max(day.score || 0, 4)}%` }}
+                                                                title={`${dayLabel}: ${day.score}%`}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-400 mt-1 shrink-0">{dayLabel}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="h-20 flex items-center justify-center">
+                                            <p className="text-sm text-brand/40">No trend data yet</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Current Diet Plan */}
+                            <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6">
+                                <div className="flex items-center justify-between mb-5">
+                                    <h2 className="text-lg font-bold text-gray-900">Current Diet Plan</h2>
+                                    {activePlan && (
                                         <Link
-                                            href={`/dashboard/diet-plans/new?clientId=${clientId}&editId=${activePlan.id}`}
-                                            className="text-lg font-medium text-gray-900 hover:text-brand hover:underline transition-colors"
+                                            href={`/dashboard/diet-plans/${activePlan.id}`}
+                                            className="px-4 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                         >
-                                            {activePlan.name}
+                                            Edit Plan
                                         </Link>
-                                        <p className="text-sm text-[#4e9767]">{activePlan.description || 'No description'}</p>
-                                    </>
+                                    )}
+                                </div>
+
+                                {activePlan ? (
+                                    <div className="rounded-xl bg-gray-50 p-4 flex flex-col sm:flex-row gap-6">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-gray-900 text-base">{activePlan.name}</p>
+                                            <p className="text-sm text-gray-400 mt-0.5">
+                                                Active Since {new Date(activePlan.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </p>
+                                            {activePlan.description && (
+                                                <p className="text-sm text-gray-600 mt-2 leading-relaxed">{activePlan.description}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-x-8 gap-y-3 shrink-0">
+                                            <div>
+                                                <p className="text-2xl font-bold text-gray-900">{client.targetCalories ?? activePlan.targetCalories ?? '-'}</p>
+                                                <p className="text-sm text-gray-500">Calories</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-2xl font-bold text-gray-900">
+                                                    {(client.targetProteinG ?? activePlan.targetProteinG) != null
+                                                        ? `${client.targetProteinG ?? activePlan.targetProteinG}g`
+                                                        : '-'}
+                                                </p>
+                                                <p className="text-sm text-gray-500">Protein</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-2xl font-bold text-gray-900">
+                                                    {(client.targetCarbsG ?? activePlan.targetCarbsG) != null
+                                                        ? `${client.targetCarbsG ?? activePlan.targetCarbsG}g`
+                                                        : '-'}
+                                                </p>
+                                                <p className="text-sm text-gray-500">Carbs</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-2xl font-bold text-gray-900">
+                                                    {(client.targetFatsG ?? activePlan.targetFatsG) != null
+                                                        ? `${client.targetFatsG ?? activePlan.targetFatsG}g`
+                                                        : '-'}
+                                                </p>
+                                                <p className="text-sm text-gray-500">Fat</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <div className="space-y-1">
+                                    <div className="rounded-xl bg-gray-50 p-6 text-center">
                                         <p className="text-gray-500 text-sm">No active diet plan</p>
                                         <Link
                                             href={`/dashboard/diet-plans/new?clientId=${clientId}`}
-                                            className="inline-flex text-sm font-medium text-brand hover:underline"
+                                            className="inline-flex text-sm font-medium text-brand hover:underline mt-2"
                                         >
-                                            Create your first diet plan
+                                            Create your first diet plan →
                                         </Link>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Nutrition Targets — client-specific, editable */}
-                            <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand">
-                                            <Utensils className="w-5 h-5" />
+                            {/* Meal Compliance Timeline */}
+                            {weeklyAdherence?.dailyBreakdown && weeklyAdherence.dailyBreakdown.length > 0 && (
+                                <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6">
+                                    <h2 className="text-lg font-bold text-gray-900 mb-5">Meal Compliance Timeline</h2>
+                                    <div className="space-y-1">
+                                        {weeklyAdherence.dailyBreakdown.map((day, i) => {
+                                            const dayLabel = new Date(day.date).toLocaleDateString('en-US', { weekday: 'long' });
+                                            const dateLabel = new Date(day.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                                            const total = day.mealsPlanned || 0;
+                                            const logged = day.mealsLogged || 0;
+                                            return (
+                                                <div key={i} className="flex items-center py-3 border-b border-gray-50 last:border-0">
+                                                    <div className="w-32 shrink-0">
+                                                        <p className="text-sm font-semibold text-gray-900">{dayLabel}</p>
+                                                        <p className="text-xs text-gray-400">{dateLabel}</p>
+                                                    </div>
+                                                    <div className="flex gap-2 ml-auto">
+                                                        {Array.from({ length: total }).map((_, j) => {
+                                                            const isLogged = j < logged;
+                                                            const isSkipped = !isLogged && j < (day.mealsPlanned || 0) && day.color === 'RED';
+                                                            return (
+                                                                <div
+                                                                    key={j}
+                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                                                        isLogged
+                                                                            ? 'bg-green-100 text-green-600'
+                                                                            : isSkipped
+                                                                            ? 'bg-red-100 text-red-500'
+                                                                            : 'bg-gray-100 text-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    {isLogged ? (
+                                                                        <CheckCircle className="w-4 h-4" />
+                                                                    ) : isSkipped ? (
+                                                                        <XCircle className="w-4 h-4" />
+                                                                    ) : (
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Medical Summary */}
+                            <MedicalSidebar clientId={clientId} />
+                        </div>
+
+                        {/* ── Right sidebar (1/3) ── */}
+                        <div className="space-y-6">
+
+                            {/* Goal Ring */}
+                            <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6 text-center">
+                                <GoalRing percent={goalPercent} />
+                                <p className="text-base font-semibold text-gray-900 mt-4">
+                                    {progress?.weight?.startWeight ?? client.currentWeightKg ?? '-'}kg{' '}
+                                    <span className="text-gray-400">→</span>{' '}
+                                    {progress?.weight?.targetWeight ?? client.targetWeightKg ?? '-'}kg
+                                </p>
+                                {client.goalDeadline && (
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        Target: {new Date(client.goalDeadline).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </p>
+                                )}
+                                {/* Weight change indicator */}
+                                {weightChange != null && (
+                                    <div className={`mt-3 inline-flex items-center gap-1 text-sm font-medium ${weightChange < 0 ? 'text-brand' : 'text-orange-500'}`}>
+                                        {weightChange < 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                                        {weightChange > 0 ? '+' : ''}{weightChange} kg last 30 days
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Subscription */}
+                            <ClientSubscriptionCard clientId={clientId} clientName={client.fullName} />
+
+                            {/* Payment History */}
+                            <PaymentHistoryList clientId={clientId} />
+
+                            {/* Onboarding Link */}
+                            <OnboardingInviteCard clientId={clientId} />
+
+                            {/* Nutrition Targets — editable */}
+                            <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-5">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-brand/10 flex items-center justify-center text-brand">
+                                            <Utensils className="w-4 h-4" />
                                         </div>
                                         <h3 className="font-semibold text-gray-900">Nutrition Targets</h3>
                                     </div>
@@ -766,7 +817,7 @@ export default function ClientProfilePage() {
                                             { key: 'targetCarbsG' as const, label: 'Carbs (g)', min: 0, max: 1000 },
                                             { key: 'targetFatsG' as const, label: 'Fat (g)', min: 0, max: 500 },
                                         ]).map(({ key, label, min, max }) => (
-                                            <div key={key} className="bg-gray-50 p-3 rounded">
+                                            <div key={key} className="bg-gray-50 p-3 rounded-xl">
                                                 <input
                                                     type="number"
                                                     min={min}
@@ -775,35 +826,44 @@ export default function ClientProfilePage() {
                                                     onChange={e => setTargetDraft(prev => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
                                                     className="w-full font-bold text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                                                 />
-                                                <p className="text-gray-500 mt-1">{label}</p>
+                                                <p className="text-gray-500 mt-1 text-xs">{label}</p>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div className="bg-gray-50 p-3 rounded">
-                                            <p className="font-bold text-gray-900">{client.targetCalories ?? activePlan?.targetCalories ?? '-'}</p>
-                                            <p className="text-gray-500">Calories</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-xl font-bold text-gray-900">{client.targetCalories ?? activePlan?.targetCalories ?? '-'}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">Calories</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded">
-                                            <p className="font-bold text-gray-900">{client.targetProteinG ?? activePlan?.targetProteinG ?? '-'}g</p>
-                                            <p className="text-gray-500">Protein</p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-xl font-bold text-gray-900">
+                                                {(client.targetProteinG ?? activePlan?.targetProteinG) != null
+                                                    ? `${client.targetProteinG ?? activePlan?.targetProteinG}g`
+                                                    : '-'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-0.5">Protein</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded">
-                                            <p className="font-bold text-gray-900">{client.targetCarbsG ?? activePlan?.targetCarbsG ?? '-'}g</p>
-                                            <p className="text-gray-500">Carbs</p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-xl font-bold text-gray-900">
+                                                {(client.targetCarbsG ?? activePlan?.targetCarbsG) != null
+                                                    ? `${client.targetCarbsG ?? activePlan?.targetCarbsG}g`
+                                                    : '-'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-0.5">Carbs</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded">
-                                            <p className="font-bold text-gray-900">{client.targetFatsG ?? activePlan?.targetFatsG ?? '-'}g</p>
-                                            <p className="text-gray-500">Fat</p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-xl font-bold text-gray-900">
+                                                {(client.targetFatsG ?? activePlan?.targetFatsG) != null
+                                                    ? `${client.targetFatsG ?? activePlan?.targetFatsG}g`
+                                                    : '-'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-0.5">Fat</p>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </div>
-
-                        {/* Medical Summary — full width */}
-                        <MedicalSidebar clientId={clientId} />
                     </div>
                 )}
 
@@ -811,13 +871,13 @@ export default function ClientProfilePage() {
                 {activeTab === 'diet-plan' && (
                     <div className="mt-6 space-y-4">
                         {allPlans.length === 0 ? (
-                            <div className="rounded-xl bg-white p-12 shadow-sm border border-gray-100 text-center">
+                            <div className="rounded-2xl bg-white p-12 shadow-sm border border-gray-100 text-center">
                                 <Flag className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Diet Plan</h3>
                                 <p className="text-gray-500 mb-6">Create a diet plan to get started with meal scheduling.</p>
                                 <Link
                                     href={`/dashboard/diet-plans/new?clientId=${clientId}`}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-bold hover:bg-brand/90 transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-brand/90 transition-colors"
                                 >
                                     <Flag className="w-4 h-4" />
                                     Create Diet Plan
@@ -844,7 +904,7 @@ export default function ClientProfilePage() {
                 {/* ===== MEAL LOGS TAB ===== */}
                 {activeTab === 'meal-logs' && (
                     <div className="mt-6">
-                        <div className="rounded-xl bg-white shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="rounded-2xl bg-white shadow-sm border border-gray-100 overflow-hidden">
                             {mealLogsLoading ? (
                                 <div className="flex items-center justify-center py-12">
                                     <Loader2 className="w-6 h-6 animate-spin text-brand" />
@@ -858,7 +918,7 @@ export default function ClientProfilePage() {
                             ) : (
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr className="border-b border-gray-100 text-left">
+                                        <tr className="border-b border-gray-100 text-left bg-gray-50">
                                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Date</th>
                                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Meal</th>
                                             <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Type</th>
@@ -915,7 +975,7 @@ export default function ClientProfilePage() {
                 {activeTab === 'progress' && (
                     <div className="mt-6 space-y-6">
                         {/* Weight Progress Card */}
-                        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+                        <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
                             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                                 <Target className="w-5 h-5 text-brand" />
                                 Weight Progress
@@ -923,28 +983,20 @@ export default function ClientProfilePage() {
                             {progress?.weight ? (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {progress.weight.startWeight ?? '-'}
-                                            </p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-2xl font-bold text-gray-900">{progress.weight.startWeight ?? '-'}</p>
                                             <p className="text-gray-500">Start (kg)</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {progress.weight.currentWeight ?? '-'}
-                                            </p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-2xl font-bold text-gray-900">{progress.weight.currentWeight ?? '-'}</p>
                                             <p className="text-gray-500">Current (kg)</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="text-2xl font-bold text-gray-900">
-                                                {progress.weight.targetWeight ?? '-'}
-                                            </p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-2xl font-bold text-gray-900">{progress.weight.targetWeight ?? '-'}</p>
                                             <p className="text-gray-500">Target (kg)</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className={`text-2xl font-bold ${
-                                                (progress.weight.totalChange ?? 0) < 0 ? 'text-brand' : 'text-orange-500'
-                                            }`}>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className={`text-2xl font-bold ${(progress.weight.totalChange ?? 0) < 0 ? 'text-brand' : 'text-orange-500'}`}>
                                                 {progress.weight.totalChange != null
                                                     ? `${progress.weight.totalChange > 0 ? '+' : ''}${progress.weight.totalChange}`
                                                     : '-'}
@@ -953,7 +1005,6 @@ export default function ClientProfilePage() {
                                         </div>
                                     </div>
 
-                                    {/* Progress bar */}
                                     {progress.weight.progressToGoal != null && (
                                         <div className="space-y-1">
                                             <div className="flex justify-between text-xs text-gray-400">
@@ -966,15 +1017,16 @@ export default function ClientProfilePage() {
                                                     style={{ width: `${progress.weight.progressToGoal}%` }}
                                                 />
                                             </div>
-                                            <p className="text-xs text-center text-[#4e9767]">
-                                                {progress.weight.progressToGoal}% to goal
-                                            </p>
+                                            <p className="text-xs text-center text-brand">{progress.weight.progressToGoal}% to goal</p>
                                         </div>
                                     )}
 
                                     {progress.weight.weeklyAvgChange != null && (
-                                        <p className="text-sm text-[#4e9767]">
-                                            Weekly average change: {progress.weight.weeklyAvgChange > 0 ? '+' : ''}{progress.weight.weeklyAvgChange} kg
+                                        <p className="text-sm text-gray-500">
+                                            Weekly average change:{' '}
+                                            <span className="font-medium text-gray-900">
+                                                {progress.weight.weeklyAvgChange > 0 ? '+' : ''}{progress.weight.weeklyAvgChange} kg
+                                            </span>
                                         </p>
                                     )}
                                 </div>
@@ -984,37 +1036,29 @@ export default function ClientProfilePage() {
                         </div>
 
                         {/* 30-Day Compliance History */}
-                        <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+                        <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
                             <h3 className="font-semibold text-gray-900 mb-4">30-Day Compliance History</h3>
                             {complianceHistory?.data && complianceHistory.data.length > 0 ? (
                                 <div className="space-y-4">
-                                    {/* Summary stats row — all values from backend */}
                                     <div className="grid grid-cols-3 gap-4 text-sm">
-                                        <div className="bg-gray-50 p-3 rounded text-center">
-                                            <p className="text-xl font-bold text-gray-900">
-                                                {complianceHistory.averageScore}%
-                                            </p>
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
+                                            <p className="text-xl font-bold text-gray-900">{complianceHistory.averageScore}%</p>
                                             <p className="text-gray-500">Avg Score</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
                                             <p className="text-xl font-bold text-brand">
-                                                {complianceHistory.bestDay
-                                                    ? `${complianceHistory.bestDay.score}%`
-                                                    : '-'}
+                                                {complianceHistory.bestDay ? `${complianceHistory.bestDay.score}%` : '-'}
                                             </p>
                                             <p className="text-gray-500">Best Day</p>
                                         </div>
-                                        <div className="bg-gray-50 p-3 rounded text-center">
+                                        <div className="bg-gray-50 p-3 rounded-xl text-center">
                                             <p className="text-xl font-bold text-red-500">
-                                                {complianceHistory.worstDay
-                                                    ? `${complianceHistory.worstDay.score}%`
-                                                    : '-'}
+                                                {complianceHistory.worstDay ? `${complianceHistory.worstDay.score}%` : '-'}
                                             </p>
                                             <p className="text-gray-500">Worst Day</p>
                                         </div>
                                     </div>
 
-                                    {/* 30-day bar chart — colors from backend */}
                                     <div className="h-32 flex gap-px relative">
                                         {complianceHistory.data.map((entry, i) => (
                                             <div key={i} className="flex-1 relative">
@@ -1040,9 +1084,9 @@ export default function ClientProfilePage() {
                             )}
                         </div>
 
-                        {/* This Week's Adherence — reusing existing pattern */}
+                        {/* This Week's Adherence */}
                         {weeklyAdherence?.dailyBreakdown && (
-                            <div className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
+                            <div className="rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
                                 <h3 className="font-semibold text-gray-900 mb-4">This Week&apos;s Adherence</h3>
                                 <div className="h-40 flex gap-2">
                                     {weeklyAdherence.dailyBreakdown.map((day, i) => {

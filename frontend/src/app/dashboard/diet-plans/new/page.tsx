@@ -441,6 +441,73 @@ function BuilderContent() {
                 currentCalories={builder.getDayNutrition(selectedDayA).calories}
                 onApply={(factor, scope) => builder.bulkAdjust(factor, scope, selectedDayA)}
             />
+
+            {/* Scaling confirmation modal */}
+            {builder.scalingPrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-900">Scale Portions?</h3>
+                        <p className="text-sm text-gray-600">
+                            Template is <span className="font-semibold">{builder.scalingPrompt.templateCal} kcal</span> but
+                            client target is <span className="font-semibold">{builder.scalingPrompt.clientCal} kcal</span>.
+                        </p>
+                        <p className="text-sm text-gray-600">
+                            Scale all portions by <span className="font-semibold text-brand">{builder.scalingPrompt.pct}%</span> to match?
+                        </p>
+                        <div className="flex flex-col gap-2 pt-2">
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => builder.confirmScaling(false)}
+                                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                                >
+                                    Apply as-is
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => builder.confirmScaling(true)}
+                                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm"
+                                >
+                                    Scale to proportions
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => builder.dismissScaling()}
+                                className="w-full px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Replace confirmation modal */}
+            {builder.replacePrompt && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-900">Replace Meals?</h3>
+                        <p className="text-sm text-gray-600">{builder.replacePrompt}</p>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => builder.dismissReplace()}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => builder.confirmReplace()}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

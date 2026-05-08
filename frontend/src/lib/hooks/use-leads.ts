@@ -192,6 +192,20 @@ export function useRecordProposal(id: string) {
     });
 }
 
+export function useCompleteFollowup() {
+    const api = useApiClient();
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ leadId, followupId, notes }: { leadId: string; followupId: string; notes?: string }) => {
+            const { data } = await api.post(`/leads/${leadId}/followups/${followupId}/complete`, { notes });
+            return data.data;
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['leads'] });
+        },
+    });
+}
+
 export function useLeadDashboardWidget() {
     const api = useApiClient();
     return useQuery({

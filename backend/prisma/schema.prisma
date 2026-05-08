@@ -449,6 +449,10 @@ model BodyMeasurement {
   hipsCm            Decimal?     @db.Decimal(5, 2)
   thighsCm          Decimal?     @db.Decimal(5, 2)
   armsCm            Decimal?     @db.Decimal(5, 2)
+  stomachCm         Decimal?     @db.Decimal(5, 2)
+  bellyAboveNavelCm Decimal?     @db.Decimal(5, 2)
+  bellyBelowNavelCm Decimal?     @db.Decimal(5, 2)
+  calfCm            Decimal?     @db.Decimal(5, 2)
   bodyFatPercentage Decimal?     @db.Decimal(4, 2)
   notes             String?
   createdAt         DateTime     @default(now())

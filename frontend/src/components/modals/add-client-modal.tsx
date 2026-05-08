@@ -20,9 +20,12 @@ interface AddClientModalProps {
 }
 
 interface ClientFormData {
+    salutation: string;
     name: string;
     email?: string;
     phone: string;
+    altPhone?: string;
+    altPhoneRelation?: string;
     dateOfBirth: string;
     gender: string;
     height: string;
@@ -37,9 +40,12 @@ interface ClientFormData {
 }
 
 const INITIAL_FORM: ClientFormData = {
+    salutation: '',
     name: '',
     email: '',
     phone: '',
+    altPhone: '',
+    altPhoneRelation: '',
     dateOfBirth: '',
     gender: '',
     height: '',
@@ -113,7 +119,11 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
         if (!onSubmit || submitting) return;
         setSubmitting(true);
         try {
-            const result = await onSubmit(formData);
+            const submittedData = {
+                ...formData,
+                name: [formData.salutation, formData.name].filter(Boolean).join(' '),
+            };
+            const result = await onSubmit(submittedData);
             const id = result && typeof result === 'object' && 'id' in result ? result.id : null;
             if (!id) return; // error path — caller surfaces a toast; modal stays on form
 
@@ -156,17 +166,32 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Full Name *
                             </label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    name="name"
-                                    required
-                                    value={formData.name}
+                            <div className="flex gap-2">
+                                <select
+                                    name="salutation"
+                                    value={formData.salutation}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                    placeholder="Enter full name"
-                                />
+                                    className="border border-gray-200 rounded-lg px-2 py-2.5 text-sm text-gray-700 focus:ring-brand focus:border-brand bg-white shrink-0 w-24"
+                                >
+                                    <option value="">—</option>
+                                    <option value="Mr.">Mr.</option>
+                                    <option value="Mrs.">Mrs.</option>
+                                    <option value="Ms.">Ms.</option>
+                                    <option value="Dr.">Dr.</option>
+                                    <option value="Prof.">Prof.</option>
+                                </select>
+                                <div className="relative flex-1">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        required
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                        placeholder="Enter full name"
+                                    />
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -227,6 +252,31 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 <option value="female">Female</option>
                                 <option value="other">Other</option>
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Alt. Phone <span className="text-gray-400 font-normal">(Optional)</span>
+                            </label>
+                            <PhoneInput
+                                international
+                                defaultCountry="IN"
+                                value={formData.altPhone}
+                                onChange={(value) => setFormData({ ...formData, altPhone: value || '' })}
+                                className="phone-input-field"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Relation <span className="text-gray-400 font-normal">(Optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                name="altPhoneRelation"
+                                value={formData.altPhoneRelation}
+                                onChange={handleChange}
+                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                placeholder="e.g. Spouse, Parent, Guardian"
+                            />
                         </div>
                     </div>
                 </div>

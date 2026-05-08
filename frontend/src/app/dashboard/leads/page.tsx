@@ -7,10 +7,10 @@ import Link from 'next/link';
 import {
     Plus, Search, MoreHorizontal, UserCheck, Archive,
     CalendarClock, ExternalLink, ChevronLeft, ChevronRight, MessageSquare,
-    FileText, ChevronDown,
+    FileText, ChevronDown, Check, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useLeads, useArchiveLead, useUpdateLead, type Lead, type LeadFilters } from '@/lib/hooks/use-leads';
+import { useLeads, useArchiveLead, useUpdateLead, useCompleteFollowup, type Lead, type LeadFilters, type LeadFollowup } from '@/lib/hooks/use-leads';
 import { useLeadStatuses, type LeadStatus } from '@/lib/hooks/use-lead-statuses';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { LeadFormModal } from '@/components/leads/lead-form-modal';
@@ -23,15 +23,18 @@ import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 const PAGE_SIZE = 25;
 
-function FollowupCell({ followup }: { followup?: { dueAt: string; type: string } }) {
+function FollowupCell({ followup, onClick }: { followup?: LeadFollowup; onClick?: () => void }) {
     if (!followup) return <span className="text-gray-400 text-xs">—</span>;
     const due = new Date(followup.dueAt);
     const isOverdue = due < new Date();
     const label = due.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
     return (
-        <span className={cn('text-xs font-medium', isOverdue ? 'text-red-600' : 'text-gray-600')}>
+        <button
+            onClick={onClick}
+            className={cn('text-xs font-medium text-left hover:underline underline-offset-2 transition-colors', isOverdue ? 'text-red-600' : 'text-gray-600')}
+        >
             {followup.type.charAt(0).toUpperCase() + followup.type.slice(1)} · {label}
-        </span>
+        </button>
     );
 }
 
@@ -194,6 +197,9 @@ export default function LeadsPage() {
     const [proposalLead, setProposalLead] = useState<Lead | null>(null);
     const [convertLead, setConvertLead] = useState<Lead | null>(null);
     const [archiveTarget, setArchiveTarget] = useState<Lead | null>(null);
+    const [todoModal, setTodoModal] = useState<{ lead: Lead; followup: LeadFollowup } | null>(null);
+    const [todoNote, setTodoNote] = useState('');
+    const completeFollowup = useCompleteFollowup();
 
     const [search, setSearch] = useState(searchParams.get('q') ?? '');
     const [page, setPage] = useState(parseInt(searchParams.get('page') ?? '1'));
@@ -346,7 +352,10 @@ export default function LeadsPage() {
                                             <LeadTemperatureSelect lead={lead} />
                                         </td>
                                         <td className="px-4 py-3">
-                                            <FollowupCell followup={lead.followups?.[0]} />
+                                            <FollowupCell
+                                                followup={lead.followups?.[0]}
+                                                onClick={lead.followups?.[0] ? () => { setTodoNote(''); setTodoModal({ lead, followup: lead.followups![0] }); } : undefined}
+                                            />
                                         </td>
                                         <td className="px-4 py-3">
                                             <LeadRowMenu
@@ -407,6 +416,78 @@ export default function LeadsPage() {
                     onClose={() => setConvertLead(null)}
                     lead={convertLead}
                 />
+            )}
+
+            {/* To-Do detail modal */}
+            {todoModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900">To-Do</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">{todoModal.lead.name}</p>
+                            </div>
+                            <button onClick={() => setTodoModal(null)} className="p-1 text-gray-400 hover:text-gray-600">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</span>
+                                <span className="text-sm font-medium text-gray-800 capitalize">{todoModal.followup.type}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Due</span>
+                                <span className={cn('text-sm font-medium', new Date(todoModal.followup.dueAt) < new Date() ? 'text-red-600' : 'text-gray-800')}>
+                                    {new Date(todoModal.followup.dueAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                                </span>
+                            </div>
+                            {todoModal.followup.notes && (
+                                <div className="pt-1 border-t border-gray-200">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Note</span>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{todoModal.followup.notes}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Completion note (optional)</label>
+                            <textarea
+                                value={todoNote}
+                                onChange={e => setTodoNote(e.target.value)}
+                                rows={2}
+                                placeholder="Add a note about how it went…"
+                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none focus:ring-1 focus:ring-brand focus:border-brand outline-none"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-1">
+                            <button
+                                onClick={() => setTodoModal(null)}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Close
+                            </button>
+                            <button
+                                disabled={completeFollowup.isPending}
+                                onClick={async () => {
+                                    await completeFollowup.mutateAsync({
+                                        leadId: todoModal.lead.id,
+                                        followupId: todoModal.followup.id,
+                                        notes: todoNote || undefined,
+                                    });
+                                    toast.success('To-do marked as complete');
+                                    setTodoModal(null);
+                                }}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                            >
+                                <Check className="w-4 h-4" />
+                                {completeFollowup.isPending ? 'Saving…' : 'Mark Complete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

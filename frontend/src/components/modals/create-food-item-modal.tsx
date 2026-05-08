@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { useCreateFoodItem, useUpdateFoodItem, useBaseIngredients, CreateFoodItemInput, FoodItem, BaseIngredient } from '@/lib/hooks/use-food-items';
-import { Loader2, X, Search } from 'lucide-react';
+import { Loader2, X, Search, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CreateFoodItemModalProps {
@@ -64,6 +64,8 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
         isBaseIngredient: false,
         ingredientIds: [],
     });
+
+    const [showAdvanced, setShowAdvanced] = useState(!!initialData);
 
     // Ingredient search state
     const [ingredientSearch, setIngredientSearch] = useState('');
@@ -142,6 +144,7 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
             setSelectedIngredients([]);
         }
         setIngredientSearch('');
+        setShowAdvanced(!!initialData);
     }, [initialData, isOpen]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -325,6 +328,17 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                     </div>
                 </div>
 
+                {/* Advanced Options Toggle */}
+                <button
+                    type="button"
+                    onClick={() => setShowAdvanced(v => !v)}
+                    className="flex items-center gap-2 text-sm font-semibold text-brand hover:text-brand/80 transition-colors"
+                >
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
+                    {showAdvanced ? 'Hide Advanced Options' : 'Advanced Options'}
+                </button>
+
+                {showAdvanced && <>
                 {/* Ingredient Selector - only for composite (non-base) foods */}
                 {!formData.isBaseIngredient && (
                     <div className="border border-gray-100 p-5 rounded-xl bg-amber-50/30">
@@ -475,6 +489,8 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                         })}
                     </div>
                 </div>
+
+                </>}
 
                 <div className="flex justify-end pt-4 gap-3 border-t border-gray-100 mt-6">
                     <button

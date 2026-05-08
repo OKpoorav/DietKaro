@@ -10,17 +10,17 @@ import {
     ChevronRight,
     Trash2,
     MessageSquare,
-    Eye,
     Loader2,
     X,
 } from 'lucide-react';
+
 import { AddClientModal } from '@/components/modals/add-client-modal';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 import { TagChip } from '@/components/clients/tag-chip';
 import { useTags } from '@/lib/hooks/use-tags';
 import { useClients, useCreateClient, useDeleteClient, Client } from '@/lib/hooks/use-clients';
 import { usePermissions } from '@/lib/hooks/use-permissions';
-import { getInitials, formatTimeAgo } from '@/lib/utils/formatters';
+import { getInitials, formatTimeAgo, calculateAge } from '@/lib/utils/formatters';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -92,7 +92,7 @@ export default function ClientsPage() {
     const meta = data?.meta;
 
     const handleAddClient = async (
-        clientData: { name: string; email?: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string },
+        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string },
         reactivate?: boolean,
     ): Promise<{ id: string } | void> => {
         try {
@@ -100,6 +100,8 @@ export default function ClientsPage() {
                 fullName: clientData.name,
                 email: clientData.email || undefined,
                 phone: clientData.phone,
+                altPhone: clientData.altPhone || undefined,
+                altPhoneRelation: clientData.altPhoneRelation || undefined,
                 dateOfBirth: clientData.dateOfBirth || undefined,
                 gender: (clientData.gender || undefined) as Client['gender'],
                 heightCm: clientData.height ? Number(clientData.height) : undefined,
@@ -266,116 +268,107 @@ export default function ClientsPage() {
                 </div>
             )}
 
-            {/* Table */}
+            {/* Client Cards */}
             {!isLoading && clients.length > 0 && (
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-gray-50">
-                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Client
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Phone
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Weight (current/goal)
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Dietitian
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Last Activity
-                                    </th>
-                                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {clients.map((client: Client) => (
-                                    <tr key={client.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold">
-                                                    {getInitials(client.fullName)}
-                                                </div>
-                                                <div className="flex flex-col gap-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="font-medium text-gray-900">{client.fullName}</span>
-                                                        {client.status === 'at-risk' && (
-                                                            <span className="w-2.5 h-2.5 rounded-full bg-orange-400" title="At risk" />
-                                                        )}
-                                                        <WhatsAppButton
-                                                            phone={client.phone}
-                                                            clientName={client.fullName}
-                                                            size="sm"
-                                                        />
-                                                    </div>
-                                                    {(client.tagAssignments?.length ?? 0) > 0 && (
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {client.tagAssignments!.slice(0, 3).map((a) => (
-                                                                <TagChip
-                                                                    key={a.tagId}
-                                                                    name={a.tag.name}
-                                                                    color={a.tag.color}
-                                                                    size="xs"
-                                                                />
-                                                            ))}
-                                                            {client.tagAssignments!.length > 3 && (
-                                                                <span className="text-[10px] text-gray-400 px-1">
-                                                                    +{client.tagAssignments!.length - 3} more
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                                            {client.phone || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                                            {client.currentWeightKg || '-'} kg / {client.targetWeightKg || '-'} kg
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                                            {client.primaryDietitian?.fullName || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                                            {client.lastActivityAt ? formatTimeAgo(client.lastActivityAt) : 'N/A'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center gap-2">
-                                                <Link
-                                                    href={`/dashboard/clients/${client.id}`}
-                                                    className="text-brand hover:underline text-sm font-medium flex items-center gap-1"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    View
-                                                </Link>
-                                                <button
-                                                    onClick={() => router.push(`/dashboard/messages?client=${client.id}`)}
-                                                    className="text-brand hover:underline text-sm font-medium flex items-center gap-1"
-                                                >
-                                                    <MessageSquare className="w-4 h-4" />
-                                                    Message
-                                                </button>
-                                                {canDeleteClient && (
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(client)}
-                                                        className="text-gray-400 hover:text-red-500 text-sm font-medium flex items-center gap-1 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                <div className="flex flex-col gap-3">
+                    {clients.map((client: Client) => {
+                        const age = calculateAge(client.dateOfBirth);
+                        const weightDiff = client.currentWeightKg && client.targetWeightKg
+                            ? +(client.currentWeightKg - client.targetWeightKg).toFixed(1)
+                            : null;
+                        const stats: { label: string; value: string }[] = [
+                            { label: 'Current', value: client.currentWeightKg ? `${client.currentWeightKg}kg` : '—' },
+                            { label: 'Goal', value: client.targetWeightKg ? `${client.targetWeightKg}kg` : '—' },
+                            { label: 'To Goal', value: weightDiff !== null ? `${weightDiff > 0 ? '-' : '+'}${Math.abs(weightDiff)}kg` : '—' },
+                            { label: 'Last Active', value: client.lastActivityAt ? formatTimeAgo(client.lastActivityAt) : '—' },
+                        ];
+
+                        return (
+                            <div key={client.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center gap-6 hover:shadow-sm transition-shadow">
+                                {/* Left: identity */}
+                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                    <Link href={`/dashboard/clients/${client.id}`}>
+                                        <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold text-lg shrink-0 hover:bg-brand/30 transition-colors">
+                                            {getInitials(client.fullName)}
+                                        </div>
+                                    </Link>
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <Link href={`/dashboard/clients/${client.id}`} className="font-bold text-gray-900 text-base hover:text-brand transition-colors">
+                                                {client.fullName}
+                                            </Link>
+                                            {client.status === 'active' && (
+                                                <span className="text-sm font-black italic tracking-wide bg-gradient-to-r from-orange-400 to-brand bg-clip-text text-transparent select-none">
+                                                    ACTIVE
+                                                </span>
+                                            )}
+                                            {client.status === 'at-risk' && (
+                                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">At Risk</span>
+                                            )}
+                                            {client.status === 'completed' && (
+                                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Completed</span>
+                                            )}
+                                            <WhatsAppButton phone={client.phone} clientName={client.fullName} size="sm" />
+                                        </div>
+                                        <p className="text-sm text-gray-500 mt-0.5">
+                                            {[
+                                                age ? `${age} Yrs` : null,
+                                                client.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : null,
+                                                client.phone || null,
+                                            ].filter(Boolean).join('  ·  ')}
+                                        </p>
+                                        {client.email && <p className="text-sm text-gray-400 truncate">{client.email}</p>}
+                                        {(client.tagAssignments?.length ?? 0) > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                {client.tagAssignments!.slice(0, 3).map((a) => (
+                                                    <TagChip key={a.tagId} name={a.tag.name} color={a.tag.color} size="xs" />
+                                                ))}
+                                                {client.tagAssignments!.length > 3 && (
+                                                    <span className="text-[10px] text-gray-400 px-1">+{client.tagAssignments!.length - 3} more</span>
                                                 )}
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Middle: stats */}
+                                <div className="hidden md:grid grid-cols-4 gap-2 shrink-0">
+                                    {stats.map(({ label, value }) => (
+                                        <div key={label} className="bg-gray-50 rounded-lg px-3 py-2 text-center min-w-[72px]">
+                                            <p className="text-sm font-bold text-gray-800">{value}</p>
+                                            <p className="text-[10px] text-gray-400 mt-0.5">{label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Right: actions */}
+                                <div className="flex flex-col gap-1.5 shrink-0">
+                                    <button
+                                        onClick={() => router.push(`/dashboard/diet-plans/new?clientId=${client.id}`)}
+                                        className="px-4 py-2 text-xs font-semibold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors shadow-sm whitespace-nowrap"
+                                    >
+                                        Create Diet Plan
+                                    </button>
+                                    <button
+                                        onClick={() => router.push(`/dashboard/messages?client=${client.id}`)}
+                                        className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap flex items-center justify-center gap-1.5"
+                                    >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                        Message
+                                    </button>
+                                    {canDeleteClient && (
+                                        <button
+                                            onClick={() => setDeleteConfirm(client)}
+                                            className="px-4 py-2 text-xs font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 

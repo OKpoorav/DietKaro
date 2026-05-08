@@ -17,9 +17,11 @@ import {
     MessageSquare,
     CreditCard,
     UserPlus,
+    PanelLeftClose,
+    PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { SocketProvider } from '@/lib/socket/socket-provider';
 import { useUnreadCounts } from '@/lib/hooks/use-chat';
@@ -51,7 +53,15 @@ export default function DashboardLayout({
     const { user, isLoaded: isClerkLoaded } = useUser();
     const { signOut } = useClerk();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return localStorage.getItem('sidebar-collapsed') === 'true';
+    });
     const permissions = usePermissions();
+
+    useEffect(() => {
+        localStorage.setItem('sidebar-collapsed', String(sidebarCollapsed));
+    }, [sidebarCollapsed]);
     const { error: profileError, isLoading: profileLoading } = useProfile();
 
     const filteredNavigation = useMemo(
@@ -91,54 +101,71 @@ export default function DashboardLayout({
             {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0',
-                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    'fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-200 ease-in-out lg:translate-x-0 flex flex-col',
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+                    sidebarCollapsed ? 'w-16' : 'w-64'
                 )}
             >
-                <div className="flex flex-col h-full">
-                    {/* Logo */}
-                    <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-                        <Link href="/dashboard" className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-                                <UtensilsCrossed className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="text-xl font-bold text-gray-900">HealthPractix</span>
-                        </Link>
-                        <button
-                            className="lg:hidden p-2 text-gray-500 hover:text-gray-700"
-                            onClick={() => setSidebarOpen(false)}
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
+                {/* Logo */}
+                <div className={cn('flex items-center h-16 border-b border-gray-200 flex-shrink-0', sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-4')}>
+                    <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+                            <UtensilsCrossed className="w-5 h-5 text-white" />
+                        </div>
+                        {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 truncate">HealthPractix</span>}
+                    </Link>
+                    <button
+                        className="lg:hidden p-2 text-gray-500 hover:text-gray-700"
+                        onClick={() => setSidebarOpen(false)}
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
-                    {/* Navigation */}
-                    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-                        {filteredNavigation.map((item) => {
-                            const isActive = item.href === '/dashboard'
-                                ? pathname === '/dashboard'
-                                : pathname === item.href || pathname.startsWith(item.href + '/');
-                            return (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    className={cn(
-                                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                                        isActive
-                                            ? 'bg-emerald-50 text-emerald-700'
-                                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                                    )}
-                                >
-                                    <item.icon className={cn('w-5 h-5', isActive && 'text-emerald-600')} />
-                                    {item.name}
-                                </Link>
-                            );
-                        })}
-                        <MessagesNavItem />
-                    </nav>
+                {/* Navigation */}
+                <nav className={cn('flex-1 py-4 space-y-1 overflow-y-auto', sidebarCollapsed ? 'px-2' : 'px-3')}>
+                    {filteredNavigation.map((item) => {
+                        const isActive = item.href === '/dashboard'
+                            ? pathname === '/dashboard'
+                            : pathname === item.href || pathname.startsWith(item.href + '/');
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                title={sidebarCollapsed ? item.name : undefined}
+                                className={cn(
+                                    'flex items-center rounded-lg text-sm font-medium transition-colors',
+                                    sidebarCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5',
+                                    isActive
+                                        ? 'bg-emerald-50 text-emerald-700'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                )}
+                            >
+                                <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-emerald-600')} />
+                                {!sidebarCollapsed && item.name}
+                            </Link>
+                        );
+                    })}
+                    <MessagesNavItem collapsed={sidebarCollapsed} />
+                </nav>
 
-                    {/* User section */}
-                    <div className="border-t border-gray-200 p-4">
+                {/* User section */}
+                <div className={cn('border-t border-gray-200', sidebarCollapsed ? 'p-2' : 'p-4')}>
+                    {sidebarCollapsed ? (
+                        <div className="flex flex-col items-center gap-2">
+                            <UserButton afterSignOutUrl="/" />
+                            <Link href="/dashboard/settings" className="p-1.5 text-gray-400 hover:text-gray-600" title="Settings">
+                                <Settings className="w-4 h-4" />
+                            </Link>
+                            <button
+                                onClick={() => setSidebarCollapsed(c => !c)}
+                                className="hidden lg:flex p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                title="Expand sidebar"
+                            >
+                                <PanelLeftOpen className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
                         <div className="flex items-center gap-3">
                             <UserButton afterSignOutUrl="/" />
                             <div className="flex-1 min-w-0">
@@ -152,13 +179,20 @@ export default function DashboardLayout({
                             <Link href="/dashboard/settings" className="p-2 text-gray-400 hover:text-gray-600">
                                 <Settings className="w-5 h-5" />
                             </Link>
+                            <button
+                                onClick={() => setSidebarCollapsed(c => !c)}
+                                className="hidden lg:flex p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                                title="Collapse sidebar"
+                            >
+                                <PanelLeftClose className="w-5 h-5" />
+                            </button>
                         </div>
-                    </div>
+                    )}
                 </div>
             </aside>
 
             {/* Main content */}
-            <div className="lg:pl-64">
+            <div className={cn('transition-all duration-200', sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64')}>
                 {/* Mobile top bar */}
                 <header className="sticky top-0 z-30 bg-white border-b border-gray-200 lg:hidden">
                     <div className="flex items-center justify-between h-16 px-4">
@@ -308,7 +342,7 @@ function OrgCreationForm({ onBack, signOut }: { onBack: () => void; signOut: (op
     );
 }
 
-function MessagesNavItem() {
+function MessagesNavItem({ collapsed }: { collapsed?: boolean }) {
     const pathname = usePathname();
     const isActive = pathname.startsWith('/dashboard/messages');
     const { data: unreadData } = useUnreadCounts();
@@ -317,19 +351,24 @@ function MessagesNavItem() {
     return (
         <Link
             href="/dashboard/messages"
+            title={collapsed ? 'Messages' : undefined}
             className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center rounded-lg text-sm font-medium transition-colors relative',
+                collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5',
                 isActive
                     ? 'bg-emerald-50 text-emerald-700'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             )}
         >
-            <MessageSquare className={cn('w-5 h-5', isActive && 'text-emerald-600')} />
-            Messages
-            {total > 0 && (
+            <MessageSquare className={cn('w-5 h-5 shrink-0', isActive && 'text-emerald-600')} />
+            {!collapsed && 'Messages'}
+            {total > 0 && !collapsed && (
                 <span className="ml-auto min-w-[20px] h-5 rounded-full bg-brand text-white text-[11px] flex items-center justify-center font-bold px-1.5">
                     {total > 9 ? '9+' : total}
                 </span>
+            )}
+            {total > 0 && collapsed && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brand" />
             )}
         </Link>
     );
