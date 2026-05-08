@@ -110,7 +110,7 @@ function FoodItemRow({
                 <div className="flex items-center gap-1 shrink-0">
                     <input
                         type="number"
-                        min="0.1"
+                        min="0.5"
                         step="0.5"
                         value={qty}
                         onChange={(e) => handleQtyChange(e.target.value)}

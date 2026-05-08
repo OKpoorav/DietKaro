@@ -156,7 +156,7 @@ export async function deleteFromS3(key: string): Promise<void> {
  */
 export async function processAndUploadImage(
     buffer: Buffer,
-    prefix: 'meal-photos' | 'weight-photos',
+    prefix: 'meal-photos' | 'weight-photos' | 'before-photos',
     orgId: string,
     entityId: string
 ): Promise<{ fullUrl: string; thumbUrl: string; fullKey: string; thumbKey: string }> {
@@ -205,6 +205,15 @@ export const StorageService = {
 
     uploadWeightPhoto: async (buffer: Buffer, orgId: string, weightLogId: string) => {
         return processAndUploadImage(buffer, 'weight-photos', orgId, weightLogId);
+    },
+
+    uploadBeforePhoto: async (buffer: Buffer, orgId: string, clientId: string, type: string) => {
+        const timestamp = Date.now();
+        const fullKey = `before-photos/${orgId}/${clientId}/${type}_${timestamp}.jpg`;
+        const compressed = await compressImage(buffer);
+        await uploadToS3(compressed, fullKey);
+        const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+        return { url: `${baseUrl}/media/${fullKey}`, key: fullKey };
     },
 
     getPresignedUrl,

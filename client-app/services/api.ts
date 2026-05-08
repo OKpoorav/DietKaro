@@ -237,6 +237,11 @@ export const onboardingApi = {
 
     getPresets: () =>
         api.get<ApiResponse<any[]>>('/client/onboarding/presets'),
+
+    uploadBeforePhoto: (type: 'front' | 'side' | 'back', formData: FormData) =>
+        api.post<ApiResponse<{ url: string }>>(`/client/before-photos?type=${type}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
 };
 
 // Preferences API

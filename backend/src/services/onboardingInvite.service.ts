@@ -95,6 +95,9 @@ export async function submitInvite(
         preferredCuisines?: string[];
         goal?: string;
         goalDeadline?: string;
+        beforePhotoFrontUrl?: string;
+        beforePhotoSideUrl?: string;
+        beforePhotoBackUrl?: string;
     },
 ) {
     const invite = await validateToken(token);
@@ -119,6 +122,9 @@ export async function submitInvite(
                 ...(data.preferredCuisines !== undefined && { preferredCuisines: data.preferredCuisines }),
                 ...(data.goal !== undefined && { goal: data.goal }),
                 ...(data.goalDeadline !== undefined && { goalDeadline: new Date(data.goalDeadline) }),
+                ...(data.beforePhotoFrontUrl !== undefined && { beforePhotoFrontUrl: data.beforePhotoFrontUrl }),
+                ...(data.beforePhotoSideUrl !== undefined && { beforePhotoSideUrl: data.beforePhotoSideUrl }),
+                ...(data.beforePhotoBackUrl !== undefined && { beforePhotoBackUrl: data.beforePhotoBackUrl }),
                 onboardingCompleted: true,
             },
         });

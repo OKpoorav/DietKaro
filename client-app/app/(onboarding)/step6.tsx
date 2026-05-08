@@ -65,7 +65,7 @@ export default function BodyMeasurementsScreen() {
                 calfCm: calf ? parseFloat(calf) : undefined,
                 bodyFatPercentage: bodyFat ? parseFloat(bodyFat) : undefined,
             });
-            router.replace('/(onboarding)/complete');
+            router.replace('/(onboarding)/step7');
         } catch (error) {
             Alert.alert('Error', 'Failed to save. Please try again.');
         } finally {
@@ -74,7 +74,7 @@ export default function BodyMeasurementsScreen() {
     };
 
     const handleSkip = () => {
-        router.replace('/(onboarding)/complete');
+        router.replace('/(onboarding)/step7');
     };
 
     return (

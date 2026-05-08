@@ -7,6 +7,8 @@ import { AppError } from '../errors/AppError';
 import { AuthenticatedRequest } from '../types/auth.types';
 import * as inviteService from '../services/onboardingInvite.service';
 import { env } from '../config/env';
+import { upload, validateFileContent, IMAGE_MIMES } from '../middleware/upload.middleware';
+import { StorageService } from '../services/storage.service';
 
 const router = Router();
 
@@ -44,6 +46,9 @@ router.post('/clients/:clientId/onboarding/invite/resend',
 
 // ── Public: client fills form (no auth) ──────────────────────────────────
 
+const BEFORE_PHOTO_TYPES = ['front', 'side', 'back'] as const;
+type BeforePhotoType = typeof BEFORE_PHOTO_TYPES[number];
+
 const submitSchema = z.object({
     heightCm: z.number().min(50).max(300).optional(),
     currentWeightKg: z.number().min(10).max(500).optional(),
@@ -60,12 +65,33 @@ const submitSchema = z.object({
     preferredCuisines: z.array(z.string().max(100)).max(20).optional(),
     goal: z.string().max(500).optional(),
     goalDeadline: z.string().optional(),
+    beforePhotoFrontUrl: z.string().url().optional(),
+    beforePhotoSideUrl: z.string().url().optional(),
+    beforePhotoBackUrl: z.string().url().optional(),
 });
 
 router.get('/onboarding-invite/:token', asyncHandler(async (req: Request, res: Response) => {
     const invite = await inviteService.validateToken(req.params.token);
     res.json({ success: true, data: { client: invite.client } });
 }));
+
+router.post('/onboarding-invite/:token/upload-photo',
+    upload.single('photo'),
+    asyncHandler(async (req: Request, res: Response) => {
+        const photoType = req.query.type as string;
+        if (!BEFORE_PHOTO_TYPES.includes(photoType as BeforePhotoType)) {
+            throw new AppError('type must be front, side, or back', 400, 'INVALID_PHOTO_TYPE');
+        }
+        if (!req.file) throw new AppError('No photo uploaded', 400, 'NO_FILE');
+        await validateFileContent(req.file.buffer, IMAGE_MIMES);
+
+        const invite = await inviteService.validateToken(req.params.token);
+        const { url } = await StorageService.uploadBeforePhoto(
+            req.file.buffer, invite.orgId, invite.clientId, photoType,
+        );
+        res.json({ success: true, data: { url } });
+    }),
+);
 
 router.post('/onboarding-invite/:token/submit',
     validateBody(submitSchema),

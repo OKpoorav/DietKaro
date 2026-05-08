@@ -21,6 +21,7 @@ import { clientDashboardService } from '../services/clientDashboard.service';
 import { mealLogService } from '../services/mealLog.service';
 import { onboardingService } from '../services/onboarding.service';
 import { complianceService } from '../services/compliance.service';
+import { StorageService } from '../services/storage.service';
 import { notificationService } from '../services/notification.service';
 
 const router = Router();
@@ -264,6 +265,37 @@ router.patch('/notifications/:id/read', asyncHandler(async (req: ClientAuthReque
 // ============ CHAT ============
 
 import { listClientConversations, getClientMessages, getClientUnreadCounts, initiateClientConversation, sendClientMessage } from '../controllers/chat.controller';
+
+// ============ BEFORE PHOTOS ============
+
+const BEFORE_PHOTO_TYPES = new Set(['front', 'side', 'back']);
+
+router.post('/before-photos', writeOperationLimiter, uploadSinglePhoto, asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const photoType = req.query.type as string;
+    if (!BEFORE_PHOTO_TYPES.has(photoType)) {
+        throw new AppError('type must be front, side, or back', 400, 'INVALID_PHOTO_TYPE');
+    }
+    if (!req.file) throw new AppError('No photo uploaded', 400, 'NO_FILE');
+    await validateFileContent(req.file.buffer, IMAGE_MIMES);
+
+    const { url } = await StorageService.uploadBeforePhoto(
+        req.file.buffer, req.client.orgId, req.client.id, photoType,
+    );
+
+    const fieldMap: Record<string, string> = {
+        front: 'beforePhotoFrontUrl',
+        side: 'beforePhotoSideUrl',
+        back: 'beforePhotoBackUrl',
+    };
+    await prisma.client.update({
+        where: { id: req.client.id },
+        data: { [fieldMap[photoType]]: url },
+    });
+
+    invalidateClientCache(req.client.id);
+    res.status(200).json({ success: true, data: { url } });
+}));
 
 router.post('/chat/conversations/initiate', writeOperationLimiter, initiateClientConversation);
 router.get('/chat/conversations', listClientConversations);

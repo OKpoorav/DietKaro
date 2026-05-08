@@ -37,6 +37,7 @@ interface ClientFormData {
     goal: string;
     goalDeadline: string;
     healthNotes: string;
+    beforePhotoFiles?: { front?: File; side?: File; back?: File };
 }
 
 const INITIAL_FORM: ClientFormData = {
@@ -69,6 +70,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
     const generateInvite = useGenerateInvite();
     const [tagIds, setTagIds] = useState<string[]>([]);
     const [tagsTouched, setTagsTouched] = useState(false);
+    const [beforePhotoFiles, setBeforePhotoFiles] = useState<{ front?: File; side?: File; back?: File }>({});
 
     const { data: tags } = useTags();
     const setClientTags = useSetClientTags();
@@ -101,6 +103,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
             setCreatedClientName('');
             setTagIds([]);
             setTagsTouched(false);
+            setBeforePhotoFiles({});
         }, 200);
         return () => clearTimeout(timer);
     }, [isOpen]);
@@ -122,6 +125,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
             const submittedData = {
                 ...formData,
                 name: [formData.salutation, formData.name].filter(Boolean).join(' '),
+                beforePhotoFiles: Object.keys(beforePhotoFiles).length > 0 ? beforePhotoFiles : undefined,
             };
             const result = await onSubmit(submittedData);
             const id = result && typeof result === 'object' && 'id' in result ? result.id : null;
@@ -155,23 +159,21 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title} size={step === 'form' ? 'lg' : 'md'}>
             {step === 'form' ? (
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                {/* Basic Info */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
-                        Basic Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+
+                {/* Basic Information */}
+                <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Basic Information</p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                        {/* Full Name */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Full Name *
-                            </label>
-                            <div className="flex gap-2">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Full Name *</label>
+                            <div className="flex gap-1.5">
                                 <select
                                     name="salutation"
                                     value={formData.salutation}
                                     onChange={handleChange}
-                                    className="border border-gray-200 rounded-lg px-2 py-2.5 text-sm text-gray-700 focus:ring-brand focus:border-brand bg-white shrink-0 w-24"
+                                    className="border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-700 focus:ring-brand focus:border-brand bg-white shrink-0 w-20"
                                 >
                                     <option value="">—</option>
                                     <option value="Mr.">Mr.</option>
@@ -181,39 +183,37 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                     <option value="Prof.">Prof.</option>
                                 </select>
                                 <div className="relative flex-1">
-                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                         type="text"
                                         name="name"
                                         required
                                         value={formData.name}
                                         onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                         placeholder="Enter full name"
                                     />
                                 </div>
                             </div>
                         </div>
+                        {/* Email */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Email Address
-                            </label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                     placeholder="email@example.com"
                                 />
                             </div>
                         </div>
+                        {/* Phone */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Phone Number *
-                            </label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Phone *</label>
                             <PhoneInput
                                 international
                                 defaultCountry="IN"
@@ -222,30 +222,28 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 className="phone-input-field"
                             />
                         </div>
+                        {/* DOB */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Date of Birth
-                            </label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
                             <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="date"
                                     name="dateOfBirth"
                                     value={formData.dateOfBirth}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                                 />
                             </div>
                         </div>
+                        {/* Gender */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Gender
-                            </label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Gender</label>
                             <select
                                 name="gender"
                                 value={formData.gender}
                                 onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
                             >
                                 <option value="">Select gender</option>
                                 <option value="male">Male</option>
@@ -253,220 +251,161 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Alt. Phone <span className="text-gray-400 font-normal">(Optional)</span>
-                            </label>
-                            <PhoneInput
-                                international
-                                defaultCountry="IN"
-                                value={formData.altPhone}
-                                onChange={(value) => setFormData({ ...formData, altPhone: value || '' })}
-                                className="phone-input-field"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Relation <span className="text-gray-400 font-normal">(Optional)</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="altPhoneRelation"
-                                value={formData.altPhoneRelation}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="e.g. Spouse, Parent, Guardian"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Physical Info */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
-                        Physical Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Height (cm)
-                            </label>
-                            <input
-                                type="number"
-                                name="height"
-                                value={formData.height}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="165"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Current Weight (kg)
-                            </label>
-                            <input
-                                type="number"
-                                name="weight"
-                                value={formData.weight}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="70"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Target Weight (kg)
-                            </label>
-                            <div className="relative">
-                                <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        {/* Alt Phone + Relation stacked in one cell */}
+                        <div className="space-y-2">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Alt. Phone <span className="text-gray-400 font-normal">(Optional)</span></label>
+                                <PhoneInput
+                                    international
+                                    defaultCountry="IN"
+                                    value={formData.altPhone}
+                                    onChange={(value) => setFormData({ ...formData, altPhone: value || '' })}
+                                    className="phone-input-field"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Relation <span className="text-gray-400 font-normal">(Optional)</span></label>
                                 <input
-                                    type="number"
-                                    name="targetWeight"
-                                    value={formData.targetWeight}
+                                    type="text"
+                                    name="altPhoneRelation"
+                                    value={formData.altPhoneRelation}
                                     onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                    placeholder="65"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                    placeholder="Spouse, Parent, Guardian…"
                                 />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Medical Info */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-orange-500" />
-                        Medical Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Allergies
-                            </label>
-                            <textarea
-                                name="allergies"
-                                value={formData.allergies}
-                                onChange={handleChange}
-                                rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Dairy, Peanuts, Shellfish..."
-                            />
+                {/* Physical + Medical in one row */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                    <div>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Physical</p>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Height cm</label>
+                                <input type="number" name="height" value={formData.height} onChange={handleChange}
+                                    className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900" placeholder="165" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Weight kg</label>
+                                <input type="number" name="weight" value={formData.weight} onChange={handleChange}
+                                    className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900" placeholder="70" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Target kg</label>
+                                <input type="number" name="targetWeight" value={formData.targetWeight} onChange={handleChange}
+                                    className="w-full px-2 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900" placeholder="65" />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Medical Conditions
-                            </label>
-                            <textarea
-                                name="medicalConditions"
-                                value={formData.medicalConditions}
-                                onChange={handleChange}
-                                rows={3}
-                                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Diabetes, Hypertension..."
-                            />
+                    </div>
+                    <div>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 text-orange-400" /> Medical
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Allergies</label>
+                                <textarea name="allergies" value={formData.allergies} onChange={handleChange} rows={2}
+                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
+                                    placeholder="Dairy, Peanuts…" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Conditions</label>
+                                <textarea name="medicalConditions" value={formData.medicalConditions} onChange={handleChange} rows={2}
+                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
+                                    placeholder="Diabetes, HTN…" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Preferences & Goals */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                        <Goal className="w-4 h-4 text-blue-500" />
-                        Preferences & Goals
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
+                        <Goal className="w-3 h-3 text-blue-400" /> Preferences &amp; Goals
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Food Dislikes
-                            </label>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Food Dislikes</label>
                             <TagInput
                                 value={formData.dislikes}
                                 onChange={(tags) => setFormData({ ...formData, dislikes: tags })}
-                                placeholder="Type a food (e.g. Peanuts)..."
+                                placeholder="Type a food, press Enter…"
                             />
-                            <p className="mt-1 text-xs text-gray-400">Type and press Enter or comma to add</p>
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Goal
-                                </label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Goal</label>
                                 <div className="relative">
-                                    <Target className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        name="goal"
-                                        value={formData.goal}
-                                        onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                        placeholder="e.g. Lose 10kg, Manage diabetes..."
-                                    />
+                                    <Target className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input type="text" name="goal" value={formData.goal} onChange={handleChange}
+                                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                        placeholder="e.g. Lose 10kg…" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Goal Deadline
-                                </label>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Deadline</label>
                                 <div className="relative">
-                                    <CalendarClock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                    <input
-                                        type="date"
-                                        name="goalDeadline"
-                                        value={formData.goalDeadline}
-                                        onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                    />
+                                    <CalendarClock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input type="date" name="goalDeadline" value={formData.goalDeadline} onChange={handleChange}
+                                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900" />
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                            <Tag className="w-4 h-4 text-brand" />
-                            Tags
-                        </label>
-                        <TagMultiSelect
-                            selectedIds={tagIds}
-                            onChange={handleTagsChange}
-                            suggestedIds={suggestedTagIds}
-                        />
-                        <p className="mt-1 text-xs text-gray-400">
-                            Suggestions are pre-checked from goal &amp; medical conditions. Adjust as needed.
-                        </p>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Additional Notes
-                        </label>
-                        <div className="relative">
-                            <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                            <textarea
-                                name="healthNotes"
-                                value={formData.healthNotes}
-                                onChange={handleChange}
-                                rows={3}
-                                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Any extra information about the client..."
-                            />
                         </div>
                     </div>
                 </div>
 
+                {/* Tags */}
+                <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-brand" /> Tags
+                        <span className="text-gray-400 font-normal ml-1">· auto-suggested from goal &amp; conditions</span>
+                    </label>
+                    <TagMultiSelect selectedIds={tagIds} onChange={handleTagsChange} suggestedIds={suggestedTagIds} />
+                </div>
+
+                {/* Notes */}
+                <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Additional Notes</label>
+                    <textarea name="healthNotes" value={formData.healthNotes} onChange={handleChange} rows={2}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
+                        placeholder="Any extra information about the client…" />
+                </div>
+
+                {/* Before Photos */}
+                <div>
+                    <p className="text-xs font-medium text-gray-600 mb-2">Before Photos <span className="text-gray-400 font-normal">(optional)</span></p>
+                    <div className="grid grid-cols-3 gap-2.5">
+                        {(['front', 'side', 'back'] as const).map((type) => (
+                            <label key={type} className="flex flex-col items-center gap-1 cursor-pointer">
+                                <div className={`w-full h-20 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden transition-colors ${beforePhotoFiles[type] ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-brand/50'}`}>
+                                    {beforePhotoFiles[type] ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={URL.createObjectURL(beforePhotoFiles[type]!)} alt={`${type} view`} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-lg text-gray-300">+</span>
+                                    )}
+                                </div>
+                                <span className="text-[11px] text-gray-500 capitalize">{type}</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) setBeforePhotoFiles((p) => ({ ...p, [type]: file }));
+                                }} />
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={submitting}
-                        className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-60"
-                    >
+                <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                    <button type="button" onClick={onClose} disabled={submitting}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-60">
                         Cancel
                     </button>
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
+                    <button type="submit" disabled={submitting}
+                        className="px-4 py-2 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                         {submitting ? 'Adding…' : 'Add Client'}
                     </button>
                 </div>

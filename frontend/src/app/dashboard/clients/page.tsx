@@ -19,6 +19,7 @@ import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 import { TagChip } from '@/components/clients/tag-chip';
 import { useTags } from '@/lib/hooks/use-tags';
 import { useClients, useCreateClient, useDeleteClient, Client } from '@/lib/hooks/use-clients';
+import { useApiClient } from '@/lib/api/use-api-client';
 import { usePermissions } from '@/lib/hooks/use-permissions';
 import { getInitials, formatTimeAgo, calculateAge } from '@/lib/utils/formatters';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -87,12 +88,13 @@ export default function ClientsPage() {
     });
     const createClient = useCreateClient();
     const deleteClient = useDeleteClient();
+    const api = useApiClient();
 
     const clients = data?.data || [];
     const meta = data?.meta;
 
     const handleAddClient = async (
-        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string },
+        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string; beforePhotoFiles?: { front?: File; side?: File; back?: File } },
         reactivate?: boolean,
     ): Promise<{ id: string } | void> => {
         try {
@@ -113,6 +115,21 @@ export default function ClientsPage() {
                 healthNotes: clientData.healthNotes || undefined,
                 ...(reactivate ? { reactivate: true } : {}),
             } as any);
+
+            // Upload before photos if provided (best-effort, non-blocking for UX)
+            if (clientData.beforePhotoFiles) {
+                const uploads = Object.entries(clientData.beforePhotoFiles)
+                    .filter(([, file]) => !!file)
+                    .map(([type, file]) => {
+                        const fd = new FormData();
+                        fd.append('photo', file as File);
+                        return api.post(`/clients/${created.id}/before-photos?type=${type}`, fd, {
+                            headers: { 'Content-Type': 'multipart/form-data' },
+                        }).catch(() => null);
+                    });
+                await Promise.all(uploads);
+            }
+
             toast.success(reactivate ? 'Client reactivated successfully' : 'Client added successfully');
             return { id: created.id };
         } catch (err: any) {

@@ -146,6 +146,9 @@ model Client {
   preferredCuisines     String[]               @default([])
   foodRestrictions      Json                   @default("[]")
   pushTokens            String[]               @default([])
+  beforePhotoFrontUrl   String?
+  beforePhotoSideUrl    String?
+  beforePhotoBackUrl    String?
   targetCalories        Int?
   targetCarbsG          Decimal?               @db.Decimal(5, 1)
   targetFatsG           Decimal?               @db.Decimal(5, 1)

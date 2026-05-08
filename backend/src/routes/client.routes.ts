@@ -14,8 +14,8 @@ import { clientService } from '../services/client.service';
 import { labService } from '../services/lab.service';
 import prisma from '../utils/prisma';
 import { signDownloadToken } from './media.routes';
-import { uploadSingleDietitianReport, validateFileContent, REPORT_MIMES } from '../middleware/upload.middleware';
-import { uploadToS3, deleteFromS3 } from '../services/storage.service';
+import { uploadSingleDietitianReport, upload, validateFileContent, REPORT_MIMES, IMAGE_MIMES } from '../middleware/upload.middleware';
+import { uploadToS3, deleteFromS3, StorageService } from '../services/storage.service';
 import { enqueueDocumentProcessing } from '../jobs/queue';
 import logger from '../utils/logger';
 
@@ -272,6 +272,43 @@ router.delete(
         });
 
         res.status(204).send();
+    }),
+);
+
+const BEFORE_PHOTO_TYPES = new Set(['front', 'side', 'back']);
+
+router.post('/:clientId/before-photos',
+    requireActiveSubscription,
+    upload.single('photo'),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const photoType = req.query.type as string;
+        if (!BEFORE_PHOTO_TYPES.has(photoType)) {
+            throw new AppError('type must be front, side, or back', 400, 'INVALID_PHOTO_TYPE');
+        }
+        if (!req.file) throw new AppError('No photo uploaded', 400, 'NO_FILE');
+        await validateFileContent(req.file.buffer, IMAGE_MIMES);
+
+        const client = await prisma.client.findFirst({
+            where: { id: req.params.clientId, orgId: req.user!.organizationId, isActive: true },
+            select: { id: true },
+        });
+        if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+
+        const { url } = await StorageService.uploadBeforePhoto(
+            req.file.buffer, req.user!.organizationId, req.params.clientId, photoType,
+        );
+
+        const fieldMap: Record<string, string> = {
+            front: 'beforePhotoFrontUrl',
+            side: 'beforePhotoSideUrl',
+            back: 'beforePhotoBackUrl',
+        };
+        await prisma.client.update({
+            where: { id: req.params.clientId },
+            data: { [fieldMap[photoType]]: url },
+        });
+
+        res.json({ success: true, data: { url } });
     }),
 );
 

@@ -40,6 +40,8 @@ function OnboardingForm() {
     });
     const [allergies, setAllergies] = useState<string[]>([]);
     const [dislikes, setDislikes] = useState<string[]>([]);
+    const [beforePhotos, setBeforePhotos] = useState<{ front: string | null; side: string | null; back: string | null }>({ front: null, side: null, back: null });
+    const [uploadingPhoto, setUploadingPhoto] = useState<{ front: boolean; side: boolean; back: boolean }>({ front: false, side: false, back: false });
 
     useEffect(() => {
         if (!token) { setState('error'); setErrorMsg('Invalid link. No token provided.'); return; }
@@ -53,6 +55,23 @@ function OnboardingForm() {
     }, [token]);
 
     const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+    const handlePhotoChange = async (type: 'front' | 'side' | 'back', file: File | null) => {
+        if (!file || !token) return;
+        setUploadingPhoto((p) => ({ ...p, [type]: true }));
+        try {
+            const fd = new FormData();
+            fd.append('photo', file);
+            const res = await axios.post(`${API}/onboarding-invite/${token}/upload-photo?type=${type}`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setBeforePhotos((p) => ({ ...p, [type]: res.data.data.url }));
+        } catch {
+            // silently skip — photos are optional
+        } finally {
+            setUploadingPhoto((p) => ({ ...p, [type]: false }));
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -71,6 +90,9 @@ function OnboardingForm() {
             if (form.goalDeadline) payload.goalDeadline = form.goalDeadline;
             if (allergies.length > 0) payload.allergies = allergies;
             if (dislikes.length > 0) payload.dislikes = dislikes;
+            if (beforePhotos.front) payload.beforePhotoFrontUrl = beforePhotos.front;
+            if (beforePhotos.side) payload.beforePhotoSideUrl = beforePhotos.side;
+            if (beforePhotos.back) payload.beforePhotoBackUrl = beforePhotos.back;
 
             await axios.post(`${API}/onboarding-invite/${token}/submit`, payload);
             setState('done');
@@ -227,6 +249,30 @@ function OnboardingForm() {
                                 <label className={label}>Target date (optional)</label>
                                 <input type="date" className={input} value={form.goalDeadline} onChange={(e) => set('goalDeadline', e.target.value)} />
                             </div>
+                        </div>
+                    </section>
+
+                    {/* Before Photos */}
+                    <section>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Before Photos</p>
+                        <p className="text-xs text-gray-400 mb-4">Optional — helps your dietitian track your progress visually.</p>
+                        <div className="grid grid-cols-3 gap-3">
+                            {(['front', 'side', 'back'] as const).map((type) => (
+                                <label key={type} className="flex flex-col items-center gap-2 cursor-pointer">
+                                    <div className={`w-full aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-colors ${beforePhotos[type] ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50 hover:border-emerald-300'}`}>
+                                        {uploadingPhoto[type] ? (
+                                            <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                        ) : beforePhotos[type] ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={beforePhotos[type]!} alt={`${type} view`} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-2xl text-gray-300">+</span>
+                                        )}
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-600 capitalize">{type} Pic</span>
+                                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoChange(type, e.target.files?.[0] ?? null)} />
+                                </label>
+                            ))}
                         </div>
                     </section>
 
