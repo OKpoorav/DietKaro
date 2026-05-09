@@ -12,7 +12,7 @@ import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { DayNavigator } from '@/components/diet-plan/day-navigator';
 import { MealEditor } from '@/components/diet-plan/meal-editor';
 import { NutritionSummary } from '@/components/diet-plan/nutrition-summary';
-import { TemplateSidebar } from '@/components/diet-plan/template-sidebar';
+import { TemplateSidebar, type MealSlotPreset } from '@/components/diet-plan/template-sidebar';
 import { PlanSetupModal, PlanSetupResult } from '@/components/diet-plan/plan-setup-modal';
 import { BulkPortionModal } from '@/components/diet-plan/bulk-portion-modal';
 import { useClient } from '@/lib/hooks/use-clients';
@@ -138,6 +138,9 @@ function BuilderContent() {
     const [showSetupModal, setShowSetupModal] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
 
+    // Preset scope dialog — shown when user clicks a meal structure in the sidebar
+    const [presetScope, setPresetScope] = useState<{ preset: MealSlotPreset } | null>(null);
+
     // Split-pane state — max 2 panes, each picks its own day.
     const [splitMode, setSplitMode] = useState(false);
     const [selectedDayA, setSelectedDayA] = useState(0);
@@ -169,6 +172,7 @@ function BuilderContent() {
         client,
         initialStartDate: setupResult?.startDate,
         initialNumDays: templateNumDays ?? setupResult?.numDays,
+        initialMealCount: setupResult?.mealCount,
         initialPlanName: templatePlanName ?? setupResult?.planName,
         overlapStrategy: setupResult?.overlapStrategy,
         overlappingPlanIds: setupResult?.overlappingPlanIds,
@@ -197,6 +201,14 @@ function BuilderContent() {
         builder.applyTemplate(setupResult.slotTemplateId, { skipConfirm: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setupResult?.slotTemplateId, builder.editLoading]);
+
+    // Auto-show plan setup modal once client is ready — must be before early returns (Rules of Hooks)
+    useEffect(() => {
+        if (!isTemplateMode && !editId && !setupResult && client && !showSetupModal) {
+            setShowSetupModal(true);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [client]);
 
     // Step 1: Client selection screen
     if (!isTemplateMode && !clientId) {
@@ -230,10 +242,6 @@ function BuilderContent() {
 
     // Step 2: Plan setup modal — shown once after client loads, skipped for templates/edits
     if (!isTemplateMode && !editId && !setupResult) {
-        // Auto-show modal when client is ready
-        if (!showSetupModal && client) {
-            setShowSetupModal(true);
-        }
         return (
             <>
                 <div className="flex justify-center p-12">
@@ -275,7 +283,7 @@ function BuilderContent() {
                         {!isTemplateMode && client && (
                             <>
                                 <span className="text-gray-400">|</span>
-                                <span className="text-gray-600 text-sm">
+                                <span className="text-gray-800 text-sm font-bold">
                                     {client.fullName} ({calculateAge(client.dateOfBirth) ?? '?'} yrs)
                                 </span>
                             </>
@@ -296,8 +304,8 @@ function BuilderContent() {
                         }`}
                         title={splitMode ? 'Exit split view' : 'Split builder into two panes'}
                     >
-                        {splitMode ? <Columns2 className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                        {splitMode ? 'Split' : 'Single'}
+                        {splitMode ? <Square className="w-4 h-4" /> : <Columns2 className="w-4 h-4" />}
+                        {splitMode ? 'Single' : 'Split'}
                     </button>
                     {isTemplateMode ? (
                         <div className="flex gap-2">
@@ -373,8 +381,8 @@ function BuilderContent() {
                         <TemplateSidebar
                             templates={templates}
                             applyingTemplateId={builder.applyingTemplateId}
-                            onApplyTemplate={builder.applyTemplate}
-                            onApplyPreset={builder.applyPreset}
+                            onApplyTemplate={(id) => builder.applyTemplate(id, { startDayIndex: selectedDayA })}
+                            onApplyPreset={(preset) => setPresetScope({ preset })}
                         />
                     </div>
                 </aside>
@@ -442,6 +450,53 @@ function BuilderContent() {
                 onApply={(factor, scope) => builder.bulkAdjust(factor, scope, selectedDayA)}
             />
 
+            {/* Template scope confirmation modal */}
+            {builder.templateScopePrompt && (() => {
+                const { templateName, templateDayCount, mealsPerDay, startDayIndex, endDayIndex, planDayCount } = builder.templateScopePrompt;
+                const daysFilled = endDayIndex - startDayIndex + 1;
+                const clipped = templateDayCount > daysFilled;
+                const rangeLabel = daysFilled > 1 ? `Days ${startDayIndex + 1}–${endDayIndex + 1}` : `Day ${startDayIndex + 1}`;
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                            <h3 className="text-base font-bold text-gray-900">Apply &quot;{templateName}&quot;</h3>
+                            <div className="text-sm text-gray-600 space-y-1.5">
+                                <p>
+                                    This is a <span className="font-semibold text-gray-800">{templateDayCount}-day template</span>
+                                    {mealsPerDay > 0 && <> with <span className="font-semibold text-gray-800">{mealsPerDay} meals/day</span></>}.
+                                </p>
+                                {clipped ? (
+                                    <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs">
+                                        Starting from Day {startDayIndex + 1}, only {rangeLabel} will be filled ({daysFilled} of {templateDayCount} template days fit in your {planDayCount}-day plan).
+                                    </p>
+                                ) : (
+                                    <p>
+                                        It will fill <span className="font-semibold text-gray-800">{rangeLabel}</span> in your {planDayCount}-day plan.
+                                        {daysFilled < planDayCount && <span className="text-gray-400"> Other days are unchanged.</span>}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => builder.dismissTemplateApply()}
+                                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => builder.confirmTemplateApply()}
+                                    className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm"
+                                >
+                                    Continue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             {/* Scaling confirmation modal */}
             {builder.scalingPrompt && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -474,6 +529,45 @@ function BuilderContent() {
                             <button
                                 type="button"
                                 onClick={() => builder.dismissScaling()}
+                                className="w-full px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Preset scope dialog — ask "this day" or "all days" */}
+            {presetScope && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-900">Apply "{presetScope.preset.label}"</h3>
+                        <p className="text-sm text-gray-600">Where should this meal structure be applied?</p>
+                        <div className="flex flex-col gap-2 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    builder.applyPreset(presetScope.preset, selectedDayA);
+                                    setPresetScope(null);
+                                }}
+                                className="w-full px-4 py-3 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors"
+                            >
+                                Day {selectedDayA + 1} only
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    builder.applyPreset(presetScope.preset, 'all');
+                                    setPresetScope(null);
+                                }}
+                                className="w-full px-4 py-3 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                All {builder.numDays} days
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPresetScope(null)}
                                 className="w-full px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
                             >
                                 Cancel

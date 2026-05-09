@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle, Tag, Phone } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, Tag } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import type { Client } from '@/lib/hooks/use-clients';
@@ -116,11 +116,10 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                     <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
                         Basic Information
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Row 1: Full Name | Email */}
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Full Name *
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                             <div className="relative">
                                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
@@ -135,9 +134,7 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Email Address
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
@@ -150,10 +147,11 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                                 />
                             </div>
                         </div>
+                    </div>
+                    {/* Row 2: Phone | DOB | Gender */}
+                    <div className="grid grid-cols-3 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Phone Number *
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
                             <PhoneInput
                                 international
                                 defaultCountry="IN"
@@ -163,9 +161,7 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Date of Birth
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                             <div className="relative">
                                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
@@ -178,9 +174,7 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Gender
-                            </label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                             <select
                                 name="gender"
                                 value={formData.gender}
@@ -194,33 +188,23 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             </select>
                         </div>
                     </div>
-                </div>
-
-                {/* Alt Contact */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
-                        Alternate Contact
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Row 3: Alt Phone | Relation */}
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Alt Phone
+                                Alt Phone <span className="text-gray-400 font-normal">(Optional)</span>
                             </label>
-                            <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    type="text"
-                                    name="altPhone"
-                                    value={formData.altPhone}
-                                    onChange={handleChange}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                    placeholder="+91 99999 00000"
-                                />
-                            </div>
+                            <PhoneInput
+                                international
+                                defaultCountry="IN"
+                                value={formData.altPhone}
+                                onChange={(value) => setFormData({ ...formData, altPhone: value || '' })}
+                                className="phone-input-field"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Relation (e.g. Spouse, Parent)
+                                Relation <span className="text-gray-400 font-normal">(Optional)</span>
                             </label>
                             <input
                                 type="text"
@@ -228,7 +212,7 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                                 value={formData.altPhoneRelation}
                                 onChange={handleChange}
                                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                placeholder="Spouse"
+                                placeholder="Spouse, Parent, Guardian…"
                             />
                         </div>
                     </div>

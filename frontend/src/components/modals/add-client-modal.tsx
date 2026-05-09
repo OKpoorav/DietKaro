@@ -164,95 +164,96 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                 {/* Basic Information */}
                 <div>
                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Basic Information</p>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
-                        {/* Full Name */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Full Name *</label>
-                            <div className="flex gap-1.5">
-                                <select
-                                    name="salutation"
-                                    value={formData.salutation}
-                                    onChange={handleChange}
-                                    className="border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-700 focus:ring-brand focus:border-brand bg-white shrink-0 w-20"
-                                >
-                                    <option value="">—</option>
-                                    <option value="Mr.">Mr.</option>
-                                    <option value="Mrs.">Mrs.</option>
-                                    <option value="Ms.">Ms.</option>
-                                    <option value="Dr.">Dr.</option>
-                                    <option value="Prof.">Prof.</option>
-                                </select>
-                                <div className="relative flex-1">
-                                    <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <div className="space-y-2.5">
+                        {/* Row 1: Full Name | Email */}
+                        <div className="grid grid-cols-2 gap-x-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Full Name *</label>
+                                <div className="flex gap-1.5">
+                                    <select
+                                        name="salutation"
+                                        value={formData.salutation}
+                                        onChange={handleChange}
+                                        className="border border-gray-200 rounded-lg px-2 py-2 text-sm text-gray-700 focus:ring-brand focus:border-brand bg-white shrink-0 w-20"
+                                    >
+                                        <option value="">—</option>
+                                        <option value="Mr.">Mr.</option>
+                                        <option value="Mrs.">Mrs.</option>
+                                        <option value="Ms.">Ms.</option>
+                                        <option value="Dr.">Dr.</option>
+                                        <option value="Prof.">Prof.</option>
+                                    </select>
+                                    <div className="relative flex-1">
+                                        <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            required
+                                            value={formData.name}
+                                            onChange={handleChange}
+                                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                            placeholder="Enter full name"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
-                                        type="text"
-                                        name="name"
-                                        required
-                                        value={formData.name}
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
                                         onChange={handleChange}
                                         className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                        placeholder="Enter full name"
+                                        placeholder="email@example.com"
                                     />
                                 </div>
                             </div>
                         </div>
-                        {/* Email */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
-                            <div className="relative">
-                                <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                    placeholder="email@example.com"
+                        {/* Row 2: Phone | DOB | Gender */}
+                        <div className="grid grid-cols-3 gap-x-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Phone *</label>
+                                <PhoneInput
+                                    international
+                                    defaultCountry="IN"
+                                    value={formData.phone}
+                                    onChange={(value) => setFormData({ ...formData, phone: value || '' })}
+                                    className="phone-input-field"
                                 />
                             </div>
-                        </div>
-                        {/* Phone */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Phone *</label>
-                            <PhoneInput
-                                international
-                                defaultCountry="IN"
-                                value={formData.phone}
-                                onChange={(value) => setFormData({ ...formData, phone: value || '' })}
-                                className="phone-input-field"
-                            />
-                        </div>
-                        {/* DOB */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
-                            <div className="relative">
-                                <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="date"
-                                    name="dateOfBirth"
-                                    value={formData.dateOfBirth}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="date"
+                                        name="dateOfBirth"
+                                        value={formData.dateOfBirth}
+                                        onChange={handleChange}
+                                        className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Gender</label>
+                                <select
+                                    name="gender"
+                                    value={formData.gender}
                                     onChange={handleChange}
-                                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                                />
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                >
+                                    <option value="">Select gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
                             </div>
                         </div>
-                        {/* Gender */}
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Gender</label>
-                            <select
-                                name="gender"
-                                value={formData.gender}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
-                            >
-                                <option value="">Select gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                        {/* Alt Phone + Relation stacked in one cell */}
-                        <div className="space-y-2">
+                        {/* Row 3: Alt Phone | Relation */}
+                        <div className="grid grid-cols-2 gap-x-3">
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Alt. Phone <span className="text-gray-400 font-normal">(Optional)</span></label>
                                 <PhoneInput
@@ -326,7 +327,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5 flex items-center gap-1">
                         <Goal className="w-3 h-3 text-blue-400" /> Preferences &amp; Goals
                     </p>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                    <div className="space-y-2.5">
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Food Dislikes</label>
                             <TagInput
@@ -335,7 +336,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 placeholder="Type a food, press Enter…"
                             />
                         </div>
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-x-3">
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Goal</label>
                                 <div className="relative">

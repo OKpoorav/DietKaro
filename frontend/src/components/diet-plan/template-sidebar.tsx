@@ -172,7 +172,9 @@ function TemplateCard({ t, applyingTemplateId, onApplyTemplate }: {
                 {applyingTemplateId === t.id && <Loader2 className="w-3 h-3 animate-spin text-brand" />}
             </div>
             <div className="mt-1 text-xs text-gray-500">
-                {t.checkInFrequency || 'Flexible'}
+                {t.day0MealNames?.length
+                    ? `${t.day0MealNames.join(', ')}${t.numDays ? ` · ${t.numDays} day${t.numDays > 1 ? 's' : ''}` : ''}`
+                    : t.checkInFrequency || (t.mealCount ? `${t.mealCount} meals` : 'Flexible')}
             </div>
         </button>
     );

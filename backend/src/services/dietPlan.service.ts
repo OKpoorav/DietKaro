@@ -144,13 +144,22 @@ export class DietPlanService {
                     client: { select: { id: true, fullName: true } },
                     creator: { select: { id: true, fullName: true } },
                     _count: { select: { meals: true } },
+                    ...(isTemplate === 'true' && {
+                        meals: { select: { name: true, dayOfWeek: true }, orderBy: [{ dayOfWeek: 'asc' }, { createdAt: 'asc' }] },
+                    }),
                 },
             }),
             prisma.dietPlan.count({ where }),
         ]);
 
         return {
-            plans: plans.map((p) => ({ ...p, mealCount: p._count.meals })),
+            plans: plans.map((p) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const meals = (p as any).meals as { name: string; dayOfWeek: number | null }[] | undefined;
+                const uniqueDays = meals ? new Set(meals.map(m => m.dayOfWeek ?? 0)).size : 0;
+                const day0Names = meals ? meals.filter(m => (m.dayOfWeek ?? 0) === 0).map(m => m.name) : [];
+                return { ...p, mealCount: p._count.meals, numDays: uniqueDays || undefined, day0MealNames: day0Names.length ? day0Names : undefined };
+            }),
             meta: buildPaginationMeta(total, pagination),
         };
     }

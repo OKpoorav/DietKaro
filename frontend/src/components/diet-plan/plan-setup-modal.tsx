@@ -179,45 +179,33 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                         />
                     </div>
 
-                    {/* Built-in options */}
-                    {filteredBuiltIn.length > 0 && (
-                        <div>
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Standard</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                {filteredBuiltIn.map(opt => {
-                                    const isPinned = pins.has(opt.label);
-                                    return (
-                                        <BuiltInCard
-                                            key={opt.label}
-                                            opt={opt}
-                                            isPinned={isPinned}
-                                            onSelect={() => selectOption(opt.count)}
-                                            onTogglePin={(e) => togglePin(opt.label, e)}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Saved slot templates */}
-                    {filteredSlotTemplates.length > 0 && (
-                        <div>
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Saved Structures</p>
-                            <div className="space-y-2">
-                                {filteredSlotTemplates.map(t => {
-                                    const isPinned = pins.has(t.id);
-                                    return (
-                                        <SavedStructureCard
-                                            key={t.id}
-                                            template={t}
-                                            isPinned={isPinned}
-                                            onSelect={() => selectOption(3, t.id)}
-                                            onTogglePin={(e) => togglePin(t.id, e)}
-                                        />
-                                    );
-                                })}
-                            </div>
+                    {/* All options — flat list, no section headers */}
+                    {(filteredBuiltIn.length > 0 || filteredSlotTemplates.length > 0) && (
+                        <div className="space-y-2">
+                            {filteredBuiltIn.map(opt => {
+                                const isPinned = pins.has(opt.label);
+                                return (
+                                    <BuiltInCard
+                                        key={opt.label}
+                                        opt={opt}
+                                        isPinned={isPinned}
+                                        onSelect={() => selectOption(opt.count)}
+                                        onTogglePin={(e) => togglePin(opt.label, e)}
+                                    />
+                                );
+                            })}
+                            {filteredSlotTemplates.map(t => {
+                                const isPinned = pins.has(t.id);
+                                return (
+                                    <SavedStructureCard
+                                        key={t.id}
+                                        template={t}
+                                        isPinned={isPinned}
+                                        onSelect={() => selectOption(3, t.id)}
+                                        onTogglePin={(e) => togglePin(t.id, e)}
+                                    />
+                                );
+                            })}
                         </div>
                     )}
 
@@ -369,14 +357,16 @@ function BuiltInCard({ opt, isPinned, onSelect, onTogglePin }: {
     return (
         <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
             <button onClick={onSelect}
-                className={`w-full flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all ${isPinned ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand hover:bg-brand/5'}`}>
-                <Utensils className={`w-5 h-5 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
-                <span className={`text-lg font-bold ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{opt.count}</span>
-                <span className="text-xs text-gray-500">meals/day</span>
+                className={`w-full text-left p-3 rounded-xl border-2 transition-all ${isPinned ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand hover:bg-brand/5'}`}>
+                <div className="flex items-center gap-2 pr-5">
+                    <Utensils className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-semibold ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{opt.label}</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5 ml-6">{opt.description}</p>
             </button>
             {(hovered || isPinned) && (
                 <button onClick={onTogglePin} title={isPinned ? 'Unpin' : 'Pin as default'}
-                    className={`absolute top-2 right-2 p-0.5 rounded transition-colors ${isPinned ? 'text-brand' : 'text-gray-300 hover:text-brand'}`}>
+                    className={`absolute top-2.5 right-2 p-0.5 rounded transition-colors ${isPinned ? 'text-brand' : 'text-gray-300 hover:text-brand'}`}>
                     <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
                 </button>
             )}
@@ -399,7 +389,9 @@ function SavedStructureCard({ template, isPinned, onSelect, onTogglePin }: {
                     <Utensils className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
                     <span className={`text-sm font-semibold truncate ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{template.name}</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5 ml-6">Saved structure</p>
+                <p className="text-xs text-gray-400 mt-0.5 ml-6">
+                    {template.day0MealNames?.join(', ') || 'Saved structure'}
+                </p>
             </button>
             {(hovered || isPinned) && (
                 <button onClick={onTogglePin} title={isPinned ? 'Unpin' : 'Pin'}

@@ -59,6 +59,8 @@ export interface DietPlan {
     };
     meals?: Meal[];
     mealCount?: number;
+    numDays?: number;
+    day0MealNames?: string[];
 }
 
 interface PaginatedResponse<T> {

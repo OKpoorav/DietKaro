@@ -6,7 +6,7 @@ import { useCreateDietPlan, usePublishDietPlan, useUpdateDietPlan, CreateDietPla
 import { toast } from 'sonner';
 import type { LocalMeal, LocalFoodItem, DayNutrition, FoodItemData } from '../types/diet-plan.types';
 import type { Client } from './use-clients';
-import type { MealSlotPreset } from '@/components/diet-plan/template-sidebar';
+import { MEAL_SLOT_PRESETS, type MealSlotPreset } from '@/components/diet-plan/template-sidebar';
 
 // Re-export types used by components
 export type { LocalMeal, LocalFoodItem, DayNutrition };
@@ -19,6 +19,7 @@ interface UseMealBuilderOptions {
     onSaved: (isTemplate: boolean, published: boolean) => void;
     initialStartDate?: Date;
     initialNumDays?: number;
+    initialMealCount?: number;
     initialPlanName?: string;
     overlapStrategy?: 'overwrite' | 'end_previous' | 'update';
     overlappingPlanIds?: string[];
@@ -65,7 +66,7 @@ export const getDates = (startDate: Date, days: number) => {
     });
 };
 
-export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSaved, initialStartDate, initialNumDays, initialPlanName, overlapStrategy, overlappingPlanIds }: UseMealBuilderOptions) {
+export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSaved, initialStartDate, initialNumDays, initialMealCount, initialPlanName, overlapStrategy, overlappingPlanIds }: UseMealBuilderOptions) {
     const api = useApiClient();
     const createMutation = useCreateDietPlan();
     const updateMutation = useUpdateDietPlan();
@@ -80,9 +81,15 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const [planDescription, setPlanDescription] = useState('');
     const [weeklyMeals, setWeeklyMeals] = useState<Record<number, LocalMeal[]>>(() => {
         const days = initialNumDays || (isTemplateMode ? 7 : 1);
+        const preset = initialMealCount
+            ? MEAL_SLOT_PRESETS.find(p => p.slots.length === initialMealCount)
+            : null;
+        const baseMeals = preset
+            ? preset.slots.map(s => ({ id: makeId(), name: s.name, type: s.type, time: s.time, foods: [] as LocalMeal['foods'] }))
+            : defaultMeals(client?.preferences);
         const meals: Record<number, LocalMeal[]> = {};
         for (let i = 0; i < days; i++) {
-            meals[i] = defaultMeals(client?.preferences);
+            meals[i] = baseMeals.map(m => ({ ...m, id: makeId() }));
         }
         return meals;
     });
@@ -106,6 +113,15 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const pendingApplyRef = useRef<((factor: number) => void) | null>(null);
     const [replacePrompt, setReplacePrompt] = useState<string | null>(null);
     const pendingReplaceRef = useRef<(() => void) | null>(null);
+    const [templateScopePrompt, setTemplateScopePrompt] = useState<{
+        templateName: string;
+        templateDayCount: number;
+        mealsPerDay: number;
+        startDayIndex: number;
+        endDayIndex: number;
+        planDayCount: number;
+    } | null>(null);
+    const pendingTemplateRef = useRef<(() => void) | null>(null);
 
     // Sync state when PlanSetupModal results arrive (initial values only run once in useState)
     const [setupApplied, setSetupApplied] = useState(false);
@@ -118,16 +134,21 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         if (initialPlanName) setPlanName(initialPlanName);
         if (initialNumDays && initialNumDays >= 1) {
             setNumDays(initialNumDays);
+            const preset = initialMealCount
+                ? MEAL_SLOT_PRESETS.find(p => p.slots.length === initialMealCount)
+                : null;
             setWeeklyMeals(() => {
                 const meals: Record<number, LocalMeal[]> = {};
                 for (let i = 0; i < initialNumDays; i++) {
-                    meals[i] = defaultMeals(client?.preferences);
+                    meals[i] = preset
+                        ? preset.slots.map(s => ({ id: makeId(), name: s.name, type: s.type, time: s.time, foods: [] as LocalMeal['foods'] }))
+                        : defaultMeals(client?.preferences);
                 }
                 return meals;
             });
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialNumDays, initialStartDate, initialPlanName]);
+    }, [initialNumDays, initialStartDate, initialPlanName, initialMealCount]);
 
     // "Update existing plan" strategy: fetch overlapping plan meals and copy into matching days
     useEffect(() => {
@@ -700,13 +721,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [editId]);
 
     // Apply template with optional portion scaling
-    const applyTemplate = useCallback(async (templateId: string, opts?: { skipConfirm?: boolean }) => {
-        if (!opts?.skipConfirm) {
-            pendingReplaceRef.current = () => applyTemplate(templateId, { skipConfirm: true });
-            setReplacePrompt('This will replace all current meal entries with the selected template.');
-            return;
-        }
-
+    const applyTemplate = useCallback(async (templateId: string, opts?: { skipConfirm?: boolean; startDayIndex?: number }) => {
         setApplyingTemplateId(templateId);
         try {
             const { data } = await api.get(`/diet-plans/${templateId}`);
@@ -714,12 +729,12 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
 
             if (!template.meals || template.meals.length === 0) {
                 toast.error('Template has no meals');
+                setApplyingTemplateId(null);
                 return;
             }
 
             // ── Slot template: apply meal structure to every existing day, don't touch numDays ──
             if (template.templateCategory === 'slot_template') {
-                // Get day-0 meals as the structure blueprint
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const blueprint: LocalMeal[] = template.meals.map((tm: any) => ({
                     id: makeId(),
@@ -741,54 +756,61 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     return updated;
                 });
                 toast.success(`Meal structure applied to all ${numDays} days`);
+                setApplyingTemplateId(null);
                 return;
             }
 
-            // ── Full template: replace all days and sync numDays ──
+            // ── Full template: merge into plan starting from startDayIndex ──
 
-            // Build a closure so toast button handlers can invoke it with the chosen scale
+            // Parse meals by day, normalize so first template day = 0
+            const mealsByDayRaw: Record<number, Record<string, unknown>[]> = {};
+            let minDay = Infinity;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            template.meals.forEach((tm: any) => {
+                const d = typeof tm.dayOfWeek === 'string' ? parseInt(tm.dayOfWeek) : tm.dayOfWeek;
+                if (!isNaN(d)) {
+                    if (d < minDay) minDay = d;
+                    if (!mealsByDayRaw[d]) mealsByDayRaw[d] = [];
+                    mealsByDayRaw[d].push(tm);
+                }
+            });
+            if (minDay === Infinity) minDay = 0;
+
+            const mealsByDay: Record<number, Record<string, unknown>[]> = {};
+            Object.entries(mealsByDayRaw).forEach(([dayStr, meals]) => {
+                mealsByDay[parseInt(dayStr) - minDay] = meals;
+            });
+
+            const templateDayCount = Object.keys(mealsByDay).length;
+            const startDay = opts?.startDayIndex ?? 0;
+            // Clamp end to plan bounds — template may have more days than remain
+            const endDay = Math.min(startDay + templateDayCount - 1, numDays - 1);
+            const daysFilled = endDay - startDay + 1;
+
             const applyWithScale = (scaleFactor: number) => {
                 try {
-                    const mealsByDay: Record<number, Record<string, unknown>[]> = {};
-                    let minDay = Infinity;
-
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    template.meals.forEach((tm: any) => {
-                        const d = typeof tm.dayOfWeek === 'string' ? parseInt(tm.dayOfWeek) : tm.dayOfWeek;
-                        if (!isNaN(d)) {
-                            if (d < minDay) minDay = d;
-                            if (!mealsByDay[d]) mealsByDay[d] = [];
-                            mealsByDay[d].push(tm);
-                        }
-                    });
-
-                    if (minDay === Infinity) minDay = 0;
-
-                    const newWeeklyMeals: Record<number, LocalMeal[]> = {};
-
-                    Object.entries(mealsByDay).forEach(([dayStr, dayMeals]) => {
-                        const originalDay = parseInt(dayStr);
-                        const normalizedDay = originalDay - minDay;
+                    const newMeals: Record<number, LocalMeal[]> = {};
+                    Object.entries(mealsByDay).forEach(([relDayStr, dayMeals]) => {
+                        const relDay = parseInt(relDayStr);
+                        const targetDay = startDay + relDay;
+                        if (targetDay > endDay) return; // Clip to plan bounds
 
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        newWeeklyMeals[normalizedDay] = dayMeals.map((tm: any) => {
+                        newMeals[targetDay] = (dayMeals as any[]).map((tm: any) => {
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const localFoods: LocalFoodItem[] = tm.foodItems?.map((f: any) => {
                                 const scaledQty = Math.round(((f.quantityG || 100) * scaleFactor) / 5) * 5;
                                 const ratio = scaledQty / 100;
-                                const proteinPer100 = Number(f.foodItem.proteinG) || 0;
-                                const carbsPer100 = Number(f.foodItem.carbsG) || 0;
-                                const fatPer100 = Number(f.foodItem.fatsG) || 0;
                                 return {
                                     id: f.foodItem.id,
-                                    tempId: Math.random().toString(36).substr(2, 9),
+                                    tempId: makeId(),
                                     name: f.foodItem.name,
                                     quantity: `${scaledQty}g`,
                                     quantityValue: scaledQty,
                                     calories: Math.round(f.foodItem.calories * ratio),
-                                    protein: Math.round(proteinPer100 * ratio * 10) / 10,
-                                    carbs: Math.round(carbsPer100 * ratio * 10) / 10,
-                                    fat: Math.round(fatPer100 * ratio * 10) / 10,
+                                    protein: Math.round((Number(f.foodItem.proteinG) || 0) * ratio * 10) / 10,
+                                    carbs: Math.round((Number(f.foodItem.carbsG) || 0) * ratio * 10) / 10,
+                                    fat: Math.round((Number(f.foodItem.fatsG) || 0) * ratio * 10) / 10,
                                     hasWarning: client?.medicalProfile?.allergies?.some((a: string) => f.foodItem.name.toLowerCase().includes(a.toLowerCase())) || false,
                                     optionGroup: f.optionGroup ?? 0,
                                     optionLabel: f.optionLabel ?? undefined,
@@ -796,7 +818,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                             }) || [];
 
                             return {
-                                id: Math.random().toString(36).substr(2, 9),
+                                id: makeId(),
                                 name: tm.name || tm.mealType,
                                 type: tm.mealType,
                                 time: tm.timeOfDay,
@@ -807,20 +829,10 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                         });
                     });
 
-                    setWeeklyMealsDirty(newWeeklyMeals);
-
-                    const dayKeys = Object.keys(newWeeklyMeals).map(Number);
-                    const templateDayCount = dayKeys.length > 0 ? Math.max(...dayKeys) + 1 : 1;
-                    setNumDays(Math.min(templateDayCount, isTemplateMode ? 30 : 7));
-
-                    if (!newWeeklyMeals[selectedDayIndex]) {
-                        const firstDay = dayKeys.sort((a, b) => a - b)[0];
-                        if (firstDay !== undefined && firstDay !== selectedDayIndex) {
-                            setSelectedDayIndex(firstDay);
-                        }
-                    }
-
-                    toast.success(scaleFactor !== 1 ? 'Template applied with scaled portions' : 'Template applied successfully');
+                    // Merge into existing plan — only touch the days filled by the template
+                    setWeeklyMealsDirty(prev => ({ ...prev, ...newMeals }));
+                    const rangeLabel = daysFilled > 1 ? `Days ${startDay + 1}–${endDay + 1}` : `Day ${startDay + 1}`;
+                    toast.success(scaleFactor !== 1 ? `Template applied with scaled portions (${rangeLabel})` : `Template applied to ${rangeLabel}`);
                 } catch {
                     toast.error('Failed to apply template');
                 } finally {
@@ -828,41 +840,92 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 }
             };
 
-            // Check if portion scaling needed — show a modal instead of a native confirm
-            const templateCal = template.targetCalories;
-            const clientCal = targets.calories;
-            if (templateCal && clientCal && templateCal > 0) {
-                const ratio = clientCal / templateCal;
-                if (ratio > 1.1 || ratio < 0.9) {
-                    const pct = Math.abs(Math.round((ratio - 1) * 100));
-                    pendingApplyRef.current = applyWithScale;
-                    setScalingPrompt({ templateCal, clientCal, pct, ratio });
-                    return;
-                }
+            if (opts?.skipConfirm) {
+                applyWithScale(1);
+                return;
             }
 
-            applyWithScale(1);
+            // Show scope confirmation modal; chain scaling prompt after if needed
+            const templateCal = template.targetCalories;
+            const clientCal = targets.calories;
+            const day0Meals = mealsByDay[0] || [];
+
+            pendingTemplateRef.current = () => {
+                setTemplateScopePrompt(null);
+                if (templateCal && clientCal && templateCal > 0) {
+                    const ratio = clientCal / templateCal;
+                    if (ratio > 1.1 || ratio < 0.9) {
+                        const pct = Math.abs(Math.round((ratio - 1) * 100));
+                        pendingApplyRef.current = applyWithScale;
+                        setScalingPrompt({ templateCal, clientCal, pct, ratio });
+                        return;
+                    }
+                }
+                applyWithScale(1);
+            };
+
+            setTemplateScopePrompt({
+                templateName: template.name || 'Template',
+                templateDayCount,
+                mealsPerDay: day0Meals.length,
+                startDayIndex: startDay,
+                endDayIndex: endDay,
+                planDayCount: numDays,
+            });
+
         } catch {
             toast.error('Failed to apply template');
             setApplyingTemplateId(null);
         }
-    }, [api, client, selectedDayIndex, numDays, isTemplateMode, targets]);
+    }, [api, client, numDays, targets]);
 
-    // Apply a preset meal structure (empty slots)
-    const applyPreset = useCallback((preset: MealSlotPreset) => {
-        pendingReplaceRef.current = () => {
-            const newMeals: LocalMeal[] = preset.slots.map(slot => ({
-                id: Math.random().toString(36).substr(2, 9),
-                name: slot.name,
-                type: slot.type,
-                time: slot.time,
-                foods: [],
-            }));
-            setWeeklyMealsDirty(prev => ({ ...prev, [selectedDayIndex]: newMeals }));
-            toast.success(`Applied "${preset.label}" structure`);
-        };
-        setReplacePrompt('This will replace all current meals for this day with the selected structure.');
-    }, [selectedDayIndex]);
+    const confirmTemplateApply = useCallback(() => {
+        pendingTemplateRef.current?.();
+        pendingTemplateRef.current = null;
+    }, []);
+
+    const dismissTemplateApply = useCallback(() => {
+        pendingTemplateRef.current = null;
+        setTemplateScopePrompt(null);
+        setApplyingTemplateId(null);
+    }, []);
+
+    // Apply a preset meal structure (empty slots) — dayIndex or 'all'
+    const applyPreset = useCallback((preset: MealSlotPreset, dayIndex: number | 'all') => {
+        const makeMeals = () => preset.slots.map(slot => ({
+            id: makeId(), name: slot.name, type: slot.type, time: slot.time, foods: [] as LocalMeal['foods'],
+        }));
+
+        if (dayIndex === 'all') {
+            const hasMeals = Object.values(weeklyMeals).some(m => m.length > 0);
+            const doApply = () => {
+                setWeeklyMealsDirty(() => {
+                    const updated: Record<number, LocalMeal[]> = {};
+                    for (let i = 0; i < numDays; i++) updated[i] = makeMeals();
+                    return updated;
+                });
+                toast.success(`Applied "${preset.label}" to all ${numDays} days`);
+            };
+            if (hasMeals) {
+                pendingReplaceRef.current = doApply;
+                setReplacePrompt(`This will replace meals on all ${numDays} days with "${preset.label}" structure.`);
+            } else {
+                doApply();
+            }
+        } else {
+            const hasMeals = (weeklyMeals[dayIndex] || []).length > 0;
+            const doApply = () => {
+                setWeeklyMealsDirty(prev => ({ ...prev, [dayIndex]: makeMeals() }));
+                toast.success(`Applied "${preset.label}" to Day ${dayIndex + 1}`);
+            };
+            if (hasMeals) {
+                pendingReplaceRef.current = doApply;
+                setReplacePrompt(`This will replace all meals on Day ${dayIndex + 1} with "${preset.label}" structure.`);
+            } else {
+                doApply();
+            }
+        }
+    }, [weeklyMeals, numDays]);
 
     // Save / Publish. When slotOnly=true, strips food items and saves as slot template.
     const [saveLock, setSaveLock] = useState(false);
@@ -1086,6 +1149,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         replacePrompt,
         confirmReplace,
         dismissReplace,
+        templateScopePrompt,
+        confirmTemplateApply,
+        dismissTemplateApply,
         showBulkPortionModal,
         setShowBulkPortionModal,
         save,

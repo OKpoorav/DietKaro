@@ -71,4 +71,7 @@ export interface TemplateData {
     templateCategory?: string;
     visibility?: string;
     creator?: { id: string; fullName: string } | null;
+    mealCount?: number;
+    numDays?: number;
+    day0MealNames?: string[];
 }
