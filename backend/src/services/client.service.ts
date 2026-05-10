@@ -276,6 +276,7 @@ export class ClientService {
             where.tagAssignments = { some: { tagId: { in: tagIds } } };
         }
 
+        const now = new Date();
         const [clients, total] = await prisma.$transaction([
             prisma.client.findMany({
                 where,
@@ -287,6 +288,15 @@ export class ClientService {
                     tagAssignments: {
                         where: { tag: { deletedAt: null } },
                         include: { tag: true },
+                    },
+                    subscription: {
+                        select: { id: true, planId: true, activeDate: true, renewalDate: true, status: true, paymentStatus: true },
+                    },
+                    consultations: {
+                        where: { status: 'scheduled', scheduledAt: { gte: now } },
+                        orderBy: { scheduledAt: 'asc' },
+                        take: 1,
+                        select: { id: true, scheduledAt: true, durationMin: true, mode: true, title: true, meetLink: true },
                     },
                 },
             }),

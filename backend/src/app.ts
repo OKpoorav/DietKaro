@@ -168,6 +168,8 @@ import leadSourcesRoutes from './routes/leadSources.routes';
 import leadStatusesRoutes from './routes/leadStatuses.routes';
 import proposalTemplateRoutes from './routes/proposalTemplate.routes';
 import onboardingInviteRoutes from './routes/onboardingInvite.routes';
+import consultationsRoutes from './routes/consultations.routes';
+import calendarRoutes from './routes/calendar.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -196,6 +198,8 @@ app.use('/api/v1/clients/:clientId/subscription', clientSubscriptionRoutes); // 
 app.use('/api/v1/clients/:clientId/payments', clientPaymentRoutes); // Per-client payment ops (manual + Razorpay link)
 app.use('/api/v1/webhooks', webhookRoutes); // External webhooks (Razorpay) — signature-verified
 app.use('/api/v1/clients/:clientId/document-summary', clientDocumentSummaryRoutes); // Unified client summary
+app.use('/api/v1/clients/:clientId/consultations', consultationsRoutes); // Consultations
+app.use('/api/v1/calendar', calendarRoutes); // Calendar events (org-wide)
 app.use('/api/v1/leads', leadsRoutes);                          // CRM leads
 app.use('/api/v1/lead-sources', leadSourcesRoutes);             // Lead source master
 app.use('/api/v1/lead-statuses', leadStatusesRoutes);           // Lead status master

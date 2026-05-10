@@ -48,6 +48,7 @@ model Organization {
   leadSources           LeadSource[]
   leadStatuses          LeadStatus[]
   proposalTemplate      ProposalTemplate?
+  consultations         Consultation[]
 
   @@index([subscriptionStatus])
   @@index([isActive])
@@ -89,6 +90,7 @@ model User {
   ownedLeads          Lead[]         @relation("LeadOwner")
   authoredFollowups   LeadFollowup[] @relation("FollowupAuthor")
   loggedTouchpoints   LeadTouchpoint[] @relation("TouchpointActor")
+  createdConsultations Consultation[] @relation("ConsultationCreator")
   organization        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, email])
@@ -104,6 +106,7 @@ model Client {
   email                 String?
   phone                 String
   fullName              String
+  salutation            String?
   dateOfBirth           DateTime?              @db.Date
   gender                Gender?
   profilePhotoUrl       String?
@@ -175,6 +178,7 @@ model Client {
   weightLogs            WeightLog[]
   convertedFromLead     Lead?                  @relation("LeadConvertedClient")
   onboardingInvites     OnboardingInvite[]
+  consultations         Consultation[]
 
   @@unique([orgId, email])
   @@unique([orgId, referralCode])
@@ -1146,4 +1150,39 @@ model OnboardingInvite {
 
   @@index([clientId])
   @@index([token])
+}
+
+model Consultation {
+  id              String             @id @default(uuid())
+  orgId           String
+  clientId        String
+  createdByUserId String
+  title           String?
+  scheduledAt     DateTime
+  durationMin     Int                @default(30)
+  mode            ConsultationMode   @default(online)
+  meetLink        String?
+  location        String?
+  notes           String?
+  status          ConsultationStatus @default(scheduled)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("ConsultationCreator", fields: [createdByUserId], references: [id])
+
+  @@index([orgId, scheduledAt])
+  @@index([clientId])
+}
+
+enum ConsultationMode {
+  online
+  in_person
+}
+
+enum ConsultationStatus {
+  scheduled
+  completed
+  cancelled
 }

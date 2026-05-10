@@ -396,7 +396,7 @@ export default function DietPlansPage() {
             {/* Assign Modal */}
             {showAssignModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl w-full max-w-lg overflow-hidden shadow-xl">
+                    <div className="bg-white rounded-xl w-full max-w-lg overflow-hidden shadow-xl max-h-[90vh] flex flex-col">
                         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
                             <h3 className="font-semibold text-lg text-gray-900">Assign Template to Client</h3>
                             <button
@@ -411,7 +411,7 @@ export default function DietPlansPage() {
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6">
+                        <div className="p-6 space-y-6 overflow-y-auto flex-1">
                             {/* Start Date Selection */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">

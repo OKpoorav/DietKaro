@@ -55,6 +55,13 @@ export interface Client {
     goal?: string | null;
     goalDeadline?: string | null;
     healthNotes?: string | null;
+    // Onboarding
+    activityLevel?: string | null;
+    eggAllowed?: boolean;
+    onboardingCompleted?: boolean;
+    beforePhotoFrontUrl?: string | null;
+    beforePhotoSideUrl?: string | null;
+    beforePhotoBackUrl?: string | null;
     // Nutrition targets
     targetCalories?: number | null;
     targetProteinG?: number | null;
@@ -70,6 +77,24 @@ export interface Client {
         armsCm: number | null;
         bodyFatPercentage: number | null;
     } | null;
+    // Subscription (list view only)
+    subscription?: {
+        id: string;
+        planId: string;
+        activeDate: string;
+        renewalDate: string;
+        status: string;
+        paymentStatus: string;
+    } | null;
+    // Next upcoming consultation (list view only)
+    consultations?: Array<{
+        id: string;
+        scheduledAt: string;
+        durationMin: number;
+        mode: string;
+        title?: string | null;
+        meetLink?: string | null;
+    }>;
     // Smart tags (org-wide master, assigned to this client)
     tagAssignments?: Array<{
         clientId: string;

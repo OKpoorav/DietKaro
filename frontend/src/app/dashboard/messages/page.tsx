@@ -60,21 +60,37 @@ export default function MessagesPage() {
         router.replace('/dashboard/messages?client=' + conv.clientId, { scroll: false });
     }, [router]);
 
-    return (
-        <div className="flex h-[calc(100vh-5rem)] bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-            {/* Left panel — contacts */}
-            <ContactList
-                selectedClientId={selectedClientId}
-                onSelectClient={handleSelectClient}
-                onSelectConversation={handleSelectConversation}
-            />
+    const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
 
-            {/* Right panel — chat thread */}
-            {selectedConversation ? (
-                <ChatThread conversation={selectedConversation} />
-            ) : (
-                <EmptyState />
-            )}
+    const handleSelectClientMobile = useCallback(async (clientId: string) => {
+        await handleSelectClient(clientId);
+        setMobileView('thread');
+    }, [handleSelectClient]);
+
+    const handleSelectConversationMobile = useCallback((conv: Conversation) => {
+        handleSelectConversation(conv);
+        setMobileView('thread');
+    }, [handleSelectConversation]);
+
+    return (
+        <div className="flex h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] -m-4 lg:-m-6 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            {/* Left panel — contacts (hidden on mobile when chat is open) */}
+            <div className={`${mobileView === 'thread' ? 'hidden lg:flex' : 'flex'} w-full lg:w-auto flex-col`}>
+                <ContactList
+                    selectedClientId={selectedClientId}
+                    onSelectClient={handleSelectClientMobile}
+                    onSelectConversation={handleSelectConversationMobile}
+                />
+            </div>
+
+            {/* Right panel — chat thread (hidden on mobile when list is shown) */}
+            <div className={`${mobileView === 'list' ? 'hidden lg:flex' : 'flex'} flex-1 flex-col`}>
+                {selectedConversation ? (
+                    <ChatThread conversation={selectedConversation} onBack={() => setMobileView('list')} />
+                ) : (
+                    <EmptyState onBack={() => setMobileView('list')} />
+                )}
+            </div>
         </div>
     );
 }
@@ -150,7 +166,7 @@ function ContactList({
     }, [clients, convByClient, debouncedSearch]);
 
     return (
-        <div className="w-[360px] min-w-[360px] border-r border-gray-200 flex flex-col bg-white">
+        <div className="w-full lg:w-[360px] lg:min-w-[360px] border-r border-gray-200 flex flex-col bg-white">
             {/* Header */}
             <div className="px-4 py-4 border-b border-gray-100">
                 <h2 className="text-lg font-bold text-gray-900 mb-3">Messages</h2>
@@ -236,21 +252,26 @@ function ContactList({
 
 // ==================== EMPTY STATE ====================
 
-function EmptyState() {
+function EmptyState({ onBack }: { onBack?: () => void }) {
     return (
         <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50 text-gray-400">
+            {onBack && (
+                <button onClick={onBack} className="lg:hidden absolute top-4 left-4 p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+                    ← Back
+                </button>
+            )}
             <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
                 <MessageSquare className="w-10 h-10 text-gray-300" />
             </div>
             <p className="text-lg font-medium text-gray-500">Select a client to start chatting</p>
-            <p className="text-sm mt-1">Choose from your client list on the left</p>
+            <p className="text-sm mt-1 px-4 text-center">Choose from your client list on the left</p>
         </div>
     );
 }
 
 // ==================== CHAT THREAD (RIGHT PANEL) ====================
 
-function ChatThread({ conversation }: { conversation: Conversation }) {
+function ChatThread({ conversation, onBack }: { conversation: Conversation; onBack?: () => void }) {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -320,8 +341,13 @@ function ChatThread({ conversation }: { conversation: Conversation }) {
     return (
         <div className="flex-1 flex flex-col min-w-0">
             {/* Chat header */}
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-200 bg-white">
-                <div className="w-10 h-10 rounded-full bg-brand/15 flex items-center justify-center text-brand font-bold text-sm">
+            <div className="flex items-center gap-3 px-3 lg:px-5 py-3 border-b border-gray-200 bg-white">
+                {onBack && (
+                    <button onClick={onBack} className="lg:hidden p-2 -ml-1 text-gray-500 hover:bg-gray-100 rounded-lg shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                )}
+                <div className="w-10 h-10 rounded-full bg-brand/15 flex items-center justify-center text-brand font-bold text-sm shrink-0">
                     {getInitials(conversation.client.fullName)}
                 </div>
                 <div>

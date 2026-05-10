@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     CheckCircle2,
     CreditCard,
@@ -91,26 +92,38 @@ interface ActionMenuProps {
 
 function ActionMenu(props: ActionMenuProps) {
     const [open, setOpen] = useState(false);
+    const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+    const btnRef = useRef<HTMLButtonElement>(null);
     const sub = props.row.subscription;
     const hasPlan = !!sub;
     const isActive = sub?.status === 'active';
     const isPaused = sub?.status === 'paused';
     const isDeactivated = sub?.status === 'deactivated';
 
+    const handleToggle = () => {
+        if (!open && btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setMenuPos({ top: rect.bottom + 4, left: rect.right - 224 });
+        }
+        setOpen((v) => !v);
+    };
+
     return (
-        <div className="relative">
+        <div>
             <button
+                ref={btnRef}
                 type="button"
-                onClick={() => setOpen((v) => !v)}
+                onClick={handleToggle}
                 className="p-1.5 rounded hover:bg-gray-100 text-gray-500"
                 aria-label="Actions"
             >
                 <MoreVertical className="w-4 h-4" />
             </button>
-            {open && (
+            {open && typeof document !== 'undefined' && createPortal(
                 <>
-                    <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
-                    <div className="absolute right-0 z-40 mt-1 w-56 rounded-lg border border-gray-200 bg-white shadow-lg py-1 text-sm">
+                    <div className="fixed inset-0 z-[100]" onClick={() => setOpen(false)} aria-hidden />
+                    <div className="fixed z-[101] w-56 rounded-lg border border-gray-200 bg-white shadow-lg py-1 text-sm"
+                        style={{ top: menuPos.top, left: menuPos.left }}>
                         {!hasPlan && (
                             <button onClick={() => { setOpen(false); props.onAssign(); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left">
                                 <Plus className="w-4 h-4 text-brand" /> Assign plan
@@ -158,7 +171,8 @@ function ActionMenu(props: ActionMenuProps) {
                             </>
                         )}
                     </div>
-                </>
+                </>,
+                document.body
             )}
         </div>
     );
@@ -223,6 +237,7 @@ function PlansTab() {
                         )}
                     </div>
                 ) : (
+                    <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
@@ -270,6 +285,7 @@ function PlansTab() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 
@@ -364,6 +380,7 @@ function ClientsTab() {
                 ) : rows.length === 0 ? (
                     <div className="text-center py-12 text-gray-500">No clients match these filters.</div>
                 ) : (
+                    <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
@@ -415,6 +432,7 @@ function ClientsTab() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 
@@ -479,7 +497,7 @@ export default function SubscriptionsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Subscriptions</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">Subscriptions</h1>
                 <p className="text-[#4e9767] mt-1">Manage plans and client subscriptions in one place.</p>
             </div>
 

@@ -12,9 +12,13 @@ import {
     MessageSquare,
     Loader2,
     X,
+    Calendar,
+    Video,
+    MapPin,
 } from 'lucide-react';
 
 import { AddClientModal } from '@/components/modals/add-client-modal';
+import { CreateConsultationModal } from '@/components/modals/create-consultation-modal';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 import { TagChip } from '@/components/clients/tag-chip';
 import { useTags } from '@/lib/hooks/use-tags';
@@ -47,6 +51,7 @@ export default function ClientsPage() {
     });
     const [showAddClientModal, setShowAddClientModal] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
+    const [consultationTarget, setConsultationTarget] = useState<Client | null>(null);
 
     const { canDeleteClient } = usePermissions();
     const debouncedSearch = useDebouncedValue(search, 300);
@@ -94,7 +99,7 @@ export default function ClientsPage() {
     const meta = data?.meta;
 
     const handleAddClient = async (
-        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string; beforePhotoFiles?: { front?: File; side?: File; back?: File } },
+        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string; primaryDietitianId?: string; beforePhotoFiles?: { front?: File; side?: File; back?: File } },
         reactivate?: boolean,
     ): Promise<{ id: string } | void> => {
         try {
@@ -113,6 +118,7 @@ export default function ClientsPage() {
                 goal: clientData.goal || undefined,
                 goalDeadline: clientData.goalDeadline || undefined,
                 healthNotes: clientData.healthNotes || undefined,
+                primaryDietitianId: clientData.primaryDietitianId || undefined,
                 ...(reactivate ? { reactivate: true } : {}),
             } as any);
 
@@ -174,7 +180,7 @@ export default function ClientsPage() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-4">
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">Clients</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">Clients</h1>
                 <button
                     onClick={() => setShowAddClientModal(true)}
                     className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
@@ -301,15 +307,15 @@ export default function ClientsPage() {
                         ];
 
                         return (
-                            <div key={client.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center gap-6 hover:shadow-sm transition-shadow">
-                                {/* Left: identity */}
-                                <div className="flex items-start gap-3 min-w-0 flex-1">
-                                    <Link href={`/dashboard/clients/${client.id}`}>
-                                        <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold text-lg shrink-0 hover:bg-brand/30 transition-colors">
+                            <div key={client.id} className="bg-white rounded-xl border border-gray-200 px-4 py-4 lg:px-5 hover:shadow-sm transition-shadow">
+                                {/* Top row: identity + actions */}
+                                <div className="flex items-start gap-3">
+                                    <Link href={`/dashboard/clients/${client.id}`} className="shrink-0">
+                                        <div className="w-11 h-11 rounded-full bg-brand/20 flex items-center justify-center text-brand font-bold text-base hover:bg-brand/30 transition-colors">
                                             {getInitials(client.fullName)}
                                         </div>
                                     </Link>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <Link href={`/dashboard/clients/${client.id}`} className="font-bold text-gray-900 text-base hover:text-brand transition-colors">
                                                 {client.fullName}
@@ -327,16 +333,15 @@ export default function ClientsPage() {
                                             )}
                                             <WhatsAppButton phone={client.phone} clientName={client.fullName} size="sm" />
                                         </div>
-                                        <p className="text-sm text-gray-500 mt-0.5">
+                                        <p className="text-xs text-gray-500 mt-0.5">
                                             {[
                                                 age ? `${age} Yrs` : null,
                                                 client.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : null,
                                                 client.phone || null,
                                             ].filter(Boolean).join('  ·  ')}
                                         </p>
-                                        {client.email && <p className="text-sm text-gray-400 truncate">{client.email}</p>}
                                         {(client.tagAssignments?.length ?? 0) > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                            <div className="flex flex-wrap gap-1 mt-1">
                                                 {client.tagAssignments!.slice(0, 3).map((a) => (
                                                     <TagChip key={a.tagId} name={a.tag.name} color={a.tag.color} size="xs" />
                                                 ))}
@@ -345,43 +350,136 @@ export default function ClientsPage() {
                                                 )}
                                             </div>
                                         )}
+                                        {/* Subscription + Consultation chips */}
+                                        <div className="hidden md:flex flex-wrap gap-1.5 mt-1.5">
+                                            {/* Subscription status */}
+                                            {client.subscription ? (
+                                                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                                    client.subscription.status === 'deactivated'
+                                                        ? 'bg-gray-100 text-gray-400'
+                                                        : client.subscription.paymentStatus === 'paid'
+                                                        ? 'bg-emerald-50 text-emerald-700'
+                                                        : 'bg-orange-50 text-orange-600'
+                                                }`}>
+                                                    {client.subscription.status === 'deactivated'
+                                                        ? '○ Deactivated'
+                                                        : client.subscription.paymentStatus === 'paid'
+                                                        ? '● Paid'
+                                                        : '● Unpaid'}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">
+                                                    ○ No plan
+                                                </span>
+                                            )}
+                                            {/* Assigned To (owner/admin only) */}
+                                            {canDeleteClient && client.primaryDietitian && (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
+                                                    👤 {client.primaryDietitian.fullName}
+                                                </span>
+                                            )}
+                                            {/* Next consultation */}
+                                            {(client.consultations?.length ?? 0) > 0 ? (() => {
+                                                const c = client.consultations![0];
+                                                const d = new Date(c.scheduledAt);
+                                                const label = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                                                const chip = (
+                                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                                                        {c.mode === 'online' ? <Video className="w-2.5 h-2.5" /> : <MapPin className="w-2.5 h-2.5" />}
+                                                        {label}
+                                                        {c.mode === 'online' && c.meetLink && (
+                                                            <span className="ml-0.5 text-blue-500 underline">Join</span>
+                                                        )}
+                                                    </span>
+                                                );
+                                                return c.mode === 'online' && c.meetLink ? (
+                                                    <a href={c.meetLink} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                                                        {chip}
+                                                    </a>
+                                                ) : chip;
+                                            })() : (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-50 text-gray-400">
+                                                    <Calendar className="w-2.5 h-2.5" /> No consultation
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Desktop-only stats */}
+                                    <div className="hidden md:grid grid-cols-4 gap-2 shrink-0">
+                                        {stats.map(({ label, value }) => (
+                                            <div key={label} className="bg-gray-50 rounded-lg px-3 py-2 text-center min-w-[72px]">
+                                                <p className="text-sm font-bold text-gray-800">{value}</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">{label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Desktop-only actions */}
+                                    <div className="hidden md:flex flex-col gap-1.5 shrink-0">
+                                        <button
+                                            onClick={() => router.push(`/dashboard/diet-plans/new?clientId=${client.id}`)}
+                                            className="px-4 py-2 text-xs font-semibold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors shadow-sm whitespace-nowrap"
+                                        >
+                                            Create Diet Plan
+                                        </button>
+                                        <button
+                                            onClick={() => setConsultationTarget(client)}
+                                            className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap flex items-center justify-center gap-1.5"
+                                        >
+                                            <Calendar className="w-3.5 h-3.5" />
+                                            Consultation
+                                        </button>
+                                        <button
+                                            onClick={() => router.push(`/dashboard/messages?client=${client.id}`)}
+                                            className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap flex items-center justify-center gap-1.5"
+                                        >
+                                            <MessageSquare className="w-3.5 h-3.5" />
+                                            Message
+                                        </button>
+                                        {canDeleteClient && (
+                                            <button
+                                                onClick={() => setDeleteConfirm(client)}
+                                                className="px-4 py-2 text-xs font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                                Remove
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Middle: stats */}
-                                <div className="hidden md:grid grid-cols-4 gap-2 shrink-0">
-                                    {stats.map(({ label, value }) => (
-                                        <div key={label} className="bg-gray-50 rounded-lg px-3 py-2 text-center min-w-[72px]">
-                                            <p className="text-sm font-bold text-gray-800">{value}</p>
-                                            <p className="text-[10px] text-gray-400 mt-0.5">{label}</p>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Right: actions */}
-                                <div className="flex flex-col gap-1.5 shrink-0">
-                                    <button
-                                        onClick={() => router.push(`/dashboard/diet-plans/new?clientId=${client.id}`)}
-                                        className="px-4 py-2 text-xs font-semibold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors shadow-sm whitespace-nowrap"
-                                    >
-                                        Create Diet Plan
-                                    </button>
-                                    <button
-                                        onClick={() => router.push(`/dashboard/messages?client=${client.id}`)}
-                                        className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap flex items-center justify-center gap-1.5"
-                                    >
-                                        <MessageSquare className="w-3.5 h-3.5" />
-                                        Message
-                                    </button>
-                                    {canDeleteClient && (
+                                {/* Mobile-only: mini stats row + action row */}
+                                <div className="md:hidden mt-3 space-y-2">
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                        {stats.map(({ label, value }) => (
+                                            <div key={label} className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
+                                                <p className="text-xs font-bold text-gray-800">{value}</p>
+                                                <p className="text-[9px] text-gray-400 mt-0.5">{label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-2">
                                         <button
-                                            onClick={() => setDeleteConfirm(client)}
-                                            className="px-4 py-2 text-xs font-semibold text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                                            onClick={() => router.push(`/dashboard/diet-plans/new?clientId=${client.id}`)}
+                                            className="flex-1 py-2 text-xs font-semibold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors"
                                         >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                            Remove
+                                            Create Plan
                                         </button>
-                                    )}
+                                        <button
+                                            onClick={() => router.push(`/dashboard/messages?client=${client.id}`)}
+                                            className="flex-1 py-2 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <MessageSquare className="w-3.5 h-3.5" />
+                                            Message
+                                        </button>
+                                        {canDeleteClient && (
+                                            <button
+                                                onClick={() => setDeleteConfirm(client)}
+                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -449,6 +547,17 @@ export default function ClientsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Schedule Consultation Modal */}
+            {consultationTarget && (
+                <CreateConsultationModal
+                    isOpen={!!consultationTarget}
+                    onClose={() => setConsultationTarget(null)}
+                    clientId={consultationTarget.id}
+                    clientName={consultationTarget.fullName}
+                    clientPhone={consultationTarget.phone}
+                />
             )}
         </div>
     );

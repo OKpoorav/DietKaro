@@ -141,7 +141,7 @@ export default function TagsAdminPage() {
                         <ArrowLeft className="w-4 h-4" />
                         Back to settings
                     </Link>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 mt-1">Client Tags</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mt-1">Client Tags</h1>
                     <p className="text-gray-500 mt-1">
                         Org-wide labels for things like medical conditions or fitness goals. Dietitians pick from this list when adding clients.
                     </p>

@@ -33,6 +33,10 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+  /* iOS safe area for bottom nav */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
 }
 
 /* react-phone-number-input custom styles */

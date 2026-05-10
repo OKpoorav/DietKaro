@@ -5,6 +5,8 @@ import { Modal } from '@/components/ui/modal';
 import { useLeadSources } from '@/lib/hooks/use-lead-sources';
 import { useLeadStatuses } from '@/lib/hooks/use-lead-statuses';
 import { useCreateLead, useUpdateLead, type Lead, type LeadTemperature, type ReferralType } from '@/lib/hooks/use-leads';
+import { useTeam } from '@/lib/hooks/use-team';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { toast } from 'sonner';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
@@ -41,6 +43,8 @@ export function LeadFormModal({ isOpen, onClose, lead }: LeadFormModalProps) {
     const isEdit = !!lead?.id;
     const { data: sources = [] } = useLeadSources();
     const { data: statuses = [] } = useLeadStatuses();
+    const { data: teamMembers = [] } = useTeam();
+    const permissions = usePermissions();
     const createLead = useCreateLead();
     const updateLead = useUpdateLead(lead?.id ?? '');
 
@@ -207,6 +211,17 @@ export function LeadFormModal({ isOpen, onClose, lead }: LeadFormModalProps) {
                                 <option value="cold">❄ Cold</option>
                             </select>
                         </div>
+                        {permissions.canViewTeam && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
+                                <select value={form.ownerUserId} onChange={(e) => set('ownerUserId', e.target.value)} className={INPUT}>
+                                    <option value="">Unassigned</option>
+                                    {teamMembers.map((m) => (
+                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 </div>
 

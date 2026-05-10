@@ -11,6 +11,7 @@ import { AppError } from '../errors/AppError';
 import * as leadsSvc from '../services/leads.service';
 import * as followupsSvc from '../services/leadFollowups.service';
 import * as touchpointsSvc from '../services/leadTouchpoints.service';
+import { createPaymentLink as razorpayCreateLink } from '../services/razorpay.service';
 
 const router = Router();
 router.use(requireAuth, requireRole('owner', 'admin'));
@@ -59,12 +60,19 @@ const manualTouchpointSchema = z.object({
 
 const convertSchema = z.object({
     fullName: z.string().min(1),
+    salutation: z.string().optional(),
     email: z.string().email().optional(),
     phone: z.string().min(5).max(20),
     altPhone: z.string().optional(),
     gender: z.nativeEnum(Gender).optional(),
     dateOfBirth: z.string().datetime().optional(),
     city: z.string().optional(),
+    subscriptionPlanId: z.string().uuid().optional(),
+});
+
+const leadPaymentLinkSchema = z.object({
+    amountInr: z.number().positive(),
+    planId: z.string().uuid().optional(),
 });
 
 // ── Lead CRUD ──────────────────────────────────────────────────────────────
@@ -147,9 +155,25 @@ router.post('/:id/proposal', writeOperationLimiter,
     asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
         if (!req.user) throw AppError.unauthorized();
         const { planId, pdfFilename } = req.body ?? {};
-        if (!planId || !pdfFilename) throw AppError.badRequest('planId and pdfFilename are required');
-        const result = await leadsSvc.recordProposalShared(req.params.id, req.user.organizationId, req.user.id, { planId, pdfFilename });
+        if (!planId) throw AppError.badRequest('planId is required');
+        const result = await leadsSvc.recordProposalShared(req.params.id, req.user.organizationId, req.user.id, { planId, pdfFilename: pdfFilename ?? '' });
         res.json({ success: true, data: result });
+    }),
+);
+
+router.post('/:id/payment-link', writeOperationLimiter, validateBody(leadPaymentLinkSchema),
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        if (!req.user) throw AppError.unauthorized();
+        const lead = await prisma.lead.findFirst({ where: { id: req.params.id, orgId: req.user.organizationId } });
+        if (!lead) throw AppError.notFound('Lead not found');
+        const { amountInr } = req.body as { amountInr: number; planId?: string };
+        const link = await razorpayCreateLink({
+            amountInr,
+            description: 'Diet Plan Payment',
+            customer: { name: lead.name, contact: lead.primaryMobile, email: lead.email ?? undefined },
+            referenceId: `ld-${lead.id.slice(0, 8)}-${Date.now().toString(36)}`,
+        });
+        res.status(201).json({ success: true, data: { shortUrl: link.shortUrl } });
     }),
 );
 

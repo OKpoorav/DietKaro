@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
             {/* Header with Dietitian Selector */}
             <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">
                         {selectedDietitian ? `${selectedDietitian.fullName}'s Analytics` : 'Practice Analytics'}
                     </h1>
                     <p className="text-[#4e9767] mt-1">

@@ -54,7 +54,7 @@ export default function TeamPage() {
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Team</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">Team</h1>
                     <p className="text-[#4e9767] mt-1">Manage your team members and their roles.</p>
                 </div>
                 {canInviteTeam && (

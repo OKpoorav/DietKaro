@@ -3,13 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
-import { User, Mail, Calendar, Target, AlertCircle, Goal, CalendarClock, FileText, Check, Flag, Tag, Send, Loader2 } from 'lucide-react';
+import { User, Mail, Calendar, Target, AlertCircle, Goal, CalendarClock, FileText, Check, Flag, Tag, Send } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import { suggestTagIds, useSetClientTags, useTags } from '@/lib/hooks/use-tags';
 import { TagMultiSelect } from '@/components/clients/tag-multiselect';
 import { TagInput } from '@/components/ui/tag-input';
-import { useGenerateInvite } from '@/lib/hooks/use-onboarding-invite';
+import { OnboardingLinkModal } from '@/components/modals/onboarding-link-modal';
+import { useTeam } from '@/lib/hooks/use-team';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { toast } from 'sonner';
 
 interface AddClientModalProps {
@@ -37,6 +39,7 @@ interface ClientFormData {
     goal: string;
     goalDeadline: string;
     healthNotes: string;
+    primaryDietitianId?: string;
     beforePhotoFiles?: { front?: File; side?: File; back?: File };
 }
 
@@ -58,6 +61,7 @@ const INITIAL_FORM: ClientFormData = {
     goal: '',
     goalDeadline: '',
     healthNotes: '',
+    primaryDietitianId: '',
 };
 
 export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior = 'ask' }: AddClientModalProps) {
@@ -67,13 +71,15 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
     const [submitting, setSubmitting] = useState(false);
     const [createdClientId, setCreatedClientId] = useState<string | null>(null);
     const [createdClientName, setCreatedClientName] = useState('');
-    const generateInvite = useGenerateInvite();
+    const [showOnboardingModal, setShowOnboardingModal] = useState(false);
     const [tagIds, setTagIds] = useState<string[]>([]);
     const [tagsTouched, setTagsTouched] = useState(false);
     const [beforePhotoFiles, setBeforePhotoFiles] = useState<{ front?: File; side?: File; back?: File }>({});
 
     const { data: tags } = useTags();
     const setClientTags = useSetClientTags();
+    const { data: teamMembers = [] } = useTeam();
+    const permissions = usePermissions();
 
     const suggestedTagIds = useMemo(
         () =>
@@ -157,6 +163,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
     const title = step === 'form' ? 'Add New Client' : 'Client Added';
 
     return (
+        <>
         <Modal isOpen={isOpen} onClose={onClose} title={title} size={step === 'form' ? 'lg' : 'md'}>
             {step === 'form' ? (
             <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
@@ -276,6 +283,23 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 />
                             </div>
                         </div>
+                        {/* Row 4: Assigned To (owner/admin only) */}
+                        {permissions.canViewTeam && teamMembers.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Assigned To</label>
+                                <select
+                                    name="primaryDietitianId"
+                                    value={formData.primaryDietitianId ?? ''}
+                                    onChange={handleChange}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900"
+                                >
+                                    <option value="">Auto-assign (me)</option>
+                                    {teamMembers.map((m) => (
+                                        <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -427,21 +451,10 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                     <div className="grid gap-2">
                         <button
                             type="button"
-                            onClick={async () => {
-                                if (!createdClientId) return;
-                                try {
-                                    await generateInvite.mutateAsync({ clientId: createdClientId });
-                                    toast.success('Onboarding link sent');
-                                } catch {
-                                    toast.error('Failed to send onboarding link');
-                                }
-                            }}
-                            disabled={generateInvite.isPending}
-                            className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-left transition-colors disabled:opacity-60"
+                            onClick={() => setShowOnboardingModal(true)}
+                            className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-left transition-colors"
                         >
-                            {generateInvite.isPending
-                                ? <Loader2 className="w-5 h-5 text-emerald-600 animate-spin shrink-0" />
-                                : <Send className="w-5 h-5 text-emerald-600 shrink-0" />}
+                            <Send className="w-5 h-5 text-emerald-600 shrink-0" />
                             <div>
                                 <p className="text-sm font-semibold text-emerald-700">Send Onboarding Form</p>
                                 <p className="text-xs text-emerald-600/80">Client fills in their details via a link</p>
@@ -473,5 +486,15 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                 </div>
             )}
         </Modal>
+
+        {showOnboardingModal && createdClientId && (
+            <OnboardingLinkModal
+                isOpen={showOnboardingModal}
+                onClose={() => setShowOnboardingModal(false)}
+                clientId={createdClientId}
+                clientName={createdClientName}
+            />
+        )}
+        </>
     );
 }

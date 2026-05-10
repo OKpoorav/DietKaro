@@ -24,8 +24,13 @@ import {
     Link2,
     Copy,
     RefreshCw,
+    MessageCircle,
+    UserPlus,
+    X,
 } from 'lucide-react';
 import { useClient, useClientProgress, useUpdateClient } from '@/lib/hooks/use-clients';
+import { useTeam } from '@/lib/hooks/use-team';
+import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useDietPlans, useDietPlan } from '@/lib/hooks/use-diet-plans';
 import { useWeeklyAdherence, useComplianceHistory } from '@/lib/hooks/use-compliance';
 import { useMealLogs } from '@/lib/hooks/use-meal-logs';
@@ -38,11 +43,17 @@ import { TagChip } from '@/components/clients/tag-chip';
 import { ClientSubscriptionCard } from '@/components/subscriptions/client-subscription-card';
 import { PaymentHistoryList } from '@/components/subscriptions/payment-history-list';
 import { useOnboardingInviteStatus, useGenerateInvite } from '@/lib/hooks/use-onboarding-invite';
+import { OnboardingLinkModal } from '@/components/modals/onboarding-link-modal';
+import { OnboardingResponseModal } from '@/components/modals/onboarding-response-modal';
+import { ConsultationsCard } from '@/components/clients/consultations-card';
+import { ConsultationsTab } from '@/components/clients/consultations-tab';
+import { CreateConsultationModal } from '@/components/modals/create-consultation-modal';
+import { useOrganization } from '@/lib/hooks/use-organization';
 import { toast } from 'sonner';
 
 // ============ TYPES ============
 
-type ClientTab = 'overview' | 'diet-plan' | 'meal-logs' | 'progress';
+type ClientTab = 'overview' | 'diet-plan' | 'meal-logs' | 'progress' | 'consultations';
 
 interface TabConfig {
     key: ClientTab;
@@ -56,6 +67,7 @@ const TABS: TabConfig[] = [
     { key: 'diet-plan', label: 'Diet Plan' },
     { key: 'meal-logs', label: 'Meal Logs' },
     { key: 'progress', label: 'Progress' },
+    { key: 'consultations', label: 'Consultations' },
 ];
 
 const STATUS_STYLES: Record<string, { bg: string; icon: typeof CheckCircle }> = {
@@ -232,9 +244,10 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
 
 // ============ ONBOARDING INVITE CARD ============
 
-function OnboardingInviteCard({ clientId }: { clientId: string }) {
+function OnboardingInviteCard({ clientId, clientName, orgName, client }: { clientId: string; clientName: string; orgName: string; client: import('@/lib/hooks/use-clients').Client }) {
     const { data: status, isLoading } = useOnboardingInviteStatus(clientId);
     const generateInvite = useGenerateInvite();
+    const [showResponse, setShowResponse] = useState(false);
 
     const buildLink = (token: string) => {
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -248,6 +261,22 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
     const handleCopy = (token: string) => {
         navigator.clipboard.writeText(buildLink(token));
         toast.success('Link copied');
+    };
+
+    const handleWhatsApp = (token: string) => {
+        const link = buildLink(token);
+        const msg = [
+            `Hi ${clientName}! 👋`,
+            '',
+            `Welcome to *${orgName || 'our clinic'}*! 🌿`,
+            '',
+            `We're excited to have you on board. Please fill in your details using the link below so we can create the perfect personalised diet plan for you:`,
+            '',
+            link,
+            '',
+            `This link expires in 3 days. Feel free to reach out if you need any help!`,
+        ].join('\n');
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     const invite = status?.invite ?? null;
@@ -279,14 +308,29 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                             {new Date(invite!.usedAt!).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                     </div>
-                    <button
-                        onClick={handleGenerate}
-                        disabled={generateInvite.isPending}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                        {generateInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        Send New Link
-                    </button>
+                    <div className="flex gap-2 flex-wrap">
+                        <button
+                            onClick={() => setShowResponse(true)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            View Response
+                        </button>
+                        <button
+                            onClick={handleGenerate}
+                            disabled={generateInvite.isPending}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                            {generateInvite.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                            Send New Link
+                        </button>
+                    </div>
+                    {showResponse && (
+                        <OnboardingResponseModal
+                            isOpen={showResponse}
+                            onClose={() => setShowResponse(false)}
+                            client={client}
+                        />
+                    )}
                 </div>
             ) : isExpired ? (
                 <div className="space-y-3">
@@ -308,7 +352,7 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                 </div>
             ) : isActive ? (
                 <div className="space-y-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <input
                             readOnly
                             value={buildLink(invite!.token)}
@@ -320,6 +364,13 @@ function OnboardingInviteCard({ clientId }: { clientId: string }) {
                         >
                             <Copy className="w-3.5 h-3.5" />
                             Copy
+                        </button>
+                        <button
+                            onClick={() => handleWhatsApp(invite!.token)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors shrink-0"
+                        >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            WhatsApp
                         </button>
                         <button
                             onClick={handleGenerate}
@@ -374,7 +425,14 @@ export default function ClientProfilePage() {
     const updateClient = useUpdateClient();
 
     const [editClientOpen, setEditClientOpen] = useState(false);
+    const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
+    const [consultationModalOpen, setConsultationModalOpen] = useState(false);
+    const [reassignOpen, setReassignOpen] = useState(false);
+    const [reassignUserId, setReassignUserId] = useState('');
+    const { data: org } = useOrganization();
     const setClientTags = useSetClientTags();
+    const { data: teamMembers = [] } = useTeam();
+    const permissions = usePermissions();
 
     const handleEditClient = (data: EditClientFormData) => {
         updateClient.mutate({
@@ -475,6 +533,32 @@ export default function ClientProfilePage() {
                             <Settings className="w-4 h-4" />
                             Edit Client
                         </button>
+                        {permissions.canViewTeam && (
+                            <button
+                                type="button"
+                                onClick={() => { setReassignUserId(client.primaryDietitian?.id ?? ''); setReassignOpen(true); }}
+                                className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-colors"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                Reassign
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => setOnboardingModalOpen(true)}
+                            className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-colors"
+                        >
+                            <Send className="w-4 h-4" />
+                            Onboarding Form
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setConsultationModalOpen(true)}
+                            className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-bold transition-colors"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            Consultation
+                        </button>
                         <Link
                             href={`/dashboard/messages?client=${clientId}`}
                             aria-label="Send Message"
@@ -505,9 +589,14 @@ export default function ClientProfilePage() {
                                 <WhatsAppButton phone={client.phone} clientName={client.fullName} size="md" />
                             </div>
                             <p className="text-sm text-gray-500 mt-0.5">
-                                {age && `Age ${age}`}{age && client.gender && ' · '}{client.gender && client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}
+                                {age !== null && `Age ${age}`}{age !== null && client.gender && ' · '}{client.gender && client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}
                             </p>
                             <p className="text-sm text-gray-500">{client.email}{client.phone ? ` · ${client.phone}` : ''}</p>
+                            {permissions.canViewTeam && client.primaryDietitian && (
+                                <p className="text-xs text-purple-600 font-medium mt-0.5">
+                                    Assigned to {client.primaryDietitian.fullName}
+                                </p>
+                            )}
                             {(client.tagAssignments?.length ?? 0) > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                     {client.tagAssignments!.map((a) => (
@@ -547,8 +636,8 @@ export default function ClientProfilePage() {
 
             {/* ── Tab Navigation ── */}
             <section>
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-6">
+                <div className="border-b border-gray-200 overflow-x-auto">
+                    <nav className="-mb-px flex space-x-4 lg:space-x-6 min-w-max">
                         {TABS.map((tab) => (
                             <button
                                 key={tab.key}
@@ -787,8 +876,11 @@ export default function ClientProfilePage() {
                             {/* Payment History */}
                             <PaymentHistoryList clientId={clientId} />
 
+                            {/* Consultations */}
+                            <ConsultationsCard clientId={clientId} clientName={client.fullName} clientPhone={client.phone} />
+
                             {/* Onboarding Link */}
-                            <OnboardingInviteCard clientId={clientId} />
+                            <OnboardingInviteCard clientId={clientId} clientName={client.fullName} orgName={org?.name ?? ''} client={client} />
 
                             {/* Nutrition Targets — editable */}
                             <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-5">
@@ -1115,6 +1207,16 @@ export default function ClientProfilePage() {
                 )}
             </section>
 
+            {/* ── Consultations Tab ── */}
+            {activeTab === 'consultations' && (
+                <ConsultationsTab
+                    clientId={clientId}
+                    clientName={client.fullName}
+                    clientPhone={client.phone}
+                    orgName={org?.name ?? ''}
+                />
+            )}
+
             <EditClientModal
                 isOpen={editClientOpen}
                 onClose={() => setEditClientOpen(false)}
@@ -1122,6 +1224,71 @@ export default function ClientProfilePage() {
                 onSubmit={handleEditClient}
                 isLoading={updateClient.isPending}
             />
+            <OnboardingLinkModal
+                isOpen={onboardingModalOpen}
+                onClose={() => setOnboardingModalOpen(false)}
+                clientId={clientId}
+                clientName={client.fullName}
+            />
+            <CreateConsultationModal
+                isOpen={consultationModalOpen}
+                onClose={() => setConsultationModalOpen(false)}
+                clientId={clientId}
+                clientName={client.fullName}
+                clientPhone={client.phone}
+            />
+
+            {/* Reassign Modal */}
+            {reassignOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900">Reassign Client</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">{client.fullName}</p>
+                            </div>
+                            <button onClick={() => setReassignOpen(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Assign To</label>
+                            <select
+                                value={reassignUserId}
+                                onChange={(e) => setReassignUserId(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-brand focus:border-brand"
+                            >
+                                <option value="">Select team member…</option>
+                                {teamMembers.map((m) => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={() => setReassignOpen(false)}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                                Cancel
+                            </button>
+                            <button
+                                disabled={!reassignUserId || updateClient.isPending}
+                                onClick={() => {
+                                    updateClient.mutate({ id: clientId, primaryDietitianId: reassignUserId } as any, {
+                                        onSuccess: () => {
+                                            toast.success('Client reassigned');
+                                            setReassignOpen(false);
+                                        },
+                                        onError: () => toast.error('Failed to reassign'),
+                                    });
+                                }}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                                <Check className="w-4 h-4" />
+                                {updateClient.isPending ? 'Saving…' : 'Reassign'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

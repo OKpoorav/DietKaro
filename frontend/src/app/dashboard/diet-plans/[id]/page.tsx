@@ -306,8 +306,8 @@ export default function DietPlanDetailPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => router.back()}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -364,7 +364,7 @@ export default function DietPlanDetailPage() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => {
                             const params = new URLSearchParams({ editId: planId });

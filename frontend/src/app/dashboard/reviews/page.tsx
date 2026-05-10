@@ -70,9 +70,9 @@ export default function MealReviewPage() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-5rem)] -m-6">
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] -m-4 lg:-m-6">
             {/* Left Column: Meal Queue */}
-            <div className="w-80 flex-shrink-0 flex flex-col bg-white border-r border-gray-200 h-full overflow-hidden">
+            <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col bg-white border-b lg:border-b-0 lg:border-r border-gray-200 overflow-hidden ${selectedMealId || (!isLoading && mealLogs.length > 0 && selectedMeal) ? 'h-48 lg:h-full' : 'flex-1 lg:h-full'}`}>
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200">
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -155,7 +155,7 @@ export default function MealReviewPage() {
             </div>
 
             {/* Right Column: Review Panel */}
-            <div className="flex-1 p-8 overflow-y-auto bg-gray-50">
+            <div className="flex-1 p-4 lg:p-8 overflow-y-auto bg-gray-50">
                 {selectedMeal ? (
                     <div className="max-w-2xl mx-auto space-y-6">
                         {/* Image */}

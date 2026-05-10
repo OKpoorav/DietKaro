@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { useDashboardStats } from '@/lib/hooks/use-dashboard';
 import { useCreateClient, Client } from '@/lib/hooks/use-clients';
 import { AddClientModal } from '@/components/modals/add-client-modal';
+import { CalendarView } from '@/components/calendar/calendar-view';
 import { formatTimeAgo } from '@/lib/utils/formatters';
 
 export default function DashboardPage() {
@@ -85,44 +86,33 @@ export default function DashboardPage() {
         { label: 'Active Diet Plans', value: data?.stats.activeDietPlans ?? '-', icon: Calendar },
     ];
 
-    const weeklyAdherence = data?.weeklyAdherence || [
-        { day: 'Mon', value: 0 },
-        { day: 'Tue', value: 0 },
-        { day: 'Wed', value: 0 },
-        { day: 'Thu', value: 0 },
-        { day: 'Fri', value: 0 },
-        { day: 'Sat', value: 0 },
-        { day: 'Sun', value: 0 },
-    ];
-
     const recentClients = data?.recentClients || [];
-    const pendingReviews = data?.pendingReviews || [];
 
     return (
         <div className="space-y-6">
             {/* Header with Search */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">
                         Welcome back, {firstName}!
                     </h1>
-                    <p className="text-gray-500 mt-1">Here&apos;s what&apos;s happening with your clients today.</p>
+                    <p className="text-gray-500 mt-1 text-sm lg:text-base">Here&apos;s what&apos;s happening with your clients today.</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         type="button"
                         onClick={() => setShowAddClientModal(true)}
                         className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-[#0e1b12] rounded-lg text-sm font-bold transition-colors"
                     >
                         <Plus className="w-4 h-4" />
-                        Add New Client
+                        Add Client
                     </button>
                     <Link
                         href="/dashboard/diet-plans/new"
                         className="flex items-center gap-2 h-10 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 rounded-lg text-sm font-bold transition-colors"
                     >
                         <Plus className="w-4 h-4" />
-                        Create Diet Plan
+                        Create Plan
                     </Link>
                 </div>
             </div>
@@ -161,61 +151,8 @@ export default function DashboardPage() {
                 ))}
             </div>
 
-            {/* Chart and Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Weekly Adherence Chart */}
-                <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-6">
-                    <h3 className="mb-6 text-lg font-semibold text-gray-900">Weekly Adherence Overview</h3>
-                    <div className="flex h-64 items-end justify-between gap-4">
-                        {weeklyAdherence.map((day, i) => (
-                            <div key={i} className="flex h-full flex-1 flex-col-reverse items-center gap-2">
-                                <p className="text-xs text-gray-500">{day.day}</p>
-                                <div className="w-full rounded bg-brand/20" style={{ height: `${Math.max(day.value, 5)}%` }}>
-                                    <div
-                                        className="h-full w-full rounded bg-brand transition-all duration-300 hover:opacity-80"
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Pending Reviews */}
-                <div className="rounded-xl border border-gray-200 bg-white">
-                    <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                        <h3 className="font-semibold text-gray-900">Pending Reviews</h3>
-                        <Link href="/dashboard/reviews" className="text-sm text-brand hover:underline font-medium">
-                            View all
-                        </Link>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                        {pendingReviews.length === 0 ? (
-                            <div className="p-4 text-center text-gray-500 text-sm">
-                                No pending reviews
-                            </div>
-                        ) : (
-                            pendingReviews.map((review) => (
-                                <Link
-                                    key={review.id}
-                                    href={`/dashboard/reviews`}
-                                    className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                                            <Camera className="w-5 h-5 text-orange-600" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-gray-900">{review.client}</p>
-                                            <p className="text-sm text-gray-500">{review.meal} • {review.time}</p>
-                                        </div>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                                </Link>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
+            {/* Calendar */}
+            <CalendarView />
 
             {/* Recent Clients */}
             <div className="rounded-xl border border-gray-200 bg-white">

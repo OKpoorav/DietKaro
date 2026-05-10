@@ -29,6 +29,7 @@ import { usePermissions } from '../../lib/hooks/use-permissions';
 import { NotificationDropdown } from '@/components/notification-dropdown';
 import { useProfile } from '@/lib/hooks/use-profile';
 import { useClerk } from '@clerk/nextjs';
+import { MobileBottomNav } from '@/components/mobile-bottom-nav';
 
 type PermissionKey = 'canViewTeam' | 'canViewAnalytics' | 'canViewReferrals' | 'canViewSubscriptions' | 'canViewLeads';
 
@@ -224,8 +225,9 @@ export default function DashboardLayout({
                 </header>
 
                 {/* Page content */}
-                <main className="p-6"><ErrorBoundary>{children}</ErrorBoundary></main>
+                <main className="p-4 lg:p-6 pb-20 lg:pb-6"><ErrorBoundary>{children}</ErrorBoundary></main>
             </div>
+            <MobileBottomNav />
         </div>
         </SocketProvider>
     );

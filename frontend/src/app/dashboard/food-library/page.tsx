@@ -50,7 +50,7 @@ export default function FoodLibraryPage() {
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">Food Library</h1>
+                    <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">Food Library</h1>
                     <p className="text-[#4e9767] mt-1">Browse and manage food items for diet plans.</p>
                 </div>
                 <button
@@ -151,7 +151,7 @@ export default function FoodLibraryPage() {
                                         e.stopPropagation();
                                         handleEdit(item);
                                     }}
-                                    className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white text-gray-600 hover:text-brand"
+                                    className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity hover:bg-white text-gray-600 hover:text-brand"
                                     title="Edit Food Item"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>

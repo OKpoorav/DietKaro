@@ -167,8 +167,8 @@ export function useConvertLead(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: async (body: {
-            fullName: string; email: string; phone: string;
-            gender?: string; dateOfBirth?: string; city?: string;
+            fullName: string; salutation?: string; email?: string; phone: string;
+            gender?: string; dateOfBirth?: string; city?: string; subscriptionPlanId?: string;
         }) => {
             const { data } = await api.post(`/leads/${id}/convert`, body);
             return data.data as { clientId: string; alreadyConverted: boolean };
@@ -176,6 +176,16 @@ export function useConvertLead(id: string) {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['leads'] });
             qc.invalidateQueries({ queryKey: ['lead', id] });
+        },
+    });
+}
+
+export function useCreateLeadPaymentLink(id: string) {
+    const api = useApiClient();
+    return useMutation({
+        mutationFn: async (body: { amountInr: number; planId?: string }) => {
+            const { data } = await api.post(`/leads/${id}/payment-link`, body);
+            return data.data as { shortUrl: string };
         },
     });
 }

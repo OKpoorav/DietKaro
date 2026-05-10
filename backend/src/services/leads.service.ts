@@ -249,12 +249,14 @@ export async function convertLead(
     actorUserId: string,
     clientPayload: {
         fullName: string;
-        email: string;
+        salutation?: string;
+        email?: string;
         phone: string;
         altPhone?: string;
         gender?: Gender;
         dateOfBirth?: Date;
         city?: string;
+        subscriptionPlanId?: string;
     },
 ) {
     const lead = await prisma.lead.findFirst({ where: { id, orgId } });
@@ -266,11 +268,22 @@ export async function convertLead(
     const convertedStatus = await findSystemStatus(orgId, 'converted');
     if (!convertedStatus) throw AppError.internal('No converted status found');
 
+    // Validate plan if provided
+    let plan: { id: string; durationDays: number } | null = null;
+    if (clientPayload.subscriptionPlanId) {
+        plan = await prisma.subscriptionPlan.findFirst({
+            where: { id: clientPayload.subscriptionPlanId, orgId, deletedAt: null, active: true },
+            select: { id: true, durationDays: true },
+        });
+        if (!plan) throw AppError.notFound('Subscription plan not found or inactive');
+    }
+
     const result = await prisma.$transaction(async (tx) => {
         const client = await tx.client.create({
             data: {
                 orgId,
                 fullName: clientPayload.fullName,
+                salutation: clientPayload.salutation,
                 email: clientPayload.email,
                 phone: clientPayload.phone,
                 gender: clientPayload.gender,
@@ -278,6 +291,22 @@ export async function convertLead(
                 createdByUserId: actorUserId,
             },
         });
+
+        if (plan) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const renewal = new Date(today);
+            renewal.setDate(renewal.getDate() + plan.durationDays);
+            await tx.clientSubscription.create({
+                data: {
+                    clientId: client.id,
+                    planId: plan.id,
+                    activeDate: today,
+                    renewalDate: renewal,
+                    assignedByUserId: actorUserId,
+                },
+            });
+        }
 
         await tx.lead.update({
             where: { id },

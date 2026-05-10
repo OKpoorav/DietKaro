@@ -263,16 +263,16 @@ function BuilderContent() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-5rem)] -m-6">
+        <div className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] -m-4 lg:-m-6">
             {/* Top Header */}
-            <header className="flex items-center justify-between border-b border-gray-200 px-6 py-3 bg-white flex-shrink-0">
-                <div className="flex items-center gap-6">
+            <header className="flex items-center justify-between border-b border-gray-200 px-3 lg:px-6 py-3 bg-white flex-shrink-0 gap-2 overflow-x-auto">
+                <div className="flex items-center gap-3 lg:gap-6 flex-shrink-0">
                     <Link
                         href={isTemplateMode ? '/dashboard/diet-plans' : `/dashboard/clients/${clientId}`}
-                        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+                        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium flex-shrink-0"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        {isTemplateMode ? 'Back to Templates' : 'Back to Client'}
+                        <span className="hidden sm:inline">{isTemplateMode ? 'Back to Templates' : 'Back to Client'}</span>
                     </Link>
                     <div className="flex items-center gap-2">
                         <input
@@ -296,7 +296,7 @@ function BuilderContent() {
                         )}
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0">
                     <button
                         onClick={() => setSplitMode(s => !s)}
                         className={`h-10 px-3 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -305,52 +305,52 @@ function BuilderContent() {
                         title={splitMode ? 'Exit split view' : 'Split builder into two panes'}
                     >
                         {splitMode ? <Square className="w-4 h-4" /> : <Columns2 className="w-4 h-4" />}
-                        {splitMode ? 'Single' : 'Split'}
+                        <span className="hidden sm:inline">{splitMode ? 'Single' : 'Split'}</span>
                     </button>
                     {isTemplateMode ? (
                         <div className="flex gap-2">
                             <button
                                 onClick={() => builder.save(false, true)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <LayoutTemplate className="w-4 h-4" />
-                                Save as Meal Structure
+                                <span className="hidden sm:inline">Save as Meal Structure</span>
                             </button>
                             <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Save className="w-4 h-4" />
-                                {builder.isSaving ? 'Saving...' : (builder.isEditMode ? 'Update Template' : 'Save Template')}
+                                <span className="hidden sm:inline">{builder.isSaving ? 'Saving...' : (builder.isEditMode ? 'Update Template' : 'Save Template')}</span>
                             </button>
                         </div>
                     ) : (
                         <>
                             <button
                                 onClick={() => setShowBulkModal(true)}
-                                className="flex items-center gap-2 h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                                 title="Adjust Portions"
                             >
                                 <SlidersHorizontal className="w-4 h-4" />
-                                Portions
+                                <span className="hidden sm:inline">Portions</span>
                             </button>
                             <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Save className="w-4 h-4" />
-                                Save Draft
+                                <span className="hidden sm:inline">Save Draft</span>
                             </button>
                             <button
                                 onClick={() => builder.save(true)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Send className="w-4 h-4" />
-                                Publish
+                                <span className="hidden sm:inline">Publish</span>
                             </button>
                         </>
                     )}
@@ -358,7 +358,8 @@ function BuilderContent() {
             </header>
 
             {/* Main Content */}
-            <main className="flex-grow grid grid-cols-12 gap-4 p-4 overflow-hidden bg-gray-50">
+            <div className="flex-grow overflow-x-auto bg-gray-50">
+            <main className="grid grid-cols-12 gap-4 p-4 h-full min-w-[900px] overflow-hidden bg-gray-50">
                 {/* Left Sidebar — scrolls as one column, each card has min-height */}
                 <aside className="col-span-3 flex flex-col overflow-y-auto overflow-x-hidden pr-2 gap-3 pb-4">
                     <div className="flex-shrink-0">
@@ -424,6 +425,7 @@ function BuilderContent() {
                     meals={builder.getDayMeals(selectedDayA)}
                 />
             </main>
+            </div>
 
             {/* Add Food Modal — targets whichever pane/day triggered it */}
             <AddFoodModal
