@@ -11,6 +11,7 @@ RUN npx prisma generate
 
 COPY tsconfig.json ./
 COPY src ./src/
+COPY scripts ./scripts/
 RUN npm run build
 
 # ---- Runner ----
@@ -24,6 +25,7 @@ RUN addgroup -g 1001 -S appgroup && adduser -S appuser -u 1001 -G appgroup
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
 COPY package.json ./
 
 # Run migrations then start server
