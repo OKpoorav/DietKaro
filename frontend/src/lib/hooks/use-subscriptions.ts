@@ -103,6 +103,7 @@ function makeMutation<TArgs>(api: ReturnType<typeof useApiClient>, queryClient: 
             queryClient.invalidateQueries({ queryKey: ['client-subscription', clientId] });
             queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
             queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+            queryClient.invalidateQueries({ queryKey: ['clients'] });
         },
     });
 }

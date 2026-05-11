@@ -9,6 +9,7 @@ const API = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/v
 
 const ALLERGY_SUGGESTIONS = ['Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Gluten', 'Lactose'];
 const DISLIKE_SUGGESTIONS = ['Broccoli', 'Spinach', 'Bitter Gourd', 'Lady Finger', 'Mushroom', 'Onion', 'Garlic', 'Fish', 'Eggs', 'Paneer', 'Tofu'];
+const LIKE_SUGGESTIONS = ['Rice', 'Chapati', 'Dal', 'Chicken', 'Paneer', 'Curd', 'Fruits', 'Salad', 'Oats', 'Eggs', 'Nuts', 'Milk', 'Vegetables'];
 
 interface ClientInfo {
     id: string;
@@ -40,6 +41,7 @@ function OnboardingForm() {
     });
     const [allergies, setAllergies] = useState<string[]>([]);
     const [dislikes, setDislikes] = useState<string[]>([]);
+    const [likedFoods, setLikedFoods] = useState<string[]>([]);
     const [beforePhotos, setBeforePhotos] = useState<{ front: string | null; side: string | null; back: string | null }>({ front: null, side: null, back: null });
     const [uploadingPhoto, setUploadingPhoto] = useState<{ front: boolean; side: boolean; back: boolean }>({ front: false, side: false, back: false });
 
@@ -90,6 +92,7 @@ function OnboardingForm() {
             if (form.goalDeadline) payload.goalDeadline = form.goalDeadline;
             if (allergies.length > 0) payload.allergies = allergies;
             if (dislikes.length > 0) payload.dislikes = dislikes;
+            if (likedFoods.length > 0) payload.likedFoods = likedFoods;
             if (beforePhotos.front) payload.beforePhotoFrontUrl = beforePhotos.front;
             if (beforePhotos.side) payload.beforePhotoSideUrl = beforePhotos.side;
             if (beforePhotos.back) payload.beforePhotoBackUrl = beforePhotos.back;
@@ -232,6 +235,11 @@ function OnboardingForm() {
                             <div>
                                 <label className={label}>Food Dislikes</label>
                                 <TagInput value={dislikes} onChange={setDislikes} suggestions={DISLIKE_SUGGESTIONS} placeholder="Foods you don't like..." />
+                                <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
+                            </div>
+                            <div>
+                                <label className={label}>Food Likes</label>
+                                <TagInput value={likedFoods} onChange={setLikedFoods} suggestions={LIKE_SUGGESTIONS} placeholder="Foods you enjoy..." />
                                 <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
                             </div>
                         </div>

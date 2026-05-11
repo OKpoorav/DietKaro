@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, Send, LayoutTemplate, Users, X, ChevronRight, UtensilsCrossed } from 'lucide-react';
-import { useDietPlans, usePublishDietPlan, useAssignTemplate, useDeleteDietPlan, type DietPlan } from '@/lib/hooks/use-diet-plans';
+import { Plus, Search, FileText, Calendar, MoreVertical, Loader2, Trash2, Edit, Send, LayoutTemplate, Users, X, UtensilsCrossed, ArrowRight } from 'lucide-react';
+import { useDietPlans, usePublishDietPlan, useDeleteDietPlan, type DietPlan } from '@/lib/hooks/use-diet-plans';
+import { PlanSetupModal, type PlanSetupResult } from '@/components/diet-plan/plan-setup-modal';
 import { useClients } from '@/lib/hooks/use-clients';
 import { useState, useRef, useEffect } from 'react';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 
 type TabType = 'plans' | 'templates';
 
@@ -21,11 +21,10 @@ interface PlanCardProps {
     handleDelete: (id: string, name: string) => void;
     publishMutation: { isPending: boolean };
     deleteMutation: { isPending: boolean };
-    setAssigningTemplateId: (id: string) => void;
-    setShowAssignModal: (v: boolean) => void;
+    onAssign: (id: string, name: string) => void;
 }
 
-function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, handlePublish, handleDelete, publishMutation, deleteMutation, setAssigningTemplateId, setShowAssignModal }: PlanCardProps) {
+function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, handlePublish, handleDelete, publishMutation, deleteMutation, onAssign }: PlanCardProps) {
     const isActive = plan.status === 'active';
     return (
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow group">
@@ -42,7 +41,7 @@ function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, ha
                             {plan.isTemplate ? (
                                 <span className="inline-flex items-center gap-1 text-purple-600">
                                     <LayoutTemplate className="w-3 h-3" />
-                                    {plan.templateCategory === 'slot_template' ? 'Meal Structure' : 'Template'}
+                                    {plan.templateCategory === 'slot_template' ? 'Meal Slots' : 'Template'}
                                 </span>
                             ) : (
                                 plan.client?.fullName || 'No Client'
@@ -64,6 +63,8 @@ function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, ha
                                     ? `/dashboard/diet-plans/new?template=true&editId=${plan.id}`
                                     : `/dashboard/diet-plans/${plan.id}`
                                 }
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                             >
                                 <Edit className="w-4 h-4" />
@@ -129,7 +130,7 @@ function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, ha
             <div className="pt-4 border-t border-gray-100 flex gap-2">
                 {isTemplateView ? (
                     <button
-                        onClick={() => { setAssigningTemplateId(plan.id); setShowAssignModal(true); }}
+                        onClick={() => onAssign(plan.id, plan.name || '')}
                         className="flex-1 px-3 py-2 text-sm font-medium text-white bg-brand rounded-lg hover:bg-brand/90 text-center transition-colors flex items-center justify-center gap-2"
                     >
                         <Users className="w-4 h-4" />
@@ -149,19 +150,20 @@ function PlanCard({ plan, isTemplateView, openMenuId, menuRef, setOpenMenuId, ha
 }
 
 export default function DietPlansPage() {
-    const [activeTab, setActiveTab] = useState<TabType>('plans');
+    const [activeTab, setActiveTab] = useState<TabType>('templates');
     const [search, setSearch] = useState('');
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
     // Assign Modal State
     const [showAssignModal, setShowAssignModal] = useState(false);
+    const [showPlanSetup, setShowPlanSetup] = useState(false);
     const [assigningTemplateId, setAssigningTemplateId] = useState<string | null>(null);
+    const [assigningTemplateName, setAssigningTemplateName] = useState<string>('');
     const [clientSearch, setClientSearch] = useState('');
     const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedClientName, setSelectedClientName] = useState<string>('');
 
     const menuRef = useRef<HTMLDivElement>(null);
-    const router = useRouter();
     const debouncedSearch = useDebouncedValue(search, 300);
 
     // Fetch based on active tab
@@ -173,7 +175,6 @@ export default function DietPlansPage() {
     });
     const publishMutation = usePublishDietPlan();
     const deleteMutation = useDeleteDietPlan();
-    const assignMutation = useAssignTemplate();
 
     // Fetch clients for assignment modal
     const { data: clientsData } = useClients({
@@ -227,26 +228,31 @@ export default function DietPlansPage() {
         }
     };
 
-    const handleAssign = async () => {
-        if (!assigningTemplateId || !selectedClientId || !startDate) return;
+    const handleAssign = () => {
+        if (!assigningTemplateId || !selectedClientId) return;
+        // Move to Step 2 — plan details (name, start date, days, overlap check)
+        setShowAssignModal(false);
+        setShowPlanSetup(true);
+    };
 
-        try {
-            const newPlan = await assignMutation.mutateAsync({
-                templateId: assigningTemplateId,
-                clientId: selectedClientId,
-                startDate,
-            });
-
-            toast.success('Template assigned successfully!');
-            setShowAssignModal(false);
-            setAssigningTemplateId(null);
-            setSelectedClientId(null);
-
-            // Navigate to the newly created plan
-            router.push(`/dashboard/diet-plans/${newPlan.id}`);
-        } catch (error) {
-            toast.error('Failed to assign template');
-        }
+    const handlePlanSetupConfirm = (result: PlanSetupResult) => {
+        setShowPlanSetup(false);
+        const params = new URLSearchParams();
+        params.set('clientId', selectedClientId!);
+        params.set('applyTemplateId', assigningTemplateId!);
+        params.set('setupPlanName', result.planName);
+        params.set('setupStart', result.startDate.toISOString().slice(0, 10));
+        params.set('setupDays', String(result.numDays));
+        params.set('setupMeals', String(result.mealCount));
+        params.set('setupStrategy', result.overlapStrategy);
+        if (result.overlappingPlanIds?.length) params.set('overlappingPlanIds', result.overlappingPlanIds.join(','));
+        window.open(`/dashboard/diet-plans/new?${params.toString()}`, '_blank');
+        // Reset
+        setSelectedClientId(null);
+        setSelectedClientName('');
+        setAssigningTemplateId(null);
+        setAssigningTemplateName('');
+        setClientSearch('');
     };
 
     return (
@@ -257,6 +263,8 @@ export default function DietPlansPage() {
                     {isTemplateView ? (
                         <Link
                             href="/dashboard/diet-plans/new?template=true"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand/90 transition-colors"
                         >
                             <LayoutTemplate className="w-5 h-5" />
@@ -265,6 +273,8 @@ export default function DietPlansPage() {
                     ) : (
                         <Link
                             href="/dashboard/diet-plans/new"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-brand text-white font-medium rounded-lg hover:bg-brand/90 transition-colors"
                         >
                             <Plus className="w-5 h-5" />
@@ -278,15 +288,6 @@ export default function DietPlansPage() {
             <div className="border-b border-gray-200">
                 <nav className="flex gap-4">
                     <button
-                        onClick={() => setActiveTab('plans')}
-                        className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'plans'
-                            ? 'border-brand text-brand'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                    >
-                        Client Plans
-                    </button>
-                    <button
                         onClick={() => setActiveTab('templates')}
                         className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2 ${activeTab === 'templates'
                             ? 'border-brand text-brand'
@@ -295,6 +296,15 @@ export default function DietPlansPage() {
                     >
                         <LayoutTemplate className="w-4 h-4" />
                         Templates
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('plans')}
+                        className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'plans'
+                            ? 'border-brand text-brand'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        Client Plans
                     </button>
                 </nav>
             </div>
@@ -334,12 +344,16 @@ export default function DietPlansPage() {
                     <div className="flex flex-col items-center gap-2">
                         <Link
                             href="/dashboard/diet-plans/new"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-sm font-medium text-brand hover:underline"
                         >
                             Create New Plan
                         </Link>
                         <Link
                             href="/dashboard/diet-plans/new?template=true"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="text-sm font-medium text-brand hover:underline"
                         >
                             Create Template
@@ -351,22 +365,7 @@ export default function DietPlansPage() {
                 </div>
             ) : isTemplateView ? (
                 <div className="space-y-8">
-                    {/* Meal Structures section */}
-                    {slotTemplates.length > 0 && (
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <LayoutTemplate className="w-4 h-4 text-brand" />
-                                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Meal Structures</h2>
-                            </div>
-                            <p className="text-xs text-gray-400 mb-4">Applied as slot layout only — does not overwrite day count</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {slotTemplates.map((plan) => (
-                                    <PlanCard key={plan.id} plan={plan} isTemplateView={true} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} setAssigningTemplateId={setAssigningTemplateId} setShowAssignModal={setShowAssignModal} />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    {/* Full Templates section */}
+                    {/* Full Templates section — shown first */}
                     {fullTemplates.length > 0 && (
                         <div>
                             <div className="flex items-center gap-2 mb-1">
@@ -376,7 +375,22 @@ export default function DietPlansPage() {
                             <p className="text-xs text-gray-400 mb-4">Replaces all meals and days when applied</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {fullTemplates.map((plan) => (
-                                    <PlanCard key={plan.id} plan={plan} isTemplateView={true} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} setAssigningTemplateId={setAssigningTemplateId} setShowAssignModal={setShowAssignModal} />
+                                    <PlanCard key={plan.id} plan={plan} isTemplateView={true} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} onAssign={(id, name) => { setAssigningTemplateId(id); setAssigningTemplateName(name); setShowAssignModal(true); }} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {/* Meal Slots section — shown second */}
+                    {slotTemplates.length > 0 && (
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <LayoutTemplate className="w-4 h-4 text-brand" />
+                                <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Meal Slots</h2>
+                            </div>
+                            <p className="text-xs text-gray-400 mb-4">Applied as slot layout only — does not overwrite day count</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {slotTemplates.map((plan) => (
+                                    <PlanCard key={plan.id} plan={plan} isTemplateView={true} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} onAssign={(id, name) => { setAssigningTemplateId(id); setAssigningTemplateName(name); setShowAssignModal(true); }} />
                                 ))}
                             </div>
                         </div>
@@ -388,123 +402,104 @@ export default function DietPlansPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredPlans.map((plan) => (
-                        <PlanCard key={plan.id} plan={plan} isTemplateView={false} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} setAssigningTemplateId={setAssigningTemplateId} setShowAssignModal={setShowAssignModal} />
+                        <PlanCard key={plan.id} plan={plan} isTemplateView={false} openMenuId={openMenuId} menuRef={menuRef} setOpenMenuId={setOpenMenuId} handlePublish={handlePublish} handleDelete={handleDelete} publishMutation={publishMutation} deleteMutation={deleteMutation} onAssign={(id, name) => { setAssigningTemplateId(id); setAssigningTemplateName(name); setShowAssignModal(true); }} />
                     ))}
                 </div>
             )}
 
-            {/* Assign Modal */}
+            {/* Assign Modal — select client then open builder */}
             {showAssignModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl w-full max-w-lg overflow-hidden shadow-xl max-h-[90vh] flex flex-col">
-                        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-semibold text-lg text-gray-900">Assign Template to Client</h3>
+                    <div className="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-xl max-h-[90vh] flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-semibold text-base text-gray-900">Use Template for Client</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Pick a client — the builder will open so you can review & customise before saving</p>
+                            </div>
                             <button
-                                onClick={() => {
-                                    setShowAssignModal(false);
-                                    setAssigningTemplateId(null);
-                                    setSelectedClientId(null);
-                                }}
-                                className="text-gray-400 hover:text-gray-600"
+                                onClick={() => { setShowAssignModal(false); setAssigningTemplateId(null); setSelectedClientId(null); setClientSearch(''); }}
+                                className="text-gray-400 hover:text-gray-600 ml-4 shrink-0"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                            {/* Start Date Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Start Date
-                                </label>
+                        <div className="p-6 flex-1 overflow-y-auto">
+                            <div className="relative mb-3">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none text-gray-900"
+                                    autoFocus
+                                    type="text"
+                                    placeholder="Search clients..."
+                                    value={clientSearch}
+                                    onChange={(e) => setClientSearch(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
                                 />
                             </div>
-
-                            {/* Client Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Select Client
-                                </label>
-                                <div className="relative mb-2">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search clients..."
-                                        value={clientSearch}
-                                        onChange={(e) => setClientSearch(e.target.value)}
-                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none text-gray-900"
-                                    />
-                                </div>
-                                <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto">
-                                    {clientsData?.data?.length === 0 ? (
-                                        <div className="p-4 text-center text-gray-500 text-sm">
-                                            No clients found
-                                        </div>
-                                    ) : (
-                                        <div className="divide-y divide-gray-100">
-                                            {clientsData?.data?.map(client => (
-                                                <button
-                                                    key={client.id}
-                                                    onClick={() => setSelectedClientId(client.id)}
-                                                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors ${selectedClientId === client.id ? 'bg-brand/5 ring-1 ring-inset ring-brand' : ''
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                                                            {client.fullName.charAt(0)}
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <div className="font-medium text-gray-900 text-sm">{client.fullName}</div>
-                                                            <div className="text-xs text-gray-500">{client.email}</div>
-                                                        </div>
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                {!clientsData?.data?.length ? (
+                                    <p className="p-4 text-center text-gray-500 text-sm">No clients found</p>
+                                ) : (
+                                    <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                                        {clientsData.data.map(client => (
+                                            <button
+                                                key={client.id}
+                                                onClick={() => { setSelectedClientId(client.id); setSelectedClientName(client.fullName); }}
+                                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left ${
+                                                    selectedClientId === client.id ? 'bg-brand/5' : ''
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-600">
+                                                        {client.fullName.charAt(0).toUpperCase()}
                                                     </div>
-                                                    {selectedClientId === client.id && (
-                                                        <div className="w-2 h-2 rounded-full bg-brand" />
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-900">{client.fullName}</p>
+                                                        <p className="text-xs text-gray-500">{client.email}</p>
+                                                    </div>
+                                                </div>
+                                                {selectedClientId === client.id && (
+                                                    <div className="w-2 h-2 rounded-full bg-brand shrink-0" />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
                             <button
-                                onClick={() => {
-                                    setShowAssignModal(false);
-                                    setAssigningTemplateId(null);
-                                    setSelectedClientId(null);
-                                }}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+                                onClick={() => { setShowAssignModal(false); setAssigningTemplateId(null); setSelectedClientId(null); setClientSearch(''); }}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleAssign}
-                                disabled={!selectedClientId || !startDate || assignMutation.isPending}
-                                className="px-4 py-2 bg-brand text-white text-sm font-medium rounded-lg hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                disabled={!selectedClientId}
+                                className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:bg-brand/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                {assignMutation.isPending ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Assigning...
-                                    </>
-                                ) : (
-                                    <>
-                                        Confirm Assignment
-                                        <ChevronRight className="w-4 h-4" />
-                                    </>
-                                )}
+                                Open in Builder
+                                <ArrowRight className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Step 2: Plan setup modal — name, start date, days, overlap check */}
+            {showPlanSetup && selectedClientId && (
+                <PlanSetupModal
+                    isOpen={true}
+                    onClose={() => { setShowPlanSetup(false); setShowAssignModal(true); }}
+                    clientId={selectedClientId}
+                    clientName={selectedClientName}
+                    slotTemplates={[]}
+                    skipSlotSelection
+                    defaultPlanName={assigningTemplateName}
+                    onConfirm={handlePlanSetupConfirm}
+                />
             )}
         </div>
     );

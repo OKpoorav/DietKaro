@@ -298,6 +298,12 @@ export class ClientService {
                         take: 1,
                         select: { id: true, scheduledAt: true, durationMin: true, mode: true, title: true, meetLink: true },
                     },
+                    dietPlans: {
+                        where: { status: 'active' },
+                        orderBy: { startDate: 'desc' },
+                        take: 1,
+                        select: { id: true, name: true, startDate: true, endDate: true, status: true },
+                    },
                 },
             }),
             prisma.client.count({ where }),
@@ -372,6 +378,17 @@ export class ClientService {
             if (rawData[field] !== undefined) {
                 updateData[field] = rawData[field];
             }
+        }
+
+        // Only owner/admin may reassign the primary dietitian.
+        if ((userRole === 'owner' || userRole === 'admin') && rawData.primaryDietitianId !== undefined) {
+            // Verify the target user belongs to the same org before reassigning.
+            const targetUser = await prisma.user.findFirst({
+                where: { id: rawData.primaryDietitianId, orgId },
+                select: { id: true },
+            });
+            if (!targetUser) throw AppError.badRequest('Assigned user not found in this organization');
+            updateData.primaryDietitianId = rawData.primaryDietitianId;
         }
 
         if (updateData.dateOfBirth) {

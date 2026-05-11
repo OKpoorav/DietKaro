@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { AlertTriangle, Ban, Heart, Shield, Calendar, Scale, Info } from 'lucide-react';
 import type { FoodRestriction } from '@/lib/hooks/use-validation';
 
@@ -12,6 +13,7 @@ interface ClientRestrictionsSummaryProps {
     dislikes?: string[];
     likedFoods?: string[];
     className?: string;
+    compact?: boolean;
 }
 
 // Map diet pattern to display
@@ -54,7 +56,8 @@ export function ClientRestrictionsSummary({
     foodRestrictions = [],
     dislikes = [],
     likedFoods = [],
-    className = ''
+    className = '',
+    compact = false,
 }: ClientRestrictionsSummaryProps) {
     const hasAnyRestrictions =
         allergies.length > 0 ||
@@ -73,6 +76,52 @@ export function ClientRestrictionsSummary({
         );
     }
 
+    if (compact) {
+        return (
+            <div className={`space-y-2 ${className}`}>
+                {dietPattern && (
+                    <CompactRow label="Diet">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${DIET_PATTERN_DISPLAY[dietPattern]?.color || 'bg-gray-100 text-gray-700'}`}>
+                            {DIET_PATTERN_DISPLAY[dietPattern]?.label || dietPattern}
+                        </span>
+                    </CompactRow>
+                )}
+                {allergies.length > 0 && (
+                    <CompactRow label="Allergies">
+                        {allergies.map((a, i) => <Chip key={i} color="red">{a}</Chip>)}
+                    </CompactRow>
+                )}
+                {intolerances.length > 0 && (
+                    <CompactRow label="Intolerances">
+                        {intolerances.map((a, i) => <Chip key={i} color="red">{a}</Chip>)}
+                    </CompactRow>
+                )}
+                {medicalConditions.length > 0 && (
+                    <CompactRow label="Conditions">
+                        {medicalConditions.map((c, i) => <Chip key={i} color="yellow">{c.replace(/_/g, ' ')}</Chip>)}
+                    </CompactRow>
+                )}
+                {foodRestrictions.length > 0 && (
+                    <CompactRow label="Restrictions">
+                        {foodRestrictions.map((r, i) => <Chip key={i} color="orange">{formatRestriction(r)}</Chip>)}
+                    </CompactRow>
+                )}
+                {dislikes.length > 0 && (
+                    <CompactRow label="Dislikes">
+                        {dislikes.slice(0, 6).map((d, i) => <Chip key={i} color="gray">{d}</Chip>)}
+                        {dislikes.length > 6 && <span className="text-[10px] text-gray-400">+{dislikes.length - 6}</span>}
+                    </CompactRow>
+                )}
+                {likedFoods.length > 0 && (
+                    <CompactRow label="Favorites">
+                        {likedFoods.slice(0, 6).map((f, i) => <Chip key={i} color="green">{f}</Chip>)}
+                        {likedFoods.length > 6 && <span className="text-[10px] text-gray-400">+{likedFoods.length - 6}</span>}
+                    </CompactRow>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className={`space-y-3 ${className}`}>
             {/* Allergies - RED */}
@@ -84,12 +133,7 @@ export function ClientRestrictionsSummary({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                         {allergies.map((allergy, i) => (
-                            <span
-                                key={i}
-                                className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full"
-                            >
-                                {allergy}
-                            </span>
+                            <span key={i} className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">{allergy}</span>
                         ))}
                     </div>
                 </div>
@@ -104,12 +148,7 @@ export function ClientRestrictionsSummary({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                         {intolerances.map((intolerance, i) => (
-                            <span
-                                key={i}
-                                className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full"
-                            >
-                                {intolerance}
-                            </span>
+                            <span key={i} className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">{intolerance}</span>
                         ))}
                     </div>
                 </div>
@@ -122,8 +161,7 @@ export function ClientRestrictionsSummary({
                         <Shield className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-blue-700">Diet Pattern</span>
                     </div>
-                    <span className={`mt-2 inline-block px-2 py-0.5 text-xs rounded-full ${DIET_PATTERN_DISPLAY[dietPattern]?.color || 'bg-gray-100 text-gray-700'
-                        }`}>
+                    <span className={`mt-2 inline-block px-2 py-0.5 text-xs rounded-full ${DIET_PATTERN_DISPLAY[dietPattern]?.color || 'bg-gray-100 text-gray-700'}`}>
                         {DIET_PATTERN_DISPLAY[dietPattern]?.label || dietPattern}
                     </span>
                 </div>
@@ -139,8 +177,7 @@ export function ClientRestrictionsSummary({
                     <ul className="space-y-1">
                         {foodRestrictions.map((restriction, i) => (
                             <li key={i} className="flex items-start gap-2 text-xs text-orange-700">
-                                <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${restriction.severity === 'strict' ? 'bg-red-400' : 'bg-yellow-400'
-                                    }`} />
+                                <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${restriction.severity === 'strict' ? 'bg-red-400' : 'bg-yellow-400'}`} />
                                 <span>
                                     {formatRestriction(restriction)}
                                     {restriction.excludes && restriction.excludes.length > 0 && (
@@ -162,10 +199,7 @@ export function ClientRestrictionsSummary({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                         {medicalConditions.map((condition, i) => (
-                            <span
-                                key={i}
-                                className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full"
-                            >
+                            <span key={i} className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">
                                 {condition.replace(/_/g, ' ')}
                             </span>
                         ))}
@@ -181,18 +215,9 @@ export function ClientRestrictionsSummary({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                         {dislikes.slice(0, 5).map((dislike, i) => (
-                            <span
-                                key={i}
-                                className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded-full"
-                            >
-                                {dislike}
-                            </span>
+                            <span key={i} className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded-full">{dislike}</span>
                         ))}
-                        {dislikes.length > 5 && (
-                            <span className="px-2 py-0.5 text-gray-500 text-xs">
-                                +{dislikes.length - 5} more
-                            </span>
-                        )}
+                        {dislikes.length > 5 && <span className="px-2 py-0.5 text-gray-500 text-xs">+{dislikes.length - 5} more</span>}
                     </div>
                 </div>
             )}
@@ -206,21 +231,37 @@ export function ClientRestrictionsSummary({
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                         {likedFoods.slice(0, 5).map((food, i) => (
-                            <span
-                                key={i}
-                                className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full"
-                            >
-                                {food}
-                            </span>
+                            <span key={i} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">{food}</span>
                         ))}
-                        {likedFoods.length > 5 && (
-                            <span className="px-2 py-0.5 text-green-600 text-xs">
-                                +{likedFoods.length - 5} more
-                            </span>
-                        )}
+                        {likedFoods.length > 5 && <span className="px-2 py-0.5 text-green-600 text-xs">+{likedFoods.length - 5} more</span>}
                     </div>
                 </div>
             )}
         </div>
+    );
+}
+
+function CompactRow({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div className="flex items-start gap-2">
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wide pt-0.5 w-16 flex-shrink-0">{label}</span>
+            <div className="flex flex-wrap gap-1">{children}</div>
+        </div>
+    );
+}
+
+const CHIP_COLORS: Record<string, string> = {
+    red: 'bg-red-100 text-red-700',
+    yellow: 'bg-yellow-100 text-yellow-700',
+    orange: 'bg-orange-100 text-orange-700',
+    green: 'bg-green-100 text-green-700',
+    gray: 'bg-gray-100 text-gray-600',
+};
+
+function Chip({ color = 'gray', children }: { color?: string; children: ReactNode }) {
+    return (
+        <span className={`px-1.5 py-0.5 text-[10px] rounded-full ${CHIP_COLORS[color] || CHIP_COLORS.gray}`}>
+            {children}
+        </span>
     );
 }

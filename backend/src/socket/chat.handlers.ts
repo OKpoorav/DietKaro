@@ -117,6 +117,11 @@ export function registerChatHandlers(io: Server, socket: Socket) {
     });
 
     socket.on('chat:typing', ({ conversationId }: { conversationId: string }) => {
+        // Mirror the same guard used in chat:send_message — a socket must have
+        // explicitly joined the room (which validates participation) before it can
+        // broadcast typing state. Without this, any authenticated socket can spam
+        // typing events into conversations it doesn't belong to.
+        if (!socket.rooms.has(`conversation:${conversationId}`)) return;
         socket.to(`conversation:${conversationId}`).emit('chat:user_typing', {
             conversationId,
             userId,
@@ -125,6 +130,7 @@ export function registerChatHandlers(io: Server, socket: Socket) {
     });
 
     socket.on('chat:stop_typing', ({ conversationId }: { conversationId: string }) => {
+        if (!socket.rooms.has(`conversation:${conversationId}`)) return;
         socket.to(`conversation:${conversationId}`).emit('chat:user_stop_typing', {
             conversationId,
             userId,
@@ -132,6 +138,10 @@ export function registerChatHandlers(io: Server, socket: Socket) {
     });
 
     socket.on('chat:mark_read', async ({ conversationId, messageId }: { conversationId: string; messageId: string }) => {
+        // Same participation guard — marking messages read in a conversation the
+        // socket hasn't joined would let any authenticated user alter read state
+        // on arbitrary conversations.
+        if (!socket.rooms.has(`conversation:${conversationId}`)) return;
         try {
             await chatService.markAsRead(conversationId, userId, userType, messageId);
 

@@ -10,6 +10,7 @@ export type ClientData = Partial<Pick<Client,
     | 'medicalProfile' | 'allergies' | 'intolerances' | 'dietPattern'
     | 'medicalConditions' | 'foodRestrictions' | 'dislikes' | 'likedFoods'
     | 'targetCalories' | 'targetProteinG' | 'targetCarbsG' | 'targetFatsG'
+    | 'latestMeasurement'
 >>;
 
 export interface FoodItemData {

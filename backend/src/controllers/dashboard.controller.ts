@@ -189,9 +189,19 @@ export const getDietitianAnalytics = asyncHandler(async (req: AuthenticatedReque
         return;
     }
 
-    // 2. Batch queries to avoid N+1
+    // 2. Batch queries — all aggregations are pushed to the DB (no unbounded findMany).
+    //
+    // Prisma's groupBy cannot group by a relation field (e.g. client.primaryDietitianId),
+    // so we use $queryRaw with explicit GROUP BY. Each query is O(matching rows) at the
+    // DB level and returns only one row per dietitian — safe at any org size.
+    //
+    // Soft-deleted records are excluded via deletedAt IS NULL (the Prisma extension
+    // handles this automatically for ORM calls but not for $queryRaw).
 
-    // Client counts per dietitian
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Client counts per dietitian (ORM groupBy is fine here — no relation field needed)
     const clientCounts = await prisma.client.groupBy({
         by: ['primaryDietitianId'],
         where: { orgId, isActive: true, primaryDietitianId: { in: dietitianIds } },
@@ -199,65 +209,62 @@ export const getDietitianAnalytics = asyncHandler(async (req: AuthenticatedReque
     });
     const clientCountMap = new Map(clientCounts.map(c => [c.primaryDietitianId, c._count]));
 
-    // Active plan counts per dietitian (grouped by client's assigned dietitian)
-    const activePlanRows = await prisma.dietPlan.findMany({
-        where: {
-            orgId,
-            status: 'active',
-            client: { primaryDietitianId: { in: dietitianIds } },
-        },
-        select: {
-            client: { select: { primaryDietitianId: true } },
-        },
-    });
-    const activePlanCountMap = new Map<string, number>();
-    for (const row of activePlanRows) {
-        const did = row.client?.primaryDietitianId;
-        if (did) activePlanCountMap.set(did, (activePlanCountMap.get(did) || 0) + 1);
-    }
+    type CountRow = { dietitianId: string; count: bigint };
+    type AdherenceRow = { dietitianId: string; status: string; count: bigint };
 
-    // Pending review counts per dietitian (meal logs not yet reviewed, for their clients)
-    const pendingReviewRows = await prisma.mealLog.findMany({
-        where: {
-            orgId,
-            status: { in: ['eaten', 'skipped', 'substituted'] },
-            reviewedByUserId: null,
-            client: { primaryDietitianId: { in: dietitianIds } },
-        },
-        select: {
-            client: { select: { primaryDietitianId: true } },
-        },
-    });
-    const pendingReviewCountMap = new Map<string, number>();
-    for (const row of pendingReviewRows) {
-        const did = row.client?.primaryDietitianId;
-        if (did) pendingReviewCountMap.set(did, (pendingReviewCountMap.get(did) || 0) + 1);
-    }
+    const [activePlanRows, pendingReviewRows, adherenceRows] = await Promise.all([
+        // Active plan counts — single GROUP BY query, O(active plans)
+        prisma.$queryRaw<CountRow[]>`
+            SELECT c."primaryDietitianId" AS "dietitianId", COUNT(*)::bigint AS count
+            FROM "DietPlan" dp
+            JOIN "Client" c ON dp."clientId" = c."id"
+            WHERE dp."orgId" = ${orgId}
+              AND dp."status" = 'active'
+              AND dp."deletedAt" IS NULL
+              AND c."primaryDietitianId" = ANY(${dietitianIds}::uuid[])
+            GROUP BY c."primaryDietitianId"
+        `,
 
-    // Adherence percent (last 30 days) per dietitian
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // Pending review counts — single GROUP BY query, O(unreviewed logs)
+        prisma.$queryRaw<CountRow[]>`
+            SELECT c."primaryDietitianId" AS "dietitianId", COUNT(*)::bigint AS count
+            FROM "MealLog" ml
+            JOIN "Client" c ON ml."clientId" = c."id"
+            WHERE ml."orgId" = ${orgId}
+              AND ml."status" IN ('eaten', 'skipped', 'substituted')
+              AND ml."reviewedByUserId" IS NULL
+              AND ml."deletedAt" IS NULL
+              AND c."primaryDietitianId" = ANY(${dietitianIds}::uuid[])
+            GROUP BY c."primaryDietitianId"
+        `,
 
-    const adherenceLogs = await prisma.mealLog.findMany({
-        where: {
-            orgId,
-            scheduledDate: { gte: thirtyDaysAgo },
-            client: { primaryDietitianId: { in: dietitianIds } },
-        },
-        select: {
-            status: true,
-            client: { select: { primaryDietitianId: true } },
-        },
-    });
+        // Adherence breakdown — single GROUP BY returning (dietitianId, status, count)
+        prisma.$queryRaw<AdherenceRow[]>`
+            SELECT c."primaryDietitianId" AS "dietitianId", ml."status", COUNT(*)::bigint AS count
+            FROM "MealLog" ml
+            JOIN "Client" c ON ml."clientId" = c."id"
+            WHERE ml."orgId" = ${orgId}
+              AND ml."scheduledDate" >= ${thirtyDaysAgo}
+              AND ml."deletedAt" IS NULL
+              AND c."primaryDietitianId" = ANY(${dietitianIds}::uuid[])
+            GROUP BY c."primaryDietitianId", ml."status"
+        `,
+    ]);
+
+    const activePlanCountMap = new Map<string, number>(
+        activePlanRows.map(r => [r.dietitianId, Number(r.count)])
+    );
+    const pendingReviewCountMap = new Map<string, number>(
+        pendingReviewRows.map(r => [r.dietitianId, Number(r.count)])
+    );
 
     const adherenceMap = new Map<string, { total: number; eaten: number }>();
-    for (const log of adherenceLogs) {
-        const did = log.client.primaryDietitianId;
-        if (!did) continue;
-        const entry = adherenceMap.get(did) || { total: 0, eaten: 0 };
-        entry.total++;
-        if (log.status === 'eaten') entry.eaten++;
-        adherenceMap.set(did, entry);
+    for (const row of adherenceRows) {
+        const entry = adherenceMap.get(row.dietitianId) ?? { total: 0, eaten: 0 };
+        const n = Number(row.count);
+        entry.total += n;
+        if (row.status === 'eaten') entry.eaten += n;
+        adherenceMap.set(row.dietitianId, entry);
     }
 
     // 3. Assemble response

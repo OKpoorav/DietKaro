@@ -80,15 +80,47 @@ export async function rotateRefreshToken(rawCompoundToken: string): Promise<{
     if (!familyId || !rawToken) return null;
 
     const tokenHash = hashToken(rawToken);
+    const now = new Date();
 
+    // Atomic revocation: only one concurrent request can win this UPDATE.
+    // The WHERE clause (isRevoked = false AND expiresAt > now) ensures exactly
+    // one winner — the second concurrent request sees count=0 and falls through
+    // to the reuse-detection branch below.
+    const revoked = await prisma.clientRefreshToken.updateMany({
+        where: { tokenHash, isRevoked: false, expiresAt: { gt: now } },
+        data: { isRevoked: true },
+    });
+
+    if (revoked.count === 0) {
+        // Could be: token doesn't exist, already expired, or was already revoked
+        // (potential token reuse / replay attack). Fetch to distinguish.
+        const storedToken = await prisma.clientRefreshToken.findUnique({
+            where: { tokenHash },
+        });
+
+        if (storedToken?.isRevoked) {
+            // Reuse detected — the token was already consumed. Revoke the entire
+            // family to invalidate all sessions derived from this token tree.
+            await prisma.clientRefreshToken.updateMany({
+                where: { familyId: storedToken.familyId },
+                data: { isRevoked: true },
+            });
+        }
+        return null;
+    }
+
+    // Fetch the record we just revoked to read clientId and stored familyId.
     const storedToken = await prisma.clientRefreshToken.findUnique({
         where: { tokenHash },
     });
 
+    // Defensive: shouldn't happen since we just updated it.
     if (!storedToken) return null;
 
-    // If this token was already revoked, the family is compromised — revoke all.
-    if (storedToken.isRevoked) {
+    // Cross-check the familyId from the compound token against what's in the DB.
+    // A mismatch indicates a forged or tampered token — revoke the entire family
+    // the token actually belongs to, then reject.
+    if (storedToken.familyId !== familyId) {
         await prisma.clientRefreshToken.updateMany({
             where: { familyId: storedToken.familyId },
             data: { isRevoked: true },
@@ -96,22 +128,6 @@ export async function rotateRefreshToken(rawCompoundToken: string): Promise<{
         return null;
     }
 
-    // Check expiry
-    if (storedToken.expiresAt < new Date()) {
-        await prisma.clientRefreshToken.update({
-            where: { id: storedToken.id },
-            data: { isRevoked: true },
-        });
-        return null;
-    }
-
-    // Revoke the current token (it has been used)
-    await prisma.clientRefreshToken.update({
-        where: { id: storedToken.id },
-        data: { isRevoked: true },
-    });
-
-    // Issue new token pair (same family)
     const newRefreshToken = await createRefreshToken(storedToken.clientId, storedToken.familyId);
     const accessToken = signClientAccessToken(storedToken.clientId);
 

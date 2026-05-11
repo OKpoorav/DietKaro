@@ -252,15 +252,37 @@ export const getClientProfile = asyncHandler(async (req: ClientAuthRequest, res:
     });
 });
 
+// Profile photos are uploaded through the app's own media pipeline and served at
+// /media/profile-photos/... Only URLs with that path prefix are trusted.
+// Accepting arbitrary external URLs would allow a client to store attacker-controlled
+// URLs that could be fetched server-side in email/PDF generation (SSRF).
+function isValidProfilePhotoUrl(url: string): boolean {
+    try {
+        const parsed = new URL(url);
+        return parsed.pathname.startsWith('/media/profile-photos/');
+    } catch {
+        return false;
+    }
+}
+
 export const updateClientProfile = asyncHandler(async (req: ClientAuthRequest, res: Response) => {
     if (!req.client) throw AppError.unauthorized();
 
     const { profilePhotoUrl } = req.body;
 
+    if (profilePhotoUrl !== undefined && profilePhotoUrl !== null && profilePhotoUrl !== '') {
+        if (!isValidProfilePhotoUrl(profilePhotoUrl)) {
+            throw AppError.badRequest(
+                'profilePhotoUrl must be a URL served from this application.',
+                'INVALID_PHOTO_URL',
+            );
+        }
+    }
+
     const updated = await prisma.client.update({
         where: { id: req.client.id },
         data: {
-            ...(profilePhotoUrl && { profilePhotoUrl }),
+            ...(profilePhotoUrl !== undefined && { profilePhotoUrl: profilePhotoUrl || null }),
         },
     });
 

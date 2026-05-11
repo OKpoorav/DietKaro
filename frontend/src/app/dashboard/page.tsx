@@ -109,6 +109,8 @@ export default function DashboardPage() {
                     </button>
                     <Link
                         href="/dashboard/diet-plans/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="flex items-center gap-2 h-10 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 rounded-lg text-sm font-bold transition-colors"
                     >
                         <Plus className="w-4 h-4" />

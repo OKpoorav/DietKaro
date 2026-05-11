@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ensureClerkUser, checkClientEmail, clerkLogin, getClientProfile, updateClientProfile, refreshClientToken, logoutClient } from '../controllers/clientAuth.controller';
 import { requireClientAuth } from '../middleware/clientAuth.middleware';
+import { ensureClerkUserLimiter } from '../middleware/rateLimiter';
 
 // TODO: Re-enable OTP rate limiters when SMS delivery is set up
 // import { otpRequestLimiter, otpVerifyLimiter } from '../middleware/rateLimiter';
@@ -13,7 +14,7 @@ const router = Router();
 // router.post('/verify-otp', otpVerifyLimiter, verifyOTP);
 
 router.post('/check-email', checkClientEmail);
-router.post('/ensure-clerk-user', ensureClerkUser);
+router.post('/ensure-clerk-user', ensureClerkUserLimiter, ensureClerkUser);
 router.post('/clerk-login', clerkLogin);
 router.post('/refresh', refreshClientToken);
 

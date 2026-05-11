@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Video, MapPin, MessageCircle, Check, X, RefreshCw, Loader2, MoreVertical } from 'lucide-react';
+import { Plus, Video, MapPin, MessageCircle, Check, X, RefreshCw, Loader2, MoreVertical, Copy, ExternalLink } from 'lucide-react';
 import { useConsultations, useUpdateConsultation, type Consultation } from '@/lib/hooks/use-consultations';
 import { CreateConsultationModal } from '@/components/modals/create-consultation-modal';
 import { Modal } from '@/components/ui/modal';
@@ -21,12 +21,14 @@ function buildWhatsAppMsg(c: Consultation, clientName: string, orgName: string, 
     const dur = c.durationMin < 60 ? `${c.durationMin} minutes` : `${c.durationMin / 60} hr${c.durationMin > 60 ? 's' : ''}`;
     const label = c.title || (c.mode === 'online' ? 'Online Consultation' : 'In-Person Consultation');
     const org = orgName || 'us';
+    const regards = `\nWarm regards,\n*${org}*`;
 
     if (action === 'complete') return [
         `Hi ${clientName}! 👋`, '',
         `Thank you for attending your consultation with *${org}* today.`, '',
         `📋 *Session:* ${label}`, `📅 *Date:* ${date} at ${time}`, `⏱️ *Duration:* ${dur}`, '',
         `We hope the session was helpful. Reach out if you need follow-up support! 🌿`,
+        regards,
     ].join('\n');
 
     if (action === 'cancel') return [
@@ -34,6 +36,7 @@ function buildWhatsAppMsg(c: Consultation, clientName: string, orgName: string, 
         `Your consultation with *${org}* has been cancelled:`, '',
         `📋 *Session:* ${label}`, `📅 *Date:* ${date} at ${time}`, '',
         `Please contact us to reschedule at your convenience. 🌿`,
+        regards,
     ].join('\n');
 
     return [
@@ -43,23 +46,50 @@ function buildWhatsAppMsg(c: Consultation, clientName: string, orgName: string, 
         c.mode === 'online' && c.meetLink ? `🔗 *Meeting Link:* ${c.meetLink}` : null,
         c.mode === 'in_person' && c.location ? `📌 *Location:* ${c.location}` : null,
         '', `Please let us know if this works for you! 🌿`,
+        regards,
     ].filter(l => l !== null).join('\n');
 }
 
 function WAModal({ message, phone, onClose }: { message: string; phone: string; onClose: () => void }) {
+    const [copied, setCopied] = useState(false);
     const send = () => window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+    const copy = async () => {
+        await navigator.clipboard.writeText(message);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
     return (
         <Modal isOpen onClose={onClose} title="Send WhatsApp Message" size="sm">
             <div className="p-4 space-y-4">
                 <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">{message}</div>
                 <div className="flex gap-2">
-                    <button onClick={onClose} className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">Done</button>
-                    <button onClick={send} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700">
+                    <button onClick={copy} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">
+                        {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button onClick={onClose} className="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">Done</button>
+                    <button onClick={send} className="ml-auto flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700">
                         <MessageCircle className="w-4 h-4" /> Send on WhatsApp
                     </button>
                 </div>
             </div>
         </Modal>
+    );
+}
+
+function MeetLinkButton({ href }: { href: string }) {
+    return (
+        <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 text-xs font-medium hover:bg-blue-100 transition-colors"
+        >
+            <Video className="w-3 h-3" />
+            Join Meeting
+            <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+        </a>
     );
 }
 
@@ -73,35 +103,60 @@ function UpcomingRow({ c, onComplete, onReschedule, onCancel }: {
     const d = new Date(c.scheduledAt);
     const date = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const dur = c.durationMin < 60 ? `${c.durationMin} min` : `${c.durationMin / 60}h`;
 
     return (
         <div className="rounded-xl border border-gray-100 bg-white p-4">
             <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center min-w-[52px] bg-gray-50 rounded-xl p-2 text-center">
+                {/* Date block */}
+                <div className="flex flex-col items-center min-w-[52px] bg-gray-50 rounded-xl p-2 text-center flex-shrink-0">
                     <span className="text-xs font-bold text-gray-700">{date.split(' ').slice(0, 2).join(' ')}</span>
                     <span className="text-[10px] text-gray-400 mt-0.5">{time}</span>
                 </div>
+
                 <div className="flex-1 min-w-0">
+                    {/* Title + status badge */}
                     <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold text-gray-900">
                             {c.title || (c.mode === 'online' ? 'Online Consultation' : 'In-Person Consultation')}
                         </p>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-blue-700">scheduled</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-blue-50 text-blue-700">Scheduled</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                        <span className="flex items-center gap-1">
-                            {c.mode === 'online' ? <Video className="w-3 h-3 text-blue-500" /> : <MapPin className="w-3 h-3 text-orange-500" />}
-                            {c.mode === 'online' ? 'Online' : 'In-Person'} · {c.durationMin} min
+
+                    {/* Mode row */}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${c.mode === 'online' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                            {c.mode === 'online' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
+                            {c.mode === 'online' ? 'Online' : 'In-Person'}
                         </span>
-                        {c.mode === 'online' && c.meetLink && (
-                            <a href={c.meetLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Join link</a>
-                        )}
+                        <span className="text-xs text-gray-400">·</span>
+                        <span className="text-xs text-gray-500">{dur}</span>
                         {c.mode === 'in_person' && c.location && (
-                            <span className="text-gray-400 truncate">{c.location}</span>
+                            <>
+                                <span className="text-xs text-gray-400">·</span>
+                                <span className="text-xs text-gray-500 flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" />{c.location}
+                                </span>
+                            </>
                         )}
                     </div>
-                    {c.notes && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{c.notes}</p>}
+
+                    {/* Meet link as prominent button row */}
+                    {c.mode === 'online' && c.meetLink && (
+                        <div className="mt-2">
+                            <MeetLinkButton href={c.meetLink} />
+                        </div>
+                    )}
+
+                    {/* Notes */}
+                    {c.notes && (
+                        <p className="text-xs text-gray-400 mt-2 bg-gray-50 rounded-lg px-2 py-1.5 border border-gray-100">
+                            📝 {c.notes}
+                        </p>
+                    )}
                 </div>
+
+                {/* Actions menu */}
                 <div className="relative shrink-0">
                     <button
                         type="button"
@@ -205,7 +260,7 @@ export function ConsultationsTab({ clientId, clientName, clientPhone, orgName }:
                             {past.map(c => (
                                 <div key={c.id} className={`rounded-xl border p-4 ${c.status === 'cancelled' ? 'border-gray-100 bg-gray-50 opacity-60' : 'border-gray-100 bg-white'}`}>
                                     <div className="flex items-start gap-4">
-                                        <div className="flex flex-col items-center min-w-[52px] bg-gray-50 rounded-xl p-2 text-center">
+                                        <div className="flex flex-col items-center min-w-[52px] bg-gray-50 rounded-xl p-2 text-center flex-shrink-0">
                                             <span className="text-xs font-bold text-gray-700">
                                                 {new Date(c.scheduledAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                             </span>
@@ -222,17 +277,22 @@ export function ConsultationsTab({ clientId, clientName, clientPhone, orgName }:
                                                     {c.status}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                                {c.mode === 'online' ? <Video className="w-3 h-3 text-blue-500" /> : <MapPin className="w-3 h-3 text-orange-500" />}
-                                                {c.mode === 'online' ? 'Online' : 'In-Person'} · {c.durationMin} min
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full ${c.mode === 'online' ? 'bg-blue-50 text-blue-500' : 'bg-orange-50 text-orange-500'}`}>
+                                                    {c.mode === 'online' ? <Video className="w-2.5 h-2.5" /> : <MapPin className="w-2.5 h-2.5" />}
+                                                    {c.mode === 'online' ? 'Online' : 'In-Person'}
+                                                </span>
+                                                <span className="text-xs text-gray-400">{c.durationMin} min</span>
                                                 {c.mode === 'online' && c.meetLink && (
-                                                    <a href={c.meetLink} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Join</a>
+                                                    <a href={c.meetLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-500 hover:underline">
+                                                        <ExternalLink className="w-3 h-3" /> Join
+                                                    </a>
                                                 )}
                                                 {c.mode === 'in_person' && c.location && (
-                                                    <span className="text-gray-400 truncate">{c.location}</span>
+                                                    <span className="text-xs text-gray-400 truncate">{c.location}</span>
                                                 )}
                                             </div>
-                                            {c.notes && <p className="text-xs text-gray-400 mt-1">{c.notes}</p>}
+                                            {c.notes && <p className="text-xs text-gray-400 mt-1.5 bg-gray-50 rounded px-2 py-1">📝 {c.notes}</p>}
                                         </div>
                                     </div>
                                 </div>

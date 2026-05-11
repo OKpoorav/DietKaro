@@ -83,10 +83,13 @@ export class DietPlanService {
                       }
                     : undefined,
             },
-            include: {
-                client: { select: { id: true, fullName: true } },
-                creator: { select: { id: true, fullName: true } },
-                meals: { include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } } },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                isTemplate: true,
+                startDate: true,
+                endDate: true,
             },
         });
 
@@ -318,7 +321,6 @@ export class DietPlanService {
         }
 
         // Single transaction: overlap handling + activate plan + create all meal logs
-        const BATCH_SIZE = 50;
         const newPlanEnd = plan.endDate ? new Date(plan.endDate) : new Date(newPlanStart);
         if (!plan.endDate) newPlanEnd.setDate(newPlanEnd.getDate() + 6);
         newPlanEnd.setUTCHours(23, 59, 59, 999);
@@ -357,7 +359,7 @@ export class DietPlanService {
                     }
                     await tx.dietPlan.updateMany({
                         where: { id: { in: oldPlanIds } },
-                        data: { isActive: false },
+                        data: { isActive: false, status: 'completed' },
                     });
                 } else if (overlapStrategy === 'end_previous' || overlapStrategy === 'update') {
                     // End overlapping plans the day before new plan starts
@@ -390,26 +392,14 @@ export class DietPlanService {
                 data: { status: 'active', publishedAt: new Date() },
             });
 
-            // Create meal logs in batches within the same transaction
-            for (let i = 0; i < mealLogsToCreate.length; i += BATCH_SIZE) {
-                const batch = mealLogsToCreate.slice(i, i + BATCH_SIZE);
-                await Promise.all(
-                    batch.map(log =>
-                        tx.mealLog.upsert({
-                            where: {
-                                clientId_mealId_scheduledDate: {
-                                    clientId: log.clientId,
-                                    mealId: log.mealId,
-                                    scheduledDate: log.scheduledDate,
-                                },
-                            },
-                            create: log,
-                            update: {},
-                        })
-                    )
-                );
+            // Create meal logs in one statement — skip any that already exist
+            if (mealLogsToCreate.length > 0) {
+                await tx.mealLog.createMany({
+                    data: mealLogsToCreate,
+                    skipDuplicates: true,
+                });
             }
-        }, { timeout: 30000 });
+        }, { timeout: 15000 });
 
         logger.info('Diet plan published with meal logs', {
             planId,
@@ -595,6 +585,47 @@ export class DietPlanService {
         }));
     }
 
+    async getClientPreviousPlan(clientId: string, orgId: string, excludeId?: string) {
+        return prisma.dietPlan.findFirst({
+            where: {
+                clientId,
+                orgId,
+                isTemplate: false,
+                deletedAt: null,
+                status: { in: ['active', 'completed'] },
+                ...(excludeId ? { id: { not: excludeId } } : {}),
+            },
+            orderBy: { startDate: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                status: true,
+                meals: {
+                    orderBy: [{ mealDate: 'asc' }, { dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
+                    select: {
+                        id: true,
+                        name: true,
+                        mealType: true,
+                        dayOfWeek: true,
+                        mealDate: true,
+                        sequenceNumber: true,
+                        foodItems: {
+                            where: { optionGroup: 0 },
+                            orderBy: { sortOrder: 'asc' },
+                            select: {
+                                id: true,
+                                quantityG: true,
+                                foodItem: { select: { name: true, calories: true, proteinG: true, carbsG: true, fatsG: true } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
     async extendPlan(planId: string, orgId: string, extensionStartDate: string) {
         const plan = await prisma.dietPlan.findFirst({
             where: { id: planId, orgId, isActive: true },
@@ -697,18 +728,11 @@ export class DietPlanService {
             });
         });
 
-        // Create meal logs in batches
-        const BATCH_SIZE = 50;
-        for (let i = 0; i < newMealLogs.length; i += BATCH_SIZE) {
-            await prisma.$transaction(
-                newMealLogs.slice(i, i + BATCH_SIZE).map(log =>
-                    prisma.mealLog.upsert({
-                        where: { clientId_mealId_scheduledDate: { clientId: log.clientId, mealId: log.mealId, scheduledDate: log.scheduledDate } },
-                        create: log,
-                        update: {},
-                    })
-                )
-            );
+        if (newMealLogs.length > 0) {
+            await prisma.mealLog.createMany({
+                data: newMealLogs,
+                skipDuplicates: true,
+            });
         }
 
         invalidateClientCache(plan.clientId!);

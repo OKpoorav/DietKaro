@@ -29,6 +29,8 @@ export interface EditClientFormData {
     targetWeightKg: string;
     allergies: string[];
     medicalConditions: string[];
+    dislikes: string[];
+    likedFoods: string[];
     tagIds: string[];
     altPhone: string;
     altPhoneRelation: string;
@@ -59,6 +61,8 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
         targetWeightKg: '',
         allergies: [],
         medicalConditions: [],
+        dislikes: [],
+        likedFoods: [],
         tagIds: [],
         altPhone: '',
         altPhoneRelation: '',
@@ -81,6 +85,8 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                 targetWeightKg: client.targetWeightKg ? String(client.targetWeightKg) : '',
                 allergies: client.medicalProfile?.allergies ?? client.allergies ?? [],
                 medicalConditions: client.medicalProfile?.conditions ?? client.medicalConditions ?? [],
+                dislikes: client.dislikes ?? [],
+                likedFoods: client.likedFoods ?? [],
                 tagIds: client.tagAssignments?.map((a) => a.tagId) ?? [],
                 altPhone: client.altPhone || '',
                 altPhoneRelation: client.altPhoneRelation || '',
@@ -296,6 +302,31 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                                 onChange={(tags) => setFormData({ ...formData, medicalConditions: tags })}
                                 suggestions={MEDICAL_CONDITION_SUGGESTIONS}
                                 placeholder="Add conditions..."
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Food Preferences */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+                        Food Preferences
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Food Dislikes</label>
+                            <TagInput
+                                value={formData.dislikes}
+                                onChange={(tags) => setFormData({ ...formData, dislikes: tags })}
+                                placeholder="Type a food, press Enter…"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Food Likes</label>
+                            <TagInput
+                                value={formData.likedFoods}
+                                onChange={(tags) => setFormData({ ...formData, likedFoods: tags })}
+                                placeholder="Type a food, press Enter…"
                             />
                         </div>
                     </div>

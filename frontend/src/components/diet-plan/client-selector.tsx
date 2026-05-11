@@ -46,7 +46,7 @@ export function ClientSelector() {
                             {clientsData.data.map((c: { id: string; fullName: string; email: string }) => (
                                 <button
                                     key={c.id}
-                                    onClick={() => router.push(`/dashboard/diet-plans/new?clientId=${c.id}`)}
+                                    onClick={() => window.open(`/dashboard/diet-plans/new?clientId=${c.id}`, '_blank')}
                                     className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors group"
                                 >
                                     <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-medium group-hover:bg-brand/10 group-hover:text-brand">

@@ -244,7 +244,7 @@ export function TemplateSidebar({ templates, applyingTemplateId, onApplyTemplate
                         type="text"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        placeholder="Search meal structures & templates..."
+                        placeholder="Search meal slots & templates..."
                         className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                     />
                 </div>
@@ -280,7 +280,7 @@ export function TemplateSidebar({ templates, applyingTemplateId, onApplyTemplate
                     </>
                 )}
 
-                {/* ── Meal Structures (collapsible) ── */}
+                {/* ── Meal Slots (collapsible) ── */}
                 {showPresets && (
                     <>
                         <button
@@ -289,7 +289,7 @@ export function TemplateSidebar({ templates, applyingTemplateId, onApplyTemplate
                             className={`w-full flex items-center gap-1.5 ${showTemplates ? 'pt-3 border-t border-gray-100 mt-1' : 'pt-1'} text-left`}
                         >
                             <LayoutTemplate className="w-3.5 h-3.5 text-brand shrink-0" />
-                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">Meal Structures</span>
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">Meal Slots</span>
                             {mealStructuresOpen
                                 ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                                 : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />

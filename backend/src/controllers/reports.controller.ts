@@ -4,8 +4,22 @@ import { ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import logger from '../utils/logger';
-import { getPresignedPutUrl, deleteFromS3, uploadToS3 } from '../services/storage.service';
+import { getPresignedPutUrl, deleteFromS3, uploadToS3, getS3ObjectHeader } from '../services/storage.service';
 import { REPORT_MIMES, validateFileContent } from '../middleware/upload.middleware';
+
+// MIME types accepted by the presigned upload path (getUploadUrl).
+// This must stay in sync with the allowedTypes list in getUploadUrl below.
+// Text-based formats (CSV) have no magic bytes and cannot be validated by file-type;
+// they are allowed through after confirming the declared MIME is in this set.
+const PRESIGNED_ALLOWED_MIMES = new Set([
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+]);
+const PRESIGNED_TEXT_MIMES = new Set(['text/csv', 'application/csv']);
 import { enqueueDocumentProcessing } from '../jobs/queue';
 
 /**
@@ -98,6 +112,43 @@ export const createReport = asyncHandler(async (req: ClientAuthRequest, res: Res
     const expectedPrefix = `reports/${req.client.orgId}/${req.client.id}/`;
     if (!key.startsWith(expectedPrefix)) {
         return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid file key' } });
+    }
+
+    // Validate actual file content via magic bytes.
+    // The presigned PUT URL lets the client upload any bytes regardless of the
+    // declared Content-Type — we must verify the real content server-side.
+    // We fetch only the first 4 KB to avoid loading the entire file into memory.
+    try {
+        const headerBuffer = await getS3ObjectHeader(key, 4096);
+        const { fileTypeFromBuffer } = await import('file-type');
+        const detected = await fileTypeFromBuffer(headerBuffer);
+
+        if (!detected) {
+            // file-type cannot detect text formats (CSV). Allow only if the declared
+            // MIME is a known text type; reject everything else (binary with no signature).
+            if (!PRESIGNED_TEXT_MIMES.has(fileType)) {
+                await deleteFromS3(key).catch(() => {});
+                throw AppError.badRequest(
+                    'Uploaded file content could not be verified. Please upload a valid file.',
+                    'UNKNOWN_FILE_TYPE',
+                );
+            }
+        } else if (!PRESIGNED_ALLOWED_MIMES.has(detected.mime)) {
+            // Actual content doesn't match any allowed type — reject and clean up S3.
+            await deleteFromS3(key).catch(() => {});
+            throw AppError.badRequest(
+                `Uploaded file type (${detected.mime}) is not allowed.`,
+                'INVALID_FILE_CONTENT',
+            );
+        }
+    } catch (err) {
+        if ((err as any).code === 'BAD_REQUEST' || (err as any).statusCode === 400) throw err;
+        // S3 fetch failed (network, key not found yet) — log and proceed. The
+        // document processor worker will fail gracefully if the file is invalid.
+        logger.warn('Could not validate presigned upload content', {
+            key,
+            error: (err as Error).message,
+        });
     }
 
     // Store the key as fileUrl (presigned read URLs are generated on demand)

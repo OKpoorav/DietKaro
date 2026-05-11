@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Video, MapPin, MessageCircle, Loader2, Check } from 'lucide-react';
+import { Video, MapPin, MessageCircle, Loader2, Check, Copy } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { useCreateConsultation, useUpdateConsultation, type Consultation } from '@/lib/hooks/use-consultations';
 import { useOrganization } from '@/lib/hooks/use-organization';
@@ -39,6 +39,7 @@ export function CreateConsultationModal({ isOpen, onClose, clientId, clientName,
 
     const [step, setStep] = useState<'form' | 'share'>('form');
     const [created, setCreated] = useState<Consultation | null>(null);
+    const [copied, setCopied] = useState(false);
 
     // form state — default to tomorrow at 10:00 or existing values
     const tomorrow = new Date();
@@ -203,17 +204,29 @@ export function CreateConsultationModal({ isOpen, onClose, clientId, clientName,
                     </div>
 
                     {/* WhatsApp preview */}
-                    <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
+                    <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                         {whatsappMessage}
                     </div>
 
                     <div className="flex gap-2">
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                await navigator.clipboard.writeText(whatsappMessage);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200"
+                        >
+                            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                            {copied ? 'Copied!' : 'Copy'}
+                        </button>
                         <button type="button" onClick={handleClose}
-                            className="flex-1 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200">
+                            className="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">
                             Done
                         </button>
                         <button type="button" onClick={handleWhatsApp}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700">
+                            className="ml-auto flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700">
                             <MessageCircle className="w-4 h-4" /> Send on WhatsApp
                         </button>
                     </div>
@@ -252,5 +265,8 @@ function buildWhatsAppMessage(c: Consultation, clientName: string, orgName: stri
         c.title ? `📋 *Agenda:* ${c.title}` : null,
         '',
         `Please be available a few minutes before the session. Looking forward to speaking with you! 🌿`,
+        '',
+        `Warm regards,`,
+        `*${orgName || 'Your Dietitian'}*`,
     ].filter(l => l !== null).join('\n');
 }

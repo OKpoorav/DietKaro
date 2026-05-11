@@ -36,6 +36,7 @@ interface ClientFormData {
     allergies: string;
     medicalConditions: string;
     dislikes: string[];
+    likedFoods: string[];
     goal: string;
     goalDeadline: string;
     healthNotes: string;
@@ -58,6 +59,7 @@ const INITIAL_FORM: ClientFormData = {
     allergies: '',
     medicalConditions: '',
     dislikes: [],
+    likedFoods: [],
     goal: '',
     goalDeadline: '',
     healthNotes: '',
@@ -156,7 +158,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
 
     const handleCreateDietPlan = () => {
         if (!createdClientId) return;
-        router.push(`/dashboard/diet-plans/new?clientId=${createdClientId}`);
+        window.open(`/dashboard/diet-plans/new?clientId=${createdClientId}`, '_blank');
         onClose();
     };
 
@@ -352,13 +354,23 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                         <Goal className="w-3 h-3 text-blue-400" /> Preferences &amp; Goals
                     </p>
                     <div className="space-y-2.5">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Food Dislikes</label>
-                            <TagInput
-                                value={formData.dislikes}
-                                onChange={(tags) => setFormData({ ...formData, dislikes: tags })}
-                                placeholder="Type a food, press Enter…"
-                            />
+                        <div className="grid grid-cols-2 gap-x-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Food Dislikes</label>
+                                <TagInput
+                                    value={formData.dislikes}
+                                    onChange={(tags) => setFormData({ ...formData, dislikes: tags })}
+                                    placeholder="Type a food, press Enter…"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Food Likes</label>
+                                <TagInput
+                                    value={formData.likedFoods}
+                                    onChange={(tags) => setFormData({ ...formData, likedFoods: tags })}
+                                    placeholder="Type a food, press Enter…"
+                                />
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-x-3">
                             <div>

@@ -95,6 +95,14 @@ export interface Client {
         title?: string | null;
         meetLink?: string | null;
     }>;
+    // Active diet plan (list view only)
+    dietPlans?: Array<{
+        id: string;
+        name: string;
+        startDate: string;
+        endDate: string | null;
+        status: string;
+    }>;
     // Smart tags (org-wide master, assigned to this client)
     tagAssignments?: Array<{
         clientId: string;

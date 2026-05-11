@@ -222,19 +222,8 @@ export class ComplianceService {
             orderBy: { scheduledTime: 'asc' },
         });
 
-        // Count planned meals from active diet plan
-        const activePlan = await prisma.dietPlan.findFirst({
-            where: {
-                clientId,
-                status: 'active',
-                isActive: true,
-            },
-            include: {
-                meals: { select: { id: true } },
-            },
-        });
-
-        const mealsPlanned = activePlan?.meals.length || logs.length;
+        // mealsPlanned = logs for this day (all statuses, including pending)
+        const mealsPlanned = logs.length;
 
         // Derive score from status when complianceScore hasn't been calculated yet
         const deriveScoreFromStatus = (status: string): number => {
@@ -294,20 +283,6 @@ export class ComplianceService {
             orderBy: { scheduledTime: 'asc' },
         });
 
-        // Single query: active diet plan (same for all 7 days)
-        const activePlan = await prisma.dietPlan.findFirst({
-            where: {
-                clientId,
-                status: 'active',
-                isActive: true,
-            },
-            include: {
-                meals: { select: { id: true } },
-            },
-        });
-
-        const mealsPlanned = activePlan?.meals.length || 0;
-
         // Partition logs by date in memory
         const logsByDate = new Map<string, typeof allLogs>();
         allLogs.forEach(log => {
@@ -317,13 +292,14 @@ export class ComplianceService {
         });
 
         // Build daily breakdown without additional queries
+        // mealsPlanned = day's log count (all statuses) — the correct per-day number
         const dailyBreakdown: DailyAdherence[] = [];
         for (let i = 0; i < 7; i++) {
             const day = new Date(weekStart);
             day.setDate(day.getDate() + i);
             const dateKey = day.toISOString().split('T')[0];
             const dayLogs = logsByDate.get(dateKey) || [];
-            const daily = this.buildDailyAdherenceFromLogs(dateKey, dayLogs, mealsPlanned || dayLogs.length);
+            const daily = this.buildDailyAdherenceFromLogs(dateKey, dayLogs, dayLogs.length);
             dailyBreakdown.push(daily);
         }
 

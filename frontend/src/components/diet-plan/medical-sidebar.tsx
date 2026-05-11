@@ -14,6 +14,7 @@ import {
     Clock,
     RotateCcw,
     Trash2,
+    Heart,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -26,10 +27,23 @@ import {
 } from '@/lib/hooks/use-medical-summary';
 import { useDeleteClientReport } from '@/lib/hooks/use-upload-client-report';
 import { UploadReportButton } from '@/components/clients/upload-report-button';
+import { ClientRestrictionsSummary } from './client-restrictions-summary';
+import type { FoodRestriction } from '@/lib/hooks/use-validation';
+
+interface ClientPreferences {
+    allergies?: string[];
+    intolerances?: string[];
+    dietPattern?: string | null;
+    medicalConditions?: string[];
+    foodRestrictions?: FoodRestriction[];
+    dislikes?: string[];
+    likedFoods?: string[];
+}
 
 interface MedicalSidebarProps {
     clientId: string;
     className?: string;
+    clientPreferences?: ClientPreferences;
 }
 
 // ─── Status helpers ───────────────────────────────────────────────
@@ -339,9 +353,12 @@ function ReportRow({
 
 // ─── Main component ───────────────────────────────────────────────
 
-export function MedicalSidebar({ clientId, className = '' }: MedicalSidebarProps) {
+type SidebarTab = 'reports' | 'preferences';
+
+export function MedicalSidebar({ clientId, className = '', clientPreferences }: MedicalSidebarProps) {
     const { data: docSummary, isLoading } = useClientDocumentSummary(clientId);
     const [search, setSearch] = useState('');
+    const [sidebarTab, setSidebarTab] = useState<SidebarTab>('reports');
 
     const documents = docSummary?.documents ?? [];
 
@@ -351,58 +368,104 @@ export function MedicalSidebar({ clientId, className = '' }: MedicalSidebarProps
         return documents.filter((d) => d.fileName.toLowerCase().includes(q));
     }, [documents, search]);
 
+    const hasPreferences = clientPreferences && (
+        (clientPreferences.allergies?.length ?? 0) > 0 ||
+        (clientPreferences.intolerances?.length ?? 0) > 0 ||
+        clientPreferences.dietPattern ||
+        (clientPreferences.medicalConditions?.length ?? 0) > 0 ||
+        (clientPreferences.foodRestrictions?.length ?? 0) > 0 ||
+        (clientPreferences.dislikes?.length ?? 0) > 0 ||
+        (clientPreferences.likedFoods?.length ?? 0) > 0
+    );
+
     return (
         <div className={`bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col min-h-0 ${className}`}>
-            {/* Header — fixed, never scrolls */}
+            {/* Header */}
             <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3 flex-shrink-0 border-b border-gray-100">
                 <h3 className="text-gray-900 font-medium flex items-center gap-2">
                     <FileText className="w-4 h-4 text-brand" />
                     Uploaded Reports
                 </h3>
-                <UploadReportButton clientId={clientId} size="sm" />
+                {sidebarTab === 'reports' && <UploadReportButton clientId={clientId} size="sm" />}
             </div>
 
-            {/* Scrollable body: AI summary + search + doc list */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
-                {/* Unified AI Summary */}
-                <div className="px-4 pt-3">
-                    <UnifiedSummaryCard clientId={clientId} />
+            {/* Sub-tabs — only when preferences data exists */}
+            {hasPreferences && (
+                <div className="flex border-b border-gray-100 px-4 flex-shrink-0">
+                    <button
+                        onClick={() => setSidebarTab('reports')}
+                        className={`py-2 mr-4 text-xs font-medium border-b-2 transition-colors ${sidebarTab === 'reports' ? 'border-brand text-brand' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    >
+                        Reports
+                    </button>
+                    <button
+                        onClick={() => setSidebarTab('preferences')}
+                        className={`py-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${sidebarTab === 'preferences' ? 'border-brand text-brand' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <Heart className="w-3 h-3" />
+                        Preferences
+                    </button>
                 </div>
+            )}
 
-                {/* Search */}
-                <div className="px-4 pb-2">
-                    <div className="relative">
-                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search reports..."
-                            className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand outline-none"
+            {/* Scrollable body */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+                {sidebarTab === 'preferences' && clientPreferences ? (
+                    <div className="px-4 py-4">
+                        <ClientRestrictionsSummary
+                            compact
+                            allergies={clientPreferences.allergies}
+                            intolerances={clientPreferences.intolerances}
+                            dietPattern={clientPreferences.dietPattern}
+                            medicalConditions={clientPreferences.medicalConditions}
+                            foodRestrictions={clientPreferences.foodRestrictions}
+                            dislikes={clientPreferences.dislikes}
+                            likedFoods={clientPreferences.likedFoods}
                         />
                     </div>
-                </div>
-
-                {/* Document list */}
-                <div className="px-4 pb-4 space-y-2">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                ) : (
+                    <>
+                        {/* Unified AI Summary */}
+                        <div className="px-4 pt-3">
+                            <UnifiedSummaryCard clientId={clientId} />
                         </div>
-                    ) : filtered.length === 0 ? (
-                        <p className="text-sm text-gray-500 italic text-center py-4">
-                            {search.trim() ? 'No matching reports' : 'No reports uploaded'}
-                        </p>
-                    ) : (
-                        filtered.map((doc) => (
-                            <ReportRow
-                                key={doc.id}
-                                report={doc}
-                                clientId={clientId}
-                            />
-                        ))
-                    )}
-                </div>
+
+                        {/* Search */}
+                        <div className="px-4 pb-2">
+                            <div className="relative">
+                                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Search reports..."
+                                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Document list */}
+                        <div className="px-4 pb-4 space-y-2">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                                </div>
+                            ) : filtered.length === 0 ? (
+                                <p className="text-sm text-gray-500 italic text-center py-4">
+                                    {search.trim() ? 'No matching reports' : 'No reports uploaded'}
+                                </p>
+                            ) : (
+                                filtered.map((doc) => (
+                                    <ReportRow
+                                        key={doc.id}
+                                        report={doc}
+                                        clientId={clientId}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -47,6 +47,12 @@ function MealCell({ meal }: { meal: any }) {
                     <Clock className="w-3 h-3 inline" /> {meal.timeOfDay}
                 </p>
             )}
+            {meal.description && (
+                <p className="text-xs text-gray-500 italic mb-1">{meal.description}</p>
+            )}
+            {meal.instructions && (
+                <p className="text-xs text-gray-400 mb-1 border-l-2 border-gray-200 pl-2">{meal.instructions}</p>
+            )}
             {/* Name is already the column header — no need to repeat it */}
             {sortedGroups.map(([groupNum, foods], gIdx) => (
                 <div key={groupNum}>
@@ -61,7 +67,7 @@ function MealCell({ meal }: { meal: any }) {
                     {foods.map((food: any, fi: number) => (
                         <div key={fi} className="flex justify-between items-baseline gap-2 text-xs text-gray-600">
                             <span className="truncate">{food.foodItem?.name || 'Unknown'}</span>
-                            <span className="text-gray-400 whitespace-nowrap shrink-0">{food.quantityG}g</span>
+                            <span className="text-gray-400 whitespace-nowrap shrink-0">{food.notes || `${food.quantityG}g`}</span>
                         </div>
                     ))}
                 </div>
@@ -369,7 +375,7 @@ export default function DietPlanDetailPage() {
                         onClick={() => {
                             const params = new URLSearchParams({ editId: planId });
                             if (plan.clientId) params.set('clientId', plan.clientId);
-                            router.push(`/dashboard/diet-plans/new?${params.toString()}`);
+                            window.open(`/dashboard/diet-plans/new?${params.toString()}`, '_blank');
                         }}
                         className="flex items-center gap-2 px-3 py-2 bg-brand/10 hover:bg-brand/20 text-brand text-sm font-medium rounded-lg transition-colors"
                         title="Edit plan in meal builder"

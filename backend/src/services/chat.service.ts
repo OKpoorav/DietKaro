@@ -71,6 +71,11 @@ export class ChatService {
         if (!trimmed) {
             throw AppError.badRequest('Message content cannot be empty');
         }
+        // Cap enforced here (service layer) so it applies to both REST and WebSocket paths.
+        const MAX_MESSAGE_LENGTH = 5_000;
+        if (trimmed.length > MAX_MESSAGE_LENGTH) {
+            throw AppError.badRequest(`Message exceeds the maximum length of ${MAX_MESSAGE_LENGTH} characters`);
+        }
 
         const [message] = await prisma.$transaction([
             prisma.message.create({

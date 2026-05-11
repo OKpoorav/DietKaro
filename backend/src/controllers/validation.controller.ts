@@ -8,7 +8,19 @@ import { AuthenticatedRequest } from '../types/auth.types';
 import { AppError } from '../errors/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { validationEngine } from '../services/validationEngine.service';
+import prisma from '../utils/prisma';
 import logger from '../utils/logger';
+
+// Verify the caller's org owns the given clientId before exposing health data.
+// The validation engine surfaces sensitive PHI (allergies, medical conditions,
+// lab-derived dietary tags) — a missing check here is a direct IDOR / HIPAA risk.
+async function assertClientBelongsToOrg(clientId: string, orgId: string): Promise<void> {
+    const client = await prisma.client.findFirst({
+        where: { id: clientId, orgId },
+        select: { id: true },
+    });
+    if (!client) throw AppError.notFound('Client not found');
+}
 
 /**
  * POST /api/v1/diet-validation/check
@@ -26,6 +38,8 @@ export const checkValidation = asyncHandler(async (req: AuthenticatedRequest, re
     if (!context?.currentDay || !context?.mealType) {
         throw AppError.badRequest('context.currentDay and context.mealType are required');
     }
+
+    await assertClientBelongsToOrg(clientId, req.user.organizationId);
 
     const startTime = Date.now();
 
@@ -64,6 +78,8 @@ export const checkBatchValidation = asyncHandler(async (req: AuthenticatedReques
     if (foodIds.length > 50) {
         throw AppError.badRequest('Maximum 50 foods per batch');
     }
+
+    await assertClientBelongsToOrg(clientId, req.user.organizationId);
 
     const result = await validationEngine.validateBatch(clientId, foodIds, context);
 

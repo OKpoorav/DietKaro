@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
     ArrowLeft,
     Send,
@@ -217,12 +217,18 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
                                                         </span>
                                                     )}
                                                 </div>
+                                                {meal.description && (
+                                                    <p className="text-xs text-gray-500 italic mt-1">{meal.description}</p>
+                                                )}
+                                                {meal.instructions && (
+                                                    <p className="text-xs text-gray-400 mt-1 border-l-2 border-gray-200 pl-2">{meal.instructions}</p>
+                                                )}
                                                 {meal.foodItems?.length > 0 && (
                                                     <div className="mt-1.5 space-y-0.5">
                                                         {meal.foodItems.map((food: any, fi: number) => (
                                                             <div key={fi} className="text-xs text-gray-600 flex justify-between">
                                                                 <span>{food.foodItem?.name || 'Unknown'}</span>
-                                                                <span className="text-gray-400">{food.quantityG}g</span>
+                                                                <span className="text-gray-400">{food.notes || `${food.quantityG}g`}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -407,9 +413,14 @@ function OnboardingInviteCard({ clientId, clientName, orgName, client }: { clien
 
 export default function ClientProfilePage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const clientId = params.id as string;
 
-    const [activeTab, setActiveTab] = useState<ClientTab>('overview');
+    const [activeTab, setActiveTab] = useState<ClientTab>(() => {
+        const tab = searchParams.get('tab');
+        const valid: ClientTab[] = ['overview', 'diet-plan', 'meal-logs', 'progress', 'consultations'];
+        return valid.includes(tab as ClientTab) ? (tab as ClientTab) : 'overview';
+    });
 
     const { data: client, isLoading: clientLoading, error: clientError } = useClient(clientId);
     const { data: progress, isLoading: progressLoading } = useClientProgress(clientId);
@@ -447,6 +458,8 @@ export default function ClientProfilePage() {
             targetWeightKg: data.targetWeightKg ? Number(data.targetWeightKg) : undefined,
             allergies: data.allergies,
             medicalConditions: data.medicalConditions,
+            dislikes: data.dislikes,
+            likedFoods: data.likedFoods,
             altPhone: data.altPhone || undefined,
             altPhoneRelation: data.altPhoneRelation || undefined,
             remarks: data.remarks || undefined,
@@ -569,6 +582,8 @@ export default function ClientProfilePage() {
                         </Link>
                         <Link
                             href={`/dashboard/diet-plans/new?clientId=${clientId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-2 h-10 px-4 bg-brand hover:bg-brand/90 text-white rounded-xl text-sm font-bold transition-colors shadow-sm"
                         >
                             <Flag className="w-4 h-4" />
@@ -724,13 +739,13 @@ export default function ClientProfilePage() {
                             </div>
 
                             {/* Current Diet Plan */}
-                            <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-6">
-                                <div className="flex items-center justify-between mb-5">
-                                    <h2 className="text-lg font-bold text-gray-900">Current Diet Plan</h2>
+                            <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h2 className="text-sm font-semibold text-gray-700">Current Diet Plan</h2>
                                     {activePlan && (
                                         <Link
                                             href={`/dashboard/diet-plans/${activePlan.id}`}
-                                            className="px-4 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                            className="px-3 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                                         >
                                             Edit Plan
                                         </Link>
@@ -738,45 +753,25 @@ export default function ClientProfilePage() {
                                 </div>
 
                                 {activePlan ? (
-                                    <div className="rounded-xl bg-gray-50 p-4 flex flex-col sm:flex-row gap-6">
+                                    <div className="rounded-xl bg-gray-50 px-4 py-3 flex items-center gap-4 flex-wrap">
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-gray-900 text-base">{activePlan.name}</p>
-                                            <p className="text-sm text-gray-400 mt-0.5">
-                                                Active Since {new Date(activePlan.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            <p className="font-semibold text-gray-900 text-sm truncate">{activePlan.name}</p>
+                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                Active since {new Date(activePlan.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             </p>
-                                            {activePlan.description && (
-                                                <p className="text-sm text-gray-600 mt-2 leading-relaxed">{activePlan.description}</p>
-                                            )}
                                         </div>
-                                        <div className="grid grid-cols-2 gap-x-8 gap-y-3 shrink-0">
-                                            <div>
-                                                <p className="text-2xl font-bold text-gray-900">{client.targetCalories ?? activePlan.targetCalories ?? '-'}</p>
-                                                <p className="text-sm text-gray-500">Calories</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-2xl font-bold text-gray-900">
-                                                    {(client.targetProteinG ?? activePlan.targetProteinG) != null
-                                                        ? `${client.targetProteinG ?? activePlan.targetProteinG}g`
-                                                        : '-'}
-                                                </p>
-                                                <p className="text-sm text-gray-500">Protein</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-2xl font-bold text-gray-900">
-                                                    {(client.targetCarbsG ?? activePlan.targetCarbsG) != null
-                                                        ? `${client.targetCarbsG ?? activePlan.targetCarbsG}g`
-                                                        : '-'}
-                                                </p>
-                                                <p className="text-sm text-gray-500">Carbs</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-2xl font-bold text-gray-900">
-                                                    {(client.targetFatsG ?? activePlan.targetFatsG) != null
-                                                        ? `${client.targetFatsG ?? activePlan.targetFatsG}g`
-                                                        : '-'}
-                                                </p>
-                                                <p className="text-sm text-gray-500">Fat</p>
-                                            </div>
+                                        <div className="flex items-center gap-3 text-xs flex-shrink-0 flex-wrap">
+                                            {[
+                                                { label: 'Cal', value: client.targetCalories ?? activePlan.targetCalories, unit: 'kcal' },
+                                                { label: 'Protein', value: client.targetProteinG ?? activePlan.targetProteinG, unit: 'g' },
+                                                { label: 'Carbs', value: client.targetCarbsG ?? activePlan.targetCarbsG, unit: 'g' },
+                                                { label: 'Fat', value: client.targetFatsG ?? activePlan.targetFatsG, unit: 'g' },
+                                            ].map((m, i) => m.value != null && (
+                                                <span key={m.label} className="flex items-center gap-2">
+                                                    {i > 0 && <span className="text-gray-200">|</span>}
+                                                    <span className="text-gray-500">{m.label}: <span className="font-bold text-gray-900">{m.value}{m.unit}</span></span>
+                                                </span>
+                                            ))}
                                         </div>
                                     </div>
                                 ) : (
@@ -784,6 +779,8 @@ export default function ClientProfilePage() {
                                         <p className="text-gray-500 text-sm">No active diet plan</p>
                                         <Link
                                             href={`/dashboard/diet-plans/new?clientId=${clientId}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className="inline-flex text-sm font-medium text-brand hover:underline mt-2"
                                         >
                                             Create your first diet plan →
@@ -808,8 +805,8 @@ export default function ClientProfilePage() {
                                                         <p className="text-sm font-semibold text-gray-900">{dayLabel}</p>
                                                         <p className="text-xs text-gray-400">{dateLabel}</p>
                                                     </div>
-                                                    <div className="flex gap-2 ml-auto">
-                                                        {Array.from({ length: total }).map((_, j) => {
+                                                    <div className="flex flex-wrap gap-2 ml-auto overflow-hidden">
+                                                        {Array.from({ length: Math.min(total, 10) }).map((_, j) => {
                                                             const isLogged = j < logged;
                                                             const isSkipped = !isLogged && j < (day.mealsPlanned || 0) && day.color === 'RED';
                                                             return (
@@ -842,7 +839,18 @@ export default function ClientProfilePage() {
                             )}
 
                             {/* Medical Summary */}
-                            <MedicalSidebar clientId={clientId} />
+                            <MedicalSidebar
+                                clientId={clientId}
+                                clientPreferences={{
+                                    allergies: client.allergies ?? [],
+                                    intolerances: client.intolerances ?? [],
+                                    dietPattern: client.dietPattern,
+                                    medicalConditions: client.medicalConditions ?? client.medicalProfile?.conditions ?? [],
+                                    foodRestrictions: client.foodRestrictions ?? [],
+                                    dislikes: client.dislikes ?? [],
+                                    likedFoods: client.likedFoods ?? [],
+                                }}
+                            />
                         </div>
 
                         {/* ── Right sidebar (1/3) ── */}
@@ -969,6 +977,8 @@ export default function ClientProfilePage() {
                                 <p className="text-gray-500 mb-6">Create a diet plan to get started with meal scheduling.</p>
                                 <Link
                                     href={`/dashboard/diet-plans/new?clientId=${clientId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-xl text-sm font-bold hover:bg-brand/90 transition-colors"
                                 >
                                     <Flag className="w-4 h-4" />
@@ -983,6 +993,8 @@ export default function ClientProfilePage() {
                                 <div className="text-center pt-2">
                                     <Link
                                         href={`/dashboard/diet-plans/new?clientId=${clientId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className="text-sm text-brand font-medium hover:underline"
                                     >
                                         + Create New Plan

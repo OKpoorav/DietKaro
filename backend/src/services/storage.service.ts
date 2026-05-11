@@ -126,6 +126,25 @@ export async function getPresignedPutUrl(key: string, contentType: string, expir
 /**
  * Download an object from storage and return as Buffer
  */
+/**
+ * Fetch only the first `maxBytes` of an S3 object via a Range request.
+ * Used for magic-byte content validation without downloading the entire file.
+ */
+export async function getS3ObjectHeader(key: string, maxBytes = 4096): Promise<Buffer> {
+    const command = new GetObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        Range: `bytes=0-${maxBytes - 1}`,
+    });
+    const response = await s3Client.send(command);
+    const stream = response.Body as Readable;
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+}
+
 export async function downloadFromStorage(key: string): Promise<Buffer> {
     const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
     const response = await s3Client.send(command);

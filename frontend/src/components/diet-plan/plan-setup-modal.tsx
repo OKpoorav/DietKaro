@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Calendar, AlertTriangle, Clock, Utensils, Loader2, Pin, Search } from 'lucide-react';
 import { useClientActiveRange, ClientPlanRange } from '@/lib/hooks/use-diet-plans';
@@ -20,6 +20,12 @@ function savePins(pins: Set<string>) {
     try { localStorage.setItem(PINS_KEY, JSON.stringify(Array.from(pins))); } catch { /* ignore */ }
 }
 
+function autoGeneratePlanName(clientName: string, startDate: Date, endDate: Date): string {
+    const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${clientName}'s Plan – ${startStr} to ${endStr}`;
+}
+
 const BUILT_IN_OPTIONS = [
     { label: '3 Meals', count: 3, description: 'Breakfast, Lunch, Dinner' },
     { label: '4 Meals', count: 4, description: 'Breakfast, Lunch, Snack, Dinner' },
@@ -35,6 +41,7 @@ export interface PlanSetupResult {
     overlapStrategy: 'overwrite' | 'end_previous' | 'update';
     overlappingPlanIds?: string[];
     slotTemplateId?: string;
+    applyTemplateId?: string;
 }
 
 interface PlanSetupModalProps {
@@ -43,7 +50,12 @@ interface PlanSetupModalProps {
     clientId: string;
     clientName: string;
     slotTemplates?: TemplateData[];
+    fullTemplates?: TemplateData[];
     onConfirm: (result: PlanSetupResult) => void;
+    /** When true, skips the meal-slot selection step and goes straight to plan details */
+    skipSlotSelection?: boolean;
+    /** Pre-fill the plan name input */
+    defaultPlanName?: string;
 }
 
 function formatDate(d: Date) {
@@ -58,7 +70,7 @@ function datesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boole
     return aStart <= bEnd && bStart <= aEnd;
 }
 
-export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemplates = [], onConfirm }: PlanSetupModalProps) {
+export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemplates = [], fullTemplates = [], onConfirm, skipSlotSelection, defaultPlanName }: PlanSetupModalProps) {
     const { data: existingPlans, isLoading } = useClientActiveRange(clientId);
 
     const smartStartDate = useMemo(() => {
@@ -81,6 +93,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
     const [pins, setPins] = useState<Set<string>>(new Set());
     const [search, setSearch] = useState('');
     const [selectedSlotTemplateId, setSelectedSlotTemplateId] = useState<string | null>(null);
+    const [selectedApplyTemplateId, setSelectedApplyTemplateId] = useState<string | null>(null);
 
     useEffect(() => { setPins(loadPins()); }, []);
 
@@ -107,10 +120,16 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
         return list.slice().sort((a, b) => (pins.has(a.id) ? 0 : 1) - (pins.has(b.id) ? 0 : 1));
     }, [q, slotTemplates, pins]);
 
+    const filteredFullTemplates = useMemo(() => {
+        const list = q ? fullTemplates.filter(t => t.name?.toLowerCase().includes(q)) : fullTemplates;
+        return list.slice().sort((a, b) => (pins.has(a.id) ? 0 : 1) - (pins.has(b.id) ? 0 : 1));
+    }, [q, fullTemplates, pins]);
+
     // Step 2 state
-    const [mealCount, setMealCount] = useState<number | null>(null);
+    const [mealCount, setMealCount] = useState<number | null>(skipSlotSelection ? 3 : null);
     const [planName, setPlanName] = useState('');
     const [planNameError, setPlanNameError] = useState('');
+    const nameManuallyEdited = useRef(false);
     const [startDateStr, setStartDateStr] = useState('');
     const [numDays, setNumDays] = useState(7);
     const [overlapStrategy, setOverlapStrategy] = useState<'overwrite' | 'end_previous' | 'update'>('end_previous');
@@ -121,6 +140,12 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
         d.setDate(d.getDate() + numDays - 1);
         return d;
     }, [startDate, numDays]);
+
+    // Auto-generate plan name from client + dates; stops updating once user manually edits
+    useEffect(() => {
+        if (nameManuallyEdited.current) return;
+        setPlanName(autoGeneratePlanName(clientName, startDate, endDate));
+    }, [clientName, startDate, endDate]);
 
     const overlappingPlans = useMemo(() => {
         if (!existingPlans?.length) return [];
@@ -133,9 +158,17 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
 
     const hasOverlap = overlappingPlans.length > 0;
 
-    const selectOption = (count: number, templateId?: string) => {
+    const selectOption = (count: number, slotTemplateId?: string) => {
         setMealCount(count);
-        setSelectedSlotTemplateId(templateId || null);
+        setSelectedSlotTemplateId(slotTemplateId || null);
+        setSelectedApplyTemplateId(null);
+        setSearch('');
+    };
+
+    const selectFullTemplate = (t: TemplateData) => {
+        setMealCount(t.mealCount ?? 3);
+        setSelectedApplyTemplateId(t.id);
+        setSelectedSlotTemplateId(null);
         setSearch('');
     };
 
@@ -149,6 +182,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
             overlapStrategy: hasOverlap ? overlapStrategy : 'overwrite',
             overlappingPlanIds: hasOverlap ? overlappingPlans.map(p => p.id) : undefined,
             slotTemplateId: selectedSlotTemplateId || undefined,
+            applyTemplateId: selectedApplyTemplateId || undefined,
         });
     };
 
@@ -163,7 +197,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                         </div>
                         <div>
                             <p className="font-semibold text-gray-900">{clientName}</p>
-                            <p className="text-xs text-gray-500">How many meals per day?</p>
+                            <p className="text-xs text-gray-500">Choose a template or meal structure</p>
                         </div>
                     </div>
 
@@ -174,14 +208,26 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                             type="text"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            placeholder="Search meal structures..."
+                            placeholder="Search templates & meal slots..."
                             className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                         />
                     </div>
 
-                    {/* All options — flat list, no section headers */}
-                    {(filteredBuiltIn.length > 0 || filteredSlotTemplates.length > 0) && (
-                        <div className="space-y-2">
+                    {/* All options — flat list, tagged; scrollable after ~5 items */}
+                    {(filteredFullTemplates.length > 0 || filteredBuiltIn.length > 0 || filteredSlotTemplates.length > 0) && (
+                        <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                            {filteredFullTemplates.map(t => {
+                                const isPinned = pins.has(t.id);
+                                return (
+                                    <TemplateCard
+                                        key={t.id}
+                                        template={t}
+                                        isPinned={isPinned}
+                                        onSelect={() => selectFullTemplate(t)}
+                                        onTogglePin={(e) => togglePin(t.id, e)}
+                                    />
+                                );
+                            })}
                             {filteredBuiltIn.map(opt => {
                                 const isPinned = pins.has(opt.label);
                                 return (
@@ -201,7 +247,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                                         key={t.id}
                                         template={t}
                                         isPinned={isPinned}
-                                        onSelect={() => selectOption(3, t.id)}
+                                        onSelect={() => selectOption(t.mealCount ?? 3, t.id)}
                                         onTogglePin={(e) => togglePin(t.id, e)}
                                     />
                                 );
@@ -209,8 +255,8 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                         </div>
                     )}
 
-                    {filteredBuiltIn.length === 0 && filteredSlotTemplates.length === 0 && (
-                        <p className="text-sm text-gray-500 italic text-center py-4">No matching structures</p>
+                    {filteredFullTemplates.length === 0 && filteredBuiltIn.length === 0 && filteredSlotTemplates.length === 0 && (
+                        <p className="text-sm text-gray-500 italic text-center py-4">No matching templates or structures</p>
                     )}
 
                     <div className="flex justify-end pt-1">
@@ -233,12 +279,14 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                         <p className="font-semibold text-gray-900">{clientName}</p>
                         <p className="text-xs text-gray-500">Setting up new diet plan</p>
                     </div>
-                    <button onClick={() => setMealCount(null)}
+                    <button onClick={() => { setMealCount(null); setSelectedApplyTemplateId(null); setSelectedSlotTemplateId(null); }}
                         className="flex items-center gap-1 text-xs text-brand hover:underline">
                         <Utensils className="w-3.5 h-3.5" />
-                        {selectedSlotTemplateId
-                            ? slotTemplates.find(t => t.id === selectedSlotTemplateId)?.name || 'Saved'
-                            : `${mealCount} meals/day`}
+                        {selectedApplyTemplateId
+                            ? fullTemplates.find(t => t.id === selectedApplyTemplateId)?.name || 'Full Template'
+                            : selectedSlotTemplateId
+                                ? slotTemplates.find(t => t.id === selectedSlotTemplateId)?.name || 'Saved'
+                                : `${mealCount} meals/day`}
                     </button>
                 </div>
 
@@ -254,18 +302,6 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                 ) : (
                     <p className="text-sm text-gray-500 italic">No existing plans for this client.</p>
                 )}
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name <span className="text-red-500">*</span></label>
-                    <input
-                        type="text"
-                        value={planName}
-                        onChange={e => { setPlanName(e.target.value); setPlanNameError(''); }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none ${planNameError ? 'border-red-400' : 'border-gray-300'}`}
-                        placeholder="e.g. Weight Loss Week 4"
-                    />
-                    {planNameError && <p className="mt-1 text-xs text-red-500">{planNameError}</p>}
-                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -302,6 +338,22 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                     {' → '}
                     <span className="font-medium text-gray-700">{formatDate(endDate)}</span>
                 </p>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name <span className="text-red-500">*</span></label>
+                    <input
+                        type="text"
+                        value={planName}
+                        onChange={e => {
+                            nameManuallyEdited.current = true;
+                            setPlanName(e.target.value);
+                            setPlanNameError('');
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none ${planNameError ? 'border-red-400' : 'border-gray-300'}`}
+                        placeholder="e.g. Weight Loss Week 4"
+                    />
+                    {planNameError && <p className="mt-1 text-xs text-red-500">{planNameError}</p>}
+                </div>
 
                 {hasOverlap && (
                     <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 space-y-3">
@@ -347,6 +399,48 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
     );
 }
 
+function Badge({ label, variant }: { label: string; variant: 'full' | 'slot' }) {
+    return (
+        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+            variant === 'full'
+                ? 'bg-brand/10 text-brand'
+                : 'bg-gray-100 text-gray-500'
+        }`}>
+            {label}
+        </span>
+    );
+}
+
+function TemplateCard({ template, isPinned, onSelect, onTogglePin }: {
+    template: TemplateData;
+    isPinned: boolean;
+    onSelect: () => void;
+    onTogglePin: (e: React.MouseEvent) => void;
+}) {
+    const [hovered, setHovered] = useState(false);
+    return (
+        <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+            <button onClick={onSelect}
+                className={`w-full text-left p-3 rounded-xl border-2 transition-all ${isPinned ? 'border-brand bg-brand/5' : 'border-gray-200 hover:border-brand hover:bg-brand/5'}`}>
+                <div className="flex items-center gap-2 pr-5">
+                    <Utensils className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-semibold truncate ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{template.name}</span>
+                    <Badge label="Full Template" variant="full" />
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5 ml-6">
+                    {template.day0MealNames?.join(', ') || `${template.numDays ?? 7} days · ${template.mealCount ?? 3} meals/day`}
+                </p>
+            </button>
+            {(hovered || isPinned) && (
+                <button onClick={onTogglePin} title={isPinned ? 'Unpin' : 'Pin'}
+                    className={`absolute top-2.5 right-2 p-0.5 rounded transition-colors ${isPinned ? 'text-brand' : 'text-gray-300 hover:text-brand'}`}>
+                    <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
+                </button>
+            )}
+        </div>
+    );
+}
+
 function BuiltInCard({ opt, isPinned, onSelect, onTogglePin }: {
     opt: typeof BUILT_IN_OPTIONS[0];
     isPinned: boolean;
@@ -361,6 +455,7 @@ function BuiltInCard({ opt, isPinned, onSelect, onTogglePin }: {
                 <div className="flex items-center gap-2 pr-5">
                     <Utensils className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
                     <span className={`text-sm font-semibold ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{opt.label}</span>
+                    <Badge label="Meal Slots" variant="slot" />
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5 ml-6">{opt.description}</p>
             </button>
@@ -388,6 +483,7 @@ function SavedStructureCard({ template, isPinned, onSelect, onTogglePin }: {
                 <div className="flex items-center gap-2 pr-5">
                     <Utensils className={`w-4 h-4 flex-shrink-0 ${isPinned ? 'text-brand' : 'text-gray-400'}`} />
                     <span className={`text-sm font-semibold truncate ${isPinned ? 'text-brand' : 'text-gray-900'}`}>{template.name}</span>
+                    <Badge label="Meal Slots" variant="slot" />
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5 ml-6">
                     {template.day0MealNames?.join(', ') || 'Saved structure'}

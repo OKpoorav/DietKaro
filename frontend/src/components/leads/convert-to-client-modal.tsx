@@ -68,7 +68,7 @@ export function ConvertToClientModal({ isOpen, onClose, lead }: ConvertToClientM
 
     const handleCreateDietPlan = () => {
         if (!createdClientId) return;
-        router.push(`/dashboard/diet-plans/new?clientId=${createdClientId}`);
+        window.open(`/dashboard/diet-plans/new?clientId=${createdClientId}`, '_blank');
         onClose();
     };
 

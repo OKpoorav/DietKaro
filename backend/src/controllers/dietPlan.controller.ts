@@ -50,6 +50,13 @@ export const getClientActiveRange = asyncHandler(async (req: AuthenticatedReques
     res.status(200).json({ success: true, data: plans });
 });
 
+export const getClientPreviousPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.user) throw AppError.unauthorized();
+    const { excludeId } = req.query as { excludeId?: string };
+    const plan = await dietPlanService.getClientPreviousPlan(req.params.clientId, req.user.organizationId, excludeId);
+    res.status(200).json({ success: true, data: plan });
+});
+
 export const deleteDietPlan = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) throw AppError.unauthorized();
     const data = await dietPlanService.deletePlan(req.params.id, req.user.organizationId);

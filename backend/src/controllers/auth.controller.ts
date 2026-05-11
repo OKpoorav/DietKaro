@@ -42,6 +42,18 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         throw AppError.notFound('Organization not found', 'ORG_NOT_FOUND');
     }
 
+    // /register is only for the initial owner setup (org has no members yet).
+    // All subsequent team members must join via the invitation link — POST /team/join.
+    // Without this check anyone with a valid Clerk JWT can self-enroll into any org
+    // by supplying its (non-secret) UUID.
+    const existingMemberCount = await prisma.user.count({ where: { orgId } });
+    if (existingMemberCount > 0) {
+        throw AppError.forbidden(
+            'This organization already has members. Use the invitation link sent to your email to join.',
+            'USE_INVITE_LINK',
+        );
+    }
+
     const user = await prisma.user.create({
         data: { clerkUserId, email, fullName, role, orgId, phone, licenseNumber, specialization, lastLoginAt: new Date() }
     });

@@ -1,24 +1,63 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square, Clock } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
-import { ClientInfoCard, ClientRestrictionsCard } from '@/components/diet-plan/client-info-card';
+import { ClientStatsStrip } from '@/components/diet-plan/client-stats-strip';
+import { ClientRestrictionsSummary } from '@/components/diet-plan/client-restrictions-summary';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { DayNavigator } from '@/components/diet-plan/day-navigator';
 import { MealEditor } from '@/components/diet-plan/meal-editor';
-import { NutritionSummary } from '@/components/diet-plan/nutrition-summary';
 import { TemplateSidebar, type MealSlotPreset } from '@/components/diet-plan/template-sidebar';
+import { PreviousPlanPanel } from '@/components/diet-plan/previous-plan-panel';
 import { PlanSetupModal, PlanSetupResult } from '@/components/diet-plan/plan-setup-modal';
 import { BulkPortionModal } from '@/components/diet-plan/bulk-portion-modal';
+import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
 import { useClient } from '@/lib/hooks/use-clients';
-import { calculateAge } from '@/lib/utils/formatters';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
 import { useMealBuilder } from '@/lib/hooks/use-meal-builder';
+
+function ClientPreferencesCard({ client }: { client: NonNullable<ReturnType<typeof useClient>['data']> }) {
+    const [open, setOpen] = useState(false);
+    const hasAny =
+        (client.allergies?.length ?? 0) > 0 ||
+        (client.intolerances?.length ?? 0) > 0 ||
+        client.dietPattern ||
+        (client.dislikes?.length ?? 0) > 0 ||
+        (client.likedFoods?.length ?? 0) > 0 ||
+        (client.foodRestrictions?.length ?? 0) > 0;
+
+    if (!hasAny) return null;
+
+    return (
+        <div className="flex-shrink-0 bg-white rounded-lg border border-gray-200 overflow-hidden">
+            <button
+                onClick={() => setOpen(o => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+                <span>Likes, Dislikes & Allergies</span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && (
+                <div className="px-4 pb-3 border-t border-gray-100">
+                    <ClientRestrictionsSummary
+                        compact
+                        allergies={client.medicalProfile?.allergies || client.allergies || []}
+                        intolerances={client.intolerances || []}
+                        dietPattern={client.dietPattern}
+                        medicalConditions={client.medicalProfile?.conditions || client.medicalConditions || []}
+                        foodRestrictions={client.foodRestrictions || []}
+                        dislikes={client.dislikes || []}
+                        likedFoods={client.likedFoods || []}
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface BuilderPaneProps {
     dayIndex: number;
@@ -133,10 +172,37 @@ function BuilderContent() {
     const templatePlanName = isTemplateMode && !editId ? (searchParams.get('planName') || null) : null;
     const showTemplateSetup = isTemplateMode && !editId && !templateNumDays;
 
-    // Plan setup state — modal shown after client selection, before builder (non-template only)
-    const [setupResult, setSetupResult] = useState<PlanSetupResult | null>(editId ? { planName: '', startDate: new Date(), numDays: 1, mealCount: 3, overlapStrategy: 'overwrite' } : null);
+    // Plan setup state — read from URL params if present (persists through refresh)
+    const applyTemplateId = searchParams.get('applyTemplateId');
+    const setupStart = searchParams.get('setupStart');
+    const setupDays = searchParams.get('setupDays');
+    const setupMeals = searchParams.get('setupMeals');
+    const setupFromUrl: PlanSetupResult | null = (!isTemplateMode && !editId && setupStart && setupDays && setupMeals)
+        ? {
+            planName: searchParams.get('setupPlanName') || 'New Diet Plan',
+            startDate: new Date(setupStart),
+            numDays: parseInt(setupDays),
+            mealCount: parseInt(setupMeals),
+            overlapStrategy: (searchParams.get('setupStrategy') as PlanSetupResult['overlapStrategy']) || 'overwrite',
+            overlappingPlanIds: searchParams.get('overlappingPlanIds')?.split(',').filter(Boolean) || undefined,
+            slotTemplateId: searchParams.get('setupSlot') || undefined,
+        }
+        : null;
+
+    // When assigning a template, skip Plan Setup — template defines the structure
+    const setupFromTemplate: PlanSetupResult | null = (!isTemplateMode && !editId && applyTemplateId)
+        ? { planName: 'New Diet Plan', startDate: new Date(), numDays: 7, mealCount: 3, overlapStrategy: 'overwrite' }
+        : null;
+
+    const [setupResult, setSetupResult] = useState<PlanSetupResult | null>(
+        editId ? { planName: '', startDate: new Date(), numDays: 1, mealCount: 3, overlapStrategy: 'overwrite' }
+        : setupFromUrl ?? setupFromTemplate
+    );
     const [showSetupModal, setShowSetupModal] = useState(false);
     const [showBulkModal, setShowBulkModal] = useState(false);
+    const [showPrevPlan, setShowPrevPlan] = useState(false);
+    const [showPublishWarning, setShowPublishWarning] = useState(false);
+    const [whatsAppNav, setWhatsAppNav] = useState<string | null>(null);
 
     // Preset scope dialog — shown when user clicks a meal structure in the sidebar
     const [presetScope, setPresetScope] = useState<{ preset: MealSlotPreset } | null>(null);
@@ -176,16 +242,77 @@ function BuilderContent() {
         initialPlanName: templatePlanName ?? setupResult?.planName,
         overlapStrategy: setupResult?.overlapStrategy,
         overlappingPlanIds: setupResult?.overlappingPlanIds,
-        onSaved: (isTemplate) => {
-            if (isTemplate) {
-                router.push('/dashboard/diet-plans?tab=templates');
-            } else if (clientId) {
-                router.push(`/dashboard/clients/${clientId}`);
+        onSaved: (isTemplate, published) => {
+            const navTarget = isTemplate
+                ? '/dashboard/diet-plans?tab=templates'
+                : clientId
+                    ? `/dashboard/clients/${clientId}`
+                    : '/dashboard/diet-plans';
+
+            if (published && !isTemplate && client?.phone) {
+                setWhatsAppNav(navTarget);
             } else {
-                router.push('/dashboard/diet-plans');
+                router.push(navTarget);
             }
         },
     });
+
+    // Unsaved-changes guard — intercepts ALL navigation (sidebar links, back button, etc.)
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+    const pendingNavRef = useRef<string | null>(null);
+    // builder active = builder UI is rendered and plan not yet persisted (new) or has unsaved edits
+    const builderReadyRef = useRef(false);
+    const guardActiveRef = useRef(false);
+
+    // Mark builder as active once past all the early-return gates
+    useEffect(() => {
+        const builderIsShowing = (isTemplateMode || !!setupResult) && !builder.editLoading && (isTemplateMode || !!client);
+        if (builderIsShowing) {
+            builderReadyRef.current = true;
+        }
+        // Guard: new unsaved plan OR dirty edits on any plan
+        guardActiveRef.current = builderReadyRef.current && (builder.isDirty || !builder.isEditMode) && !builder.isSaving;
+    });
+
+    // Warn on browser refresh/close whenever builder is active
+    useEffect(() => {
+        const handler = (e: BeforeUnloadEvent) => {
+            if (!guardActiveRef.current) return;
+            e.preventDefault();
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, []);
+
+    // Capture-phase click listener catches every <a> in the page (sidebar, header, etc.)
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (!guardActiveRef.current) return;
+            let el = e.target as HTMLElement | null;
+            while (el && el.tagName !== 'A') el = el.parentElement;
+            if (!el) return;
+            const href = (el as HTMLAnchorElement).getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto')) return;
+            const targetPath = href.split('?')[0];
+            if (targetPath !== window.location.pathname) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                pendingNavRef.current = href;
+                setShowLeaveConfirm(true);
+            }
+        };
+        document.addEventListener('click', handleClick, true);
+        return () => document.removeEventListener('click', handleClick, true);
+    }, []);
+
+    const guardedNavigate = useCallback((href: string) => {
+        if (guardActiveRef.current) {
+            pendingNavRef.current = href;
+            setShowLeaveConfirm(true);
+        } else {
+            router.push(href);
+        }
+    }, [router]);
 
     // Clamp pane days whenever the plan shrinks
     useEffect(() => {
@@ -201,6 +328,15 @@ function BuilderContent() {
         builder.applyTemplate(setupResult.slotTemplateId, { skipConfirm: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setupResult?.slotTemplateId, builder.editLoading]);
+
+    // Auto-apply full template from "Assign to Client" flow (?applyTemplateId=...)
+    const fullTemplateApplied = useRef(false);
+    useEffect(() => {
+        if (!applyTemplateId || fullTemplateApplied.current || builder.editLoading || !setupResult) return;
+        fullTemplateApplied.current = true;
+        builder.applyTemplate(applyTemplateId, { skipConfirm: true, startDayIndex: 0 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [applyTemplateId, builder.editLoading, setupResult]);
 
     // Auto-show plan setup modal once client is ready — must be before early returns (Rules of Hooks)
     useEffect(() => {
@@ -253,7 +389,18 @@ function BuilderContent() {
                     clientId={clientId!}
                     clientName={client?.fullName || ''}
                     slotTemplates={templates.filter(t => t.templateCategory === 'slot_template')}
+                    fullTemplates={templates.filter(t => t.templateCategory !== 'slot_template')}
                     onConfirm={(result) => {
+                        // Persist setup to URL so refresh skips the modal
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('setupPlanName', result.planName);
+                        params.set('setupStart', result.startDate.toISOString().slice(0, 10));
+                        params.set('setupDays', String(result.numDays));
+                        params.set('setupMeals', String(result.mealCount));
+                        params.set('setupStrategy', result.overlapStrategy);
+                        if (result.slotTemplateId) params.set('setupSlot', result.slotTemplateId);
+                        if (result.applyTemplateId) params.set('applyTemplateId', result.applyTemplateId);
+                        router.replace(`/dashboard/diet-plans/new?${params.toString()}`);
                         setSetupResult(result);
                         setShowSetupModal(false);
                     }}
@@ -267,27 +414,19 @@ function BuilderContent() {
             {/* Top Header */}
             <header className="flex items-center justify-between border-b border-gray-200 px-3 lg:px-6 py-3 bg-white flex-shrink-0 gap-2 overflow-x-auto">
                 <div className="flex items-center gap-3 lg:gap-6 flex-shrink-0">
-                    <Link
-                        href={isTemplateMode ? '/dashboard/diet-plans' : `/dashboard/clients/${clientId}`}
+                    <button
+                        onClick={() => guardedNavigate(isTemplateMode ? '/dashboard/diet-plans' : `/dashboard/clients/${clientId}`)}
                         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium flex-shrink-0"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         <span className="hidden sm:inline">{isTemplateMode ? 'Back to Templates' : 'Back to Client'}</span>
-                    </Link>
+                    </button>
                     <div className="flex items-center gap-2">
                         <input
                             value={builder.planName}
                             onChange={e => builder.setPlanName(e.target.value)}
-                            className="text-gray-900 text-sm font-medium border-none focus:ring-0"
+                            className="text-gray-900 text-sm font-medium px-2 py-1 rounded border border-gray-300 bg-gray-50 hover:border-brand hover:bg-white focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20 outline-none transition-colors min-w-[180px]"
                         />
-                        {!isTemplateMode && client && (
-                            <>
-                                <span className="text-gray-400">|</span>
-                                <span className="text-gray-800 text-sm font-bold">
-                                    {client.fullName} ({calculateAge(client.dateOfBirth) ?? '?'} yrs)
-                                </span>
-                            </>
-                        )}
                         {isTemplateMode && (
                             <>
                                 <span className="text-gray-400">|</span>
@@ -315,7 +454,7 @@ function BuilderContent() {
                                 className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <LayoutTemplate className="w-4 h-4" />
-                                <span className="hidden sm:inline">Save as Meal Structure</span>
+                                <span className="hidden sm:inline">Save as Meal Slots</span>
                             </button>
                             <button
                                 onClick={() => builder.save(false)}
@@ -345,7 +484,16 @@ function BuilderContent() {
                                 <span className="hidden sm:inline">Save Draft</span>
                             </button>
                             <button
-                                onClick={() => builder.save(true)}
+                                onClick={() => {
+                                    const emptySlots = Object.values(builder.weeklyMeals)
+                                        .flat()
+                                        .filter(m => m.foods.filter(f => f.optionGroup === 0).length === 0);
+                                    if (emptySlots.length > 0) {
+                                        setShowPublishWarning(true);
+                                    } else {
+                                        builder.save(true);
+                                    }
+                                }}
                                 disabled={builder.isSaving}
                                 className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
@@ -357,18 +505,65 @@ function BuilderContent() {
                 </div>
             </header>
 
+            {/* Client stats strip — compact bar with measurements + nutrition totals */}
+            {!isTemplateMode && client && (
+                <ClientStatsStrip
+                    client={client}
+                    dayNutrition={builder.getDayNutrition(selectedDayA)}
+                    targets={builder.targets}
+                    hasAllergyWarning={builder.getHasAllergyWarning(selectedDayA)}
+                />
+            )}
+
             {/* Main Content */}
             <div className="flex-grow overflow-x-auto bg-gray-50">
             <main className="grid grid-cols-12 gap-4 p-4 h-full min-w-[900px] overflow-hidden bg-gray-50">
-                {/* Left Sidebar — scrolls as one column, each card has min-height */}
+                {/* Left Sidebar */}
                 <aside className="col-span-3 flex flex-col overflow-y-auto overflow-x-hidden pr-2 gap-3 pb-4">
-                    <div className="flex-shrink-0">
-                        <ClientInfoCard client={client} isTemplateMode={isTemplateMode} />
-                    </div>
 
-                    {!isTemplateMode && client && (
-                        <div className="flex-shrink-0 min-h-[160px]">
-                            <ClientRestrictionsCard client={client} />
+                    {/* Sidebar tab toggle — only shown for client plans, not templates */}
+                    {!isTemplateMode && clientId && (
+                        <div className="flex-shrink-0 flex rounded-lg border border-gray-200 overflow-hidden bg-white">
+                            <button
+                                onClick={() => setShowPrevPlan(false)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                                    !showPrevPlan ? 'bg-brand text-white' : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                <BookOpen className="w-3.5 h-3.5" />
+                                Templates
+                            </button>
+                            <button
+                                onClick={() => setShowPrevPlan(true)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                                    showPrevPlan ? 'bg-brand text-white' : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                Prev Plan
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Previous plan panel */}
+                    {showPrevPlan && !isTemplateMode && clientId && (
+                        <div className="flex-1 min-h-0 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
+                            <PreviousPlanPanel clientId={clientId} excludePlanId={editId || undefined} />
+                        </div>
+                    )}
+
+                    {/* Templates + Medical — hidden when prev plan is active */}
+                    {!showPrevPlan && (
+                        <>
+                    {isTemplateMode && (
+                        <div className="flex-shrink-0 bg-purple-50 p-4 rounded-lg border border-purple-200">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">T</div>
+                                <div>
+                                    <p className="text-gray-900 font-medium">Template</p>
+                                    <p className="text-gray-500 text-sm">Create reusable diet plan</p>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -386,10 +581,12 @@ function BuilderContent() {
                             onApplyPreset={(preset) => setPresetScope({ preset })}
                         />
                     </div>
+                        </>
+                    )}
                 </aside>
 
-                {/* Center — Meal Editor (single or split) */}
-                <section className="col-span-6 flex overflow-hidden gap-3">
+                {/* Center — Meal Editor, expanded to fill full remaining width */}
+                <section className="col-span-9 flex overflow-hidden gap-3">
                     <BuilderPane
                         dayIndex={selectedDayA}
                         setDayIndex={setSelectedDayA}
@@ -413,17 +610,6 @@ function BuilderContent() {
                     )}
                 </section>
 
-                {/* Right Sidebar - Nutrition Summary (bound to pane A) */}
-                <NutritionSummary
-                    dayNutrition={builder.getDayNutrition(selectedDayA)}
-                    targets={builder.targets}
-                    hasAllergyWarning={builder.getHasAllergyWarning(selectedDayA)}
-                    onTargetsChange={builder.setTargets}
-                    client={client}
-                    hideCaloriesFromClient={builder.hideCaloriesFromClient}
-                    onHideCaloriesChange={builder.setHideCaloriesFromClient}
-                    meals={builder.getDayMeals(selectedDayA)}
-                />
             </main>
             </div>
 
@@ -443,6 +629,72 @@ function BuilderContent() {
                 currentDay={builder.planDates[builder.activeDayIndex]?.day.toLowerCase()}
                 onAddFood={builder.addFood}
             />
+
+            {/* Publish warning — empty meal slots detected */}
+            {showPublishWarning && (() => {
+                const emptySlots = Object.entries(builder.weeklyMeals)
+                    .flatMap(([day, meals]) =>
+                        meals
+                            .filter(m => m.foods.filter(f => f.optionGroup === 0).length === 0)
+                            .map(m => ({ day: Number(day) + 1, name: m.name }))
+                    );
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                            <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-gray-900">Empty meal slots</h3>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                        {emptySlots.length} meal{emptySlots.length > 1 ? 's' : ''} have no food items:
+                                    </p>
+                                </div>
+                            </div>
+                            <ul className="bg-amber-50 rounded-lg px-4 py-2 space-y-1 max-h-36 overflow-y-auto">
+                                {emptySlots.map((s, i) => (
+                                    <li key={i} className="text-sm text-amber-800 flex justify-between">
+                                        <span>{s.name}</span>
+                                        <span className="text-amber-500">Day {s.day}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-sm text-gray-500">These slots will be visible to the client but empty. Continue anyway?</p>
+                            <div className="flex gap-3 pt-1">
+                                <button
+                                    onClick={() => setShowPublishWarning(false)}
+                                    className="flex-1 px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => { setShowPublishWarning(false); builder.save(true); }}
+                                    className="flex-1 px-4 py-2 text-sm font-medium bg-brand hover:bg-brand/90 text-white rounded-lg transition-colors"
+                                >
+                                    Publish Anyway
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* WhatsApp share modal — shown after successful publish */}
+            {whatsAppNav && client?.phone && (
+                <WhatsAppShareModal
+                    phone={client.phone}
+                    clientName={client.fullName}
+                    planName={builder.planName}
+                    startDate={builder.startDate}
+                    numDays={builder.numDays}
+                    weeklyMeals={builder.weeklyMeals}
+                    onClose={() => {
+                        setWhatsAppNav(null);
+                        router.push(whatsAppNav);
+                    }}
+                />
+            )}
 
             {/* Bulk Portion Modal — day-scope adjustments target pane A */}
             <BulkPortionModal
@@ -545,7 +797,7 @@ function BuilderContent() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
                         <h3 className="text-base font-bold text-gray-900">Apply "{presetScope.preset.label}"</h3>
-                        <p className="text-sm text-gray-600">Where should this meal structure be applied?</p>
+                        <p className="text-sm text-gray-600">Where should this meal slots be applied?</p>
                         <div className="flex flex-col gap-2 pt-1">
                             <button
                                 type="button"
@@ -599,6 +851,42 @@ function BuilderContent() {
                                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm"
                             >
                                 Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Unsaved changes — leave confirmation modal */}
+            {showLeaveConfirm && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-900">Unsaved Changes</h3>
+                        <p className="text-sm text-gray-600">
+                            You have unsaved changes. Leaving now will permanently discard all your work on this plan.
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowLeaveConfirm(false);
+                                    pendingNavRef.current = null;
+                                }}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Keep Editing
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const href = pendingNavRef.current;
+                                    setShowLeaveConfirm(false);
+                                    pendingNavRef.current = null;
+                                    if (href) router.push(href);
+                                }}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors shadow-sm"
+                            >
+                                Discard & Leave
                             </button>
                         </div>
                     </div>
