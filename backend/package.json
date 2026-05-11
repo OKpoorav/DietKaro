@@ -8,7 +8,10 @@
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "seed:ingredients": "tsx prisma/seed-ingredients.ts",
+    "seed:foods": "tsx scripts/seedCommonFoods.ts",
+    "seed:all": "tsx prisma/seed-ingredients.ts && tsx scripts/seedCommonFoods.ts"
   },
   "author": "",
   "license": "ISC",
