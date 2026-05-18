@@ -109,8 +109,14 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const remarksWordCount = formData.remarks.trim()
+        ? formData.remarks.trim().split(/\s+/).length
+        : 0;
+    const remarksOverLimit = remarksWordCount > 200;
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (remarksOverLimit) return;
         onSubmit(formData);
     };
 
@@ -358,10 +364,15 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                             name="remarks"
                             value={formData.remarks}
                             onChange={handleChange}
-                            rows={3}
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
+                            rows={4}
+                            className={`w-full px-4 py-2.5 border rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none ${
+                                remarksOverLimit ? 'border-red-300 focus:ring-red-300' : 'border-gray-200'
+                            }`}
                             placeholder="Internal notes visible only to dietitians..."
                         />
+                        <p className={`mt-1 text-xs ${remarksOverLimit ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+                            {remarksWordCount} / 200 words{remarksOverLimit ? ' — limit exceeded' : ''}
+                        </p>
                     </div>
                     <div className="flex items-center gap-3">
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -389,7 +400,7 @@ export function EditClientModal({ isOpen, onClose, client, onSubmit, isLoading }
                     </button>
                     <button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || remarksOverLimit}
                         className="px-4 py-2.5 text-sm font-bold text-white bg-brand rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-60"
                     >
                         {isLoading ? 'Saving...' : 'Save Changes'}

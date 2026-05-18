@@ -30,7 +30,15 @@ export const createClientSchema = z.object({
     loginEnabled: z.boolean().optional().default(false),
     altPhone: z.string().min(10).max(20).optional(),
     altPhoneRelation: z.string().max(100).optional(),
-    remarks: z.string().max(2000).optional(),
+    remarks: z.string()
+        .refine(
+            (val) => {
+                const words = val.trim() ? val.trim().split(/\s+/).length : 0;
+                return words <= 200;
+            },
+            { message: 'Notes must not exceed 200 words' }
+        )
+        .optional(),
 });
 
 export const foodRestrictionSchema = z.object({

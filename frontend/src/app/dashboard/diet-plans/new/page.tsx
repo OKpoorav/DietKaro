@@ -569,7 +569,7 @@ function BuilderContent() {
 
                     {!isTemplateMode && clientId && (
                         <div className="flex-shrink-0 min-h-[280px]">
-                            <MedicalSidebar clientId={clientId} />
+                            <MedicalSidebar clientId={clientId} clientRemarks={client?.remarks} />
                         </div>
                     )}
 

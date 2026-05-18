@@ -15,6 +15,7 @@ import {
     RotateCcw,
     Trash2,
     Heart,
+    StickyNote,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -44,6 +45,7 @@ interface MedicalSidebarProps {
     clientId: string;
     className?: string;
     clientPreferences?: ClientPreferences;
+    clientRemarks?: string | null;
 }
 
 // ─── Status helpers ───────────────────────────────────────────────
@@ -355,7 +357,7 @@ function ReportRow({
 
 type SidebarTab = 'reports' | 'preferences';
 
-export function MedicalSidebar({ clientId, className = '', clientPreferences }: MedicalSidebarProps) {
+export function MedicalSidebar({ clientId, className = '', clientPreferences, clientRemarks }: MedicalSidebarProps) {
     const { data: docSummary, isLoading } = useClientDocumentSummary(clientId);
     const [search, setSearch] = useState('');
     const [sidebarTab, setSidebarTab] = useState<SidebarTab>('reports');
@@ -464,6 +466,19 @@ export function MedicalSidebar({ clientId, className = '', clientPreferences }: 
                                 ))
                             )}
                         </div>
+
+                        {/* Notes — internal remarks from client profile */}
+                        {clientRemarks && clientRemarks.trim() && (
+                            <div className="px-4 pb-4 pt-1 border-t border-gray-100">
+                                <div className="flex items-center gap-1.5 text-gray-900 text-sm font-medium mt-3 mb-2">
+                                    <StickyNote className="w-3.5 h-3.5 text-brand" />
+                                    Notes
+                                </div>
+                                <p className="text-xs text-gray-600 whitespace-pre-wrap break-words leading-relaxed">
+                                    {clientRemarks}
+                                </p>
+                            </div>
+                        )}
                     </>
                 )}
             </div>

@@ -150,7 +150,7 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
                 <div>
                     <div className="flex items-center gap-2">
                         <h3 className="text-base font-semibold text-gray-900">{fullPlan?.name || plan.name}</h3>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isCurrent ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isCurrent ? 'bg-green-50 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                             {plan.status}
                         </span>
                     </div>
@@ -593,7 +593,7 @@ export default function ClientProfilePage() {
                 </div>
 
                 {/* Profile card */}
-                <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                         <div className="w-20 h-20 rounded-full bg-brand/10 flex items-center justify-center text-brand text-2xl font-bold shrink-0">
                             {getInitials(client.fullName)}
@@ -622,30 +622,60 @@ export default function ClientProfilePage() {
                         </div>
                     </div>
 
-                    {(client.goal || client.goalDeadline) && (
-                        <div className="flex flex-col gap-2 md:min-w-[240px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
-                            {client.goal && (
-                                <div className="flex items-start gap-2">
-                                    <Target className="w-4 h-4 text-brand mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Goal</p>
-                                        <p className="text-sm font-semibold text-gray-900">{client.goal}</p>
+                    <div className="flex flex-col md:flex-row gap-6 md:items-start">
+                        {(client.goal || client.goalDeadline) && (
+                            <div className="flex flex-col gap-2 md:min-w-[200px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                                {client.goal && (
+                                    <div className="flex items-start gap-2">
+                                        <Target className="w-4 h-4 text-brand mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Goal</p>
+                                            <p className="text-sm font-semibold text-gray-900">{client.goal}</p>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                            {client.goalDeadline && (
-                                <div className="flex items-start gap-2">
-                                    <Calendar className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Target Date</p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                            {new Date(client.goalDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                                        </p>
+                                )}
+                                {client.goalDeadline && (
+                                    <div className="flex items-start gap-2">
+                                        <Calendar className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+                                        <div>
+                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Target Date</p>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                {new Date(client.goalDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-1 md:min-w-[220px] md:max-w-[280px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Notes</p>
+                                <button
+                                    type="button"
+                                    onClick={() => setEditClientOpen(true)}
+                                    className="text-gray-400 hover:text-brand transition-colors"
+                                    aria-label="Edit notes"
+                                    title="Edit notes"
+                                >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                            {client.remarks ? (
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap break-words line-clamp-6">
+                                    {client.remarks}
+                                </p>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setEditClientOpen(true)}
+                                    className="text-sm text-gray-400 italic text-left hover:text-brand transition-colors"
+                                >
+                                    Add notes…
+                                </button>
                             )}
                         </div>
-                    )}
+                    </div>
                 </div>
             </header>
 
@@ -841,6 +871,7 @@ export default function ClientProfilePage() {
                             {/* Medical Summary */}
                             <MedicalSidebar
                                 clientId={clientId}
+                                clientRemarks={client.remarks}
                                 clientPreferences={{
                                     allergies: client.allergies ?? [],
                                     intolerances: client.intolerances ?? [],
