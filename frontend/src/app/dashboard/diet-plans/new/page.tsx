@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown, Sparkles } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -19,6 +19,10 @@ import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal'
 import { useClient } from '@/lib/hooks/use-clients';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
 import { useMealBuilder } from '@/lib/hooks/use-meal-builder';
+import { AiDraftPanel } from '@/components/diet-plan/ai-draft/ai-draft-panel';
+import type { MealPlanDraftResult } from '@/lib/hooks/use-ai-meal-plan-draft';
+import type { LocalMeal } from '@/lib/types/diet-plan.types';
+import { toast } from 'sonner';
 
 function ClientPreferencesCard({ client }: { client: NonNullable<ReturnType<typeof useClient>['data']> }) {
     const [open, setOpen] = useState(false);
@@ -203,6 +207,8 @@ function BuilderContent() {
     const [showPrevPlan, setShowPrevPlan] = useState(false);
     const [showPublishWarning, setShowPublishWarning] = useState(false);
     const [whatsAppNav, setWhatsAppNav] = useState<string | null>(null);
+    const [showAiDraft, setShowAiDraft] = useState(false);
+    const [aiReplaceConfirmDraft, setAiReplaceConfirmDraft] = useState<MealPlanDraftResult | null>(null);
 
     // Preset scope dialog — shown when user clicks a meal structure in the sidebar
     const [presetScope, setPresetScope] = useState<{ preset: MealSlotPreset } | null>(null);
@@ -346,6 +352,75 @@ function BuilderContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client]);
 
+    // ── AI Draft → builder state ─────────────────────────────────────────────
+    const applyAiDraft = useCallback((draft: MealPlanDraftResult) => {
+        const makeTempId = () => Math.random().toString(36).slice(2, 11);
+        const defaultTime: Record<'breakfast' | 'lunch' | 'snack' | 'dinner', string> = {
+            breakfast: '08:00', lunch: '13:00', snack: '17:00', dinner: '19:30',
+        };
+
+        // Smarter time guess from meal name when the AI didn't fill timeOfDay.
+        const inferTimeFromName = (name: string, type: 'breakfast' | 'lunch' | 'snack' | 'dinner'): string => {
+            const n = name.toLowerCase();
+            if (/empty stomach|detox|early morning|wake/.test(n)) return '06:30';
+            if (/mid[- ]?morning|mid[- ]?meal/.test(n)) return '11:00';
+            if (/evening|tea time/.test(n)) return '17:00';
+            if (/pre[- ]?dinner/.test(n)) return '19:00';
+            if (/post[- ]?dinner|bed[- ]?time/.test(n)) return '21:00';
+            return defaultTime[type];
+        };
+
+        const map: Record<number, LocalMeal[]> = {};
+        for (const day of draft.days) {
+            const meals: LocalMeal[] = [...day.meals]
+                .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+                .map((meal) => ({
+                    id: makeTempId(),
+                    name: meal.name || meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1),
+                    type: meal.mealType,
+                    time: meal.timeOfDay ?? inferTimeFromName(meal.name, meal.mealType),
+                    description: '',
+                    instructions: meal.instructions ?? '',
+                    foods: meal.items.map((item) => ({
+                        id: item.foodId,
+                        tempId: makeTempId(),
+                        name: item.foodName,
+                        quantity: item.quantityLabel,
+                        quantityValue: item.quantityG,
+                        calories: item.nutrition.calories,
+                        protein: item.nutrition.proteinG,
+                        carbs: item.nutrition.carbsG,
+                        fat: item.nutrition.fatsG,
+                        hasWarning: item.validation.severity !== 'GREEN',
+                        validationSeverity: item.validation.severity,
+                        validationAlerts: item.validation.alerts,
+                        optionGroup: item.optionGroup,
+                    })),
+                }));
+            map[day.dayNumber - 1] = meals;
+        }
+
+        builder.replaceAllDays(map);
+
+        const { summary } = draft;
+        const parts: string[] = [`${summary.totalItems - summary.blockedItems} added`];
+        if (summary.createdItems > 0) parts.push(`${summary.createdItems} new food${summary.createdItems === 1 ? '' : 's'}`);
+        if (summary.blockedItems > 0) parts.push(`${summary.blockedItems} blocked`);
+        if (summary.warningItems > 0) parts.push(`${summary.warningItems} warning${summary.warningItems === 1 ? '' : 's'}`);
+        toast.success(`AI draft applied — ${parts.join(', ')}`);
+    }, [builder]);
+
+    const handleAiDraftApply = useCallback((draft: MealPlanDraftResult) => {
+        const hasExistingFoods = Object.values(builder.weeklyMeals).some((meals) =>
+            meals.some((m) => m.foods.length > 0),
+        );
+        if (hasExistingFoods) {
+            setAiReplaceConfirmDraft(draft);
+        } else {
+            applyAiDraft(draft);
+        }
+    }, [builder.weeklyMeals, applyAiDraft]);
+
     // Step 1: Client selection screen
     if (!isTemplateMode && !clientId) {
         return <ClientSelector />;
@@ -467,6 +542,14 @@ function BuilderContent() {
                         </div>
                     ) : (
                         <>
+                            <button
+                                onClick={() => setShowAiDraft(true)}
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
+                                title="Draft this plan from a free-form prompt"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                <span className="hidden sm:inline">AI Draft</span>
+                            </button>
                             <button
                                 onClick={() => setShowBulkModal(true)}
                                 className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
@@ -891,6 +974,45 @@ function BuilderContent() {
                                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors shadow-sm"
                             >
                                 Discard & Leave
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Draft — chat + preview */}
+            <AiDraftPanel
+                clientId={clientId}
+                isOpen={showAiDraft}
+                onClose={() => setShowAiDraft(false)}
+                onApply={handleAiDraftApply}
+            />
+
+            {/* Replace-confirm dialog (only shown when the builder already has foods) */}
+            {aiReplaceConfirmDraft && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-900">Replace current meals?</h3>
+                        <p className="text-sm text-gray-600">
+                            The builder already has meals. Applying the AI draft will discard them and replace with {aiReplaceConfirmDraft.summary.totalItems - aiReplaceConfirmDraft.summary.blockedItems} new item(s).
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setAiReplaceConfirmDraft(null)}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    applyAiDraft(aiReplaceConfirmDraft);
+                                    setAiReplaceConfirmDraft(null);
+                                }}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm"
+                            >
+                                Replace
                             </button>
                         </div>
                     </div>

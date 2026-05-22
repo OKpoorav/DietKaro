@@ -97,7 +97,7 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
                 uploaderRole: true,
                 uploadedByUserId: true,
                 uploadedBy: { select: { fullName: true } },
-                summary: { select: { summaryText: true, generatedAt: true, extractedData: true } },
+                summary: { select: { summaryText: true, generatedAt: true, extractedData: true, rawText: true } },
             },
             orderBy: { uploadedAt: 'desc' },
         }),
@@ -115,8 +115,21 @@ export const getClientDocumentSummary = asyncHandler(async (req: AuthenticatedRe
         const key = r.s3Key || (r.fileUrl?.includes('.amazonaws.com/') ? r.fileUrl.split('.amazonaws.com/')[1] : r.fileUrl);
         const token = key ? signDownloadToken(key, orgId) : '';
         const viewUrl = key ? `${baseUrl}/media/${key}?token=${token}` : r.fileUrl;
-        const { s3Key, fileUrl, uploadedBy, ...rest } = r;
-        return { ...rest, uploadedByName: uploadedBy?.fullName ?? null, viewUrl };
+        const { s3Key, fileUrl, uploadedBy, summary, ...rest } = r;
+        const isInternalNotes = r.reportType === 'internal_notes';
+        return {
+            ...rest,
+            uploadedByName: uploadedBy?.fullName ?? null,
+            viewUrl,
+            summary: summary
+                ? {
+                    summaryText: summary.summaryText,
+                    generatedAt: summary.generatedAt,
+                    extractedData: summary.extractedData,
+                    rawText: isInternalNotes ? summary.rawText : null,
+                }
+                : null,
+        };
     });
 
     res.status(200).json({

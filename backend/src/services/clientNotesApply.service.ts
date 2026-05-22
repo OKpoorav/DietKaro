@@ -18,6 +18,37 @@ import { invalidateClientCache } from '../utils/cache';
 import logger from '../utils/logger';
 import type { NotesExtraction, ExtractedLabReport } from './ai/notes-extract';
 
+export function buildNotesSummary(extracted: NotesExtraction): string {
+    const parts: string[] = [];
+
+    const demo: string[] = [];
+    if (extracted.age) demo.push(`Age ${extracted.age}`);
+    if (extracted.heightCm) demo.push(`${extracted.heightCm}cm`);
+    if (extracted.currentWeightKg) demo.push(`${extracted.currentWeightKg}kg`);
+    if (demo.length) parts.push(demo.join(' · '));
+
+    if (extracted.medicalIssues?.length) {
+        parts.push(`Issues: ${extracted.medicalIssues.slice(0, 4).join(', ')}`);
+    }
+    if (extracted.allergies?.length) {
+        parts.push(`Allergies: ${extracted.allergies.slice(0, 3).join(', ')}`);
+    }
+    if (extracted.intolerances?.length) {
+        parts.push(`Intolerances: ${extracted.intolerances.slice(0, 3).join(', ')}`);
+    }
+    if (extracted.bloodReports?.length) {
+        parts.push(`${extracted.bloodReports.length} blood report${extracted.bloodReports.length === 1 ? '' : 's'}`);
+    }
+    if (extracted.bodyMeasurements?.length) {
+        parts.push(`${extracted.bodyMeasurements.length} measurement${extracted.bodyMeasurements.length === 1 ? '' : 's'}`);
+    }
+    if (extracted.referredBy) {
+        parts.push(`Ref: ${extracted.referredBy}`);
+    }
+
+    return parts.length ? parts.join(' · ') : 'Internal notes recorded.';
+}
+
 function mergeUnique(existing: string[] | null | undefined, incoming: string[]): string[] {
     const seen = new Set<string>();
     const out: string[] = [];
@@ -201,7 +232,7 @@ export async function applyExtractedNotes(input: ApplyInput) {
             summary: {
                 create: {
                     rawText: rawNotes,
-                    summaryText: extracted.otherNotes?.[0] ?? null,
+                    summaryText: buildNotesSummary(extracted),
                     extractedData: { ...extracted, labValuesByDate } as unknown as object,
                     modelVersion: 'gemini-2.5-flash:notes-extract',
                     promptVersion: 1,

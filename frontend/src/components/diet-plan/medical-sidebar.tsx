@@ -82,6 +82,7 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
     blood_test: 'Blood Test',
     scan: 'Scan',
     prescription: 'Prescription',
+    internal_notes: 'Notes',
     other: 'Report',
 };
 
@@ -139,10 +140,17 @@ function UnifiedSummaryCard({ clientId }: { clientId: string }) {
 type DocTab = 'summary' | 'values';
 
 function ValuesPanel({ extracted }: { extracted: MedicalExtractedData }) {
-    const hasLabValues = extracted.lab_values && Object.keys(extracted.lab_values).length > 0;
-    const hasConditions = extracted.conditions.length > 0 || extracted.diagnoses.length > 0;
-    const hasMeds = extracted.medications.length > 0;
-    const hasFlags = extracted.dietary_flags.length > 0 || extracted.dietary_restrictions.length > 0;
+    const labValues = extracted.lab_values ?? null;
+    const conditions = extracted.conditions ?? [];
+    const diagnoses = extracted.diagnoses ?? [];
+    const medications = extracted.medications ?? [];
+    const dietaryFlags = extracted.dietary_flags ?? [];
+    const dietaryRestrictions = extracted.dietary_restrictions ?? [];
+
+    const hasLabValues = labValues && Object.keys(labValues).length > 0;
+    const hasConditions = conditions.length > 0 || diagnoses.length > 0;
+    const hasMeds = medications.length > 0;
+    const hasFlags = dietaryFlags.length > 0 || dietaryRestrictions.length > 0;
 
     if (!hasLabValues && !hasConditions && !hasMeds && !hasFlags) {
         return <p className="text-xs text-gray-400 italic py-1">No structured values extracted.</p>;
@@ -154,7 +162,7 @@ function ValuesPanel({ extracted }: { extracted: MedicalExtractedData }) {
                 <div>
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Lab Values</p>
                     <div className="grid grid-cols-2 gap-1">
-                        {Object.entries(extracted.lab_values!).map(([k, v]: [string, string]) => (
+                        {Object.entries(labValues!).map(([k, v]) => (
                             <div key={k} className="flex justify-between items-center bg-white border border-gray-100 rounded px-2 py-1">
                                 <span className="text-[11px] text-gray-500 truncate">{k}</span>
                                 <span className="text-[11px] font-semibold text-gray-800 ml-2 shrink-0">{v}</span>
@@ -167,7 +175,7 @@ function ValuesPanel({ extracted }: { extracted: MedicalExtractedData }) {
                 <div>
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Conditions / Diagnoses</p>
                     <div className="flex flex-wrap gap-1">
-                        {[...extracted.diagnoses, ...extracted.conditions].map((c, i) => (
+                        {[...diagnoses, ...conditions].map((c, i) => (
                             <span key={i} className="text-[11px] bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 rounded-full">{c}</span>
                         ))}
                     </div>
@@ -177,7 +185,7 @@ function ValuesPanel({ extracted }: { extracted: MedicalExtractedData }) {
                 <div>
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Medications</p>
                     <div className="space-y-1">
-                        {extracted.medications.map((m: MedicalExtractedData['medications'][number], i: number) => (
+                        {medications.map((m, i) => (
                             <div key={i} className="text-[11px] text-gray-700">
                                 <span className="font-medium">{m.name}</span>
                                 {m.dose && <span className="text-gray-400"> · {m.dose}</span>}
@@ -191,7 +199,7 @@ function ValuesPanel({ extracted }: { extracted: MedicalExtractedData }) {
                 <div>
                     <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Dietary Flags</p>
                     <div className="flex flex-wrap gap-1">
-                        {[...extracted.dietary_flags, ...extracted.dietary_restrictions].map((f, i) => (
+                        {[...dietaryFlags, ...dietaryRestrictions].map((f, i) => (
                             <span key={i} className="text-[11px] bg-brand/10 text-brand border border-brand/20 px-2 py-0.5 rounded-full">{f}</span>
                         ))}
                     </div>
@@ -210,15 +218,20 @@ function ReportRow({
 }) {
     const [expanded, setExpanded] = useState(false);
     const [tab, setTab] = useState<DocTab>('summary');
+    const [notesOpen, setNotesOpen] = useState(false);
     const retrigger = useRetriggerSummarize(clientId);
     const deleteReport = useDeleteClientReport(clientId);
     const cfg = STATUS_CONFIG[report.processingStatus];
     const processing = isProcessing(report.processingStatus);
-    const hasSummary = report.processingStatus === 'done' && report.summary?.summaryText;
-    const hasValues = report.processingStatus === 'done' && report.summary?.extractedData;
+    const isInternalNotes = report.reportType === 'internal_notes';
+    const hasSummary = report.processingStatus === 'done' && !!report.summary?.summaryText;
+    // Values tab is medical-document-only. Internal notes have a different
+    // extraction shape (NotesExtraction) and get a dedicated view modal.
+    const hasValues = !isInternalNotes && report.processingStatus === 'done' && !!report.summary?.extractedData;
     const typeLabel = REPORT_TYPE_LABELS[report.reportType ?? 'other'] ?? 'Report';
     const canExpand = hasSummary || hasValues || report.processingStatus === 'failed';
     const isStaffUpload = report.uploaderRole === 'dietitian' || report.uploaderRole === 'admin';
+    const canViewNotes = isInternalNotes && !!report.summary?.rawText;
 
     const handleDelete = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -271,7 +284,20 @@ function ReportRow({
                     {cfg.label}
                 </span>
 
-                {report.viewUrl && (
+                {canViewNotes ? (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setNotesOpen(true);
+                        }}
+                        className="shrink-0 flex items-center gap-1 text-[11px] font-medium text-brand hover:underline px-1.5 py-0.5 rounded hover:bg-brand/5 transition-colors"
+                        title="View notes"
+                    >
+                        <Eye className="w-3 h-3" />
+                        View
+                    </button>
+                ) : report.viewUrl ? (
                     <a
                         href={report.viewUrl}
                         target="_blank"
@@ -283,7 +309,7 @@ function ReportRow({
                         <ExternalLink className="w-3 h-3" />
                         View
                     </a>
-                )}
+                ) : null}
 
                 {isStaffUpload && (
                     <button
@@ -353,6 +379,16 @@ function ReportRow({
                         </>
                     ) : null}
                 </div>
+            )}
+
+            {canViewNotes && (
+                <NotesViewModal
+                    isOpen={notesOpen}
+                    onClose={() => setNotesOpen(false)}
+                    notes={report.summary?.rawText ?? null}
+                    extracted={(report.summary?.extractedData ?? null) as unknown as NotesExtraction | null}
+                    title={report.fileName}
+                />
             )}
         </div>
     );

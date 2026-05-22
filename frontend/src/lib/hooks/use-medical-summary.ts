@@ -139,6 +139,7 @@ export interface ReportDocumentItem {
         summaryText: string | null;
         generatedAt: string;
         extractedData: MedicalExtractedData | null;
+        rawText: string | null;
     } | null;
 }
 

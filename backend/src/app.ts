@@ -171,6 +171,7 @@ import proposalTemplateRoutes from './routes/proposalTemplate.routes';
 import onboardingInviteRoutes from './routes/onboardingInvite.routes';
 import consultationsRoutes from './routes/consultations.routes';
 import calendarRoutes from './routes/calendar.routes';
+import aiMealPlanDraftRoutes from './routes/aiMealPlanDraft.routes';
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
@@ -179,6 +180,7 @@ app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/clients/:clientId/onboarding', onboardingRoutes); // Client onboarding
 app.use('/api/v1/clients/:clientId/adherence', complianceRoutes); // Compliance & adherence
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/diet-plans/ai-draft', aiMealPlanDraftRoutes); // AI agentic meal-plan drafter — mount BEFORE dietPlanRoutes so /:id doesn't shadow it
 app.use('/api/v1/diet-plans', dietPlanRoutes);
 app.use('/api/v1/meals', mealRoutes);
 app.use('/api/v1/meal-logs', mealLogRoutes);

@@ -274,6 +274,28 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         setIsDirty(true);
     }, []);
 
+    /**
+     * Bulk-replace all days from an external source (e.g. AI draft).
+     * Resizes numDays to fit the largest provided dayIndex. Indices not in the
+     * map become empty days. Clamps to the plan-type limit (7 for plans,
+     * 30 for templates).
+     */
+    const replaceAllDays = useCallback((daysByIndex: Record<number, LocalMeal[]>) => {
+        const indices = Object.keys(daysByIndex).map((k) => parseInt(k, 10)).filter((n) => Number.isFinite(n));
+        const maxIndex = indices.length > 0 ? Math.max(...indices) : 0;
+        const cap = isTemplateMode ? 30 : 7;
+        const nextNumDays = Math.min(cap, Math.max(1, maxIndex + 1));
+        setNumDays(nextNumDays);
+        setWeeklyMealsDirty(() => {
+            const next: Record<number, LocalMeal[]> = {};
+            for (let i = 0; i < nextNumDays; i += 1) {
+                next[i] = daysByIndex[i] ?? [];
+            }
+            return next;
+        });
+        setSelectedDayIndex(0);
+    }, [isTemplateMode, setWeeklyMealsDirty]);
+
     // Handlers — all take explicit dayIndex so multiple panes can target different days.
     const addMeal = useCallback((dayIndex: number) => {
         const existing = weeklyMeals[dayIndex] || [];
@@ -1140,6 +1162,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         clipboardMeal,
         copyMeal,
         pasteMeal,
+        replaceAllDays,
         applyTemplate,
         applyPreset,
         bulkAdjust,
