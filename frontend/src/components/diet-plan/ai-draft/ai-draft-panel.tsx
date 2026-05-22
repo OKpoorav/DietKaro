@@ -62,9 +62,24 @@ export function AiDraftPanel({ clientId, isOpen, onClose, onApply }: AiDraftPane
             setDraft(result);
             setShowPreview(true);
         } catch (err: unknown) {
-            const message =
-                (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
-                ?? 'AI draft failed — try a shorter prompt or retry.';
+            const e = err as {
+                response?: { status?: number; data?: { error?: { message?: string; code?: string } } };
+                code?: string;
+                message?: string;
+            };
+            const backendMsg = e.response?.data?.error?.message;
+            const backendCode = e.response?.data?.error?.code;
+            const status = e.response?.status;
+            let message: string;
+            if (backendMsg) {
+                message = backendCode ? `${backendMsg} (${backendCode})` : backendMsg;
+            } else if (e.code === 'ECONNABORTED' || /timeout/i.test(e.message ?? '')) {
+                message = 'Request timed out. The AI took too long — try a shorter prompt.';
+            } else if (status === undefined) {
+                message = `Network error reaching the server${e.message ? `: ${e.message}` : ''}.`;
+            } else {
+                message = `Server returned ${status} with no error detail. Check backend logs.`;
+            }
             setErrorMessage(message);
         }
     };

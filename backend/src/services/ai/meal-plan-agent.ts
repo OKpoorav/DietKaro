@@ -87,27 +87,60 @@ export async function runMealPlanAgent(args: RunMealPlanAgentArgs): Promise<RunM
     const startedAt = Date.now();
     let totalSteps = 0;
 
+    // Classify OpenAI / network errors: 429, 5xx, ECONN*, timeouts are retryable.
+    const isTransient = (err: unknown): boolean => {
+        if (!(err instanceof Error)) return false;
+        const msg = err.message.toLowerCase();
+        const status = (err as { status?: number; statusCode?: number }).status
+            ?? (err as { status?: number; statusCode?: number }).statusCode;
+        if (status === 429 || (status !== undefined && status >= 500 && status < 600)) return true;
+        return /econn|etimedout|timeout|rate.?limit|overloaded|temporarily unavailable|fetch failed|socket hang up|aborted/.test(msg);
+    };
+
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
     const runOnce = async (prompt: string) => {
-        try {
-            const result = await generateText({
-                model: defaultModel,
-                tools,
-                system: SYSTEM_PROMPT,
-                prompt,
-                stopWhen: stepCountIs(MAX_STEPS),
-                onStepFinish: () => { totalSteps += 1; },
-            });
-            return result;
-        } catch (err) {
-            logger.error('Meal-plan agent threw', {
-                clientId: args.clientId,
-                steps: totalSteps,
-                error: err instanceof Error ? err.message : String(err),
-            });
-            throw AppError.internal(
-                err instanceof Error ? `AI agent failed: ${err.message}` : 'AI agent failed — retry',
-            );
+        const RETRIES = 2;             // total = 1 + 2 = 3 attempts
+        const BASE_DELAY_MS = 800;
+        let lastErr: unknown = null;
+
+        for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
+            try {
+                return await generateText({
+                    model: defaultModel,
+                    tools,
+                    system: SYSTEM_PROMPT,
+                    prompt,
+                    stopWhen: stepCountIs(MAX_STEPS),
+                    onStepFinish: () => { totalSteps += 1; },
+                });
+            } catch (err) {
+                lastErr = err;
+                const transient = isTransient(err);
+                logger.warn('Meal-plan agent attempt failed', {
+                    clientId: args.clientId,
+                    attempt,
+                    transient,
+                    steps: totalSteps,
+                    error: err instanceof Error ? err.message : String(err),
+                    status: (err as { status?: number })?.status,
+                });
+                if (!transient || attempt === RETRIES) break;
+                await sleep(BASE_DELAY_MS * Math.pow(2, attempt)); // 800ms, 1600ms
+            }
         }
+
+        // All attempts failed — surface the underlying message so frontend can show it.
+        const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+        logger.error('Meal-plan agent gave up after retries', {
+            clientId: args.clientId,
+            steps: totalSteps,
+            error: msg,
+        });
+        throw AppError.badGateway(
+            `AI service error: ${msg.slice(0, 200)}. Please retry.`,
+            'AI_AGENT_FAILED',
+        );
     };
 
     const first = await runOnce(args.prompt);
