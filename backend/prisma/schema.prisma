@@ -47,6 +47,7 @@ model Organization {
   leads                 Lead[]
   leadSources           LeadSource[]
   leadStatuses          LeadStatus[]
+  medicalConditionList  MedicalConditionMaster[]
   proposalTemplate      ProposalTemplate?
   consultations         Consultation[]
 
@@ -133,6 +134,7 @@ model Client {
   altPhone              String?
   altPhoneRelation      String?
   remarks               String?
+  extractedNotes        Json?
   referralCode          String?
   referralSource        ReferralSource?
   referralSourceName    String?
@@ -1080,6 +1082,20 @@ model LeadStatus {
 
   @@unique([orgId, name])
   @@index([orgId, sortOrder])
+}
+
+model MedicalConditionMaster {
+  id           String       @id @default(uuid())
+  orgId        String
+  name         String
+  active       Boolean      @default(true)
+  isSystem     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  deletedAt    DateTime?
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, name])
+  @@index([orgId, deletedAt])
 }
 
 model LeadFollowup {

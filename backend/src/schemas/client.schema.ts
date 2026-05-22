@@ -34,9 +34,9 @@ export const createClientSchema = z.object({
         .refine(
             (val) => {
                 const words = val.trim() ? val.trim().split(/\s+/).length : 0;
-                return words <= 200;
+                return words <= 400;
             },
-            { message: 'Notes must not exceed 200 words' }
+            { message: 'Notes must not exceed 400 words' }
         )
         .optional(),
 });

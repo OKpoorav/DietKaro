@@ -56,6 +56,7 @@ export interface DietPlan {
     client?: {
         id: string;
         fullName: string;
+        phone?: string;
     };
     meals?: Meal[];
     mealCount?: number;

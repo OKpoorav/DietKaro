@@ -101,7 +101,7 @@ export class DietPlanService {
         const dietPlan = await prisma.dietPlan.findFirst({
             where: { id: planId, orgId, isActive: true },
             include: {
-                client: { select: { id: true, fullName: true, currentWeightKg: true, targetWeightKg: true } },
+                client: { select: { id: true, fullName: true, phone: true, currentWeightKg: true, targetWeightKg: true } },
                 creator: { select: { id: true, fullName: true } },
                 meals: {
                     orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],

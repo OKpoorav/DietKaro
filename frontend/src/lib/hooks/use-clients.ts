@@ -50,6 +50,12 @@ export interface Client {
     altPhoneRelation?: string | null;
     // Internal
     remarks?: string | null;
+    extractedNotes?: {
+        extracted: import('./use-notes-extract').NotesExtraction;
+        rawNotes: string;
+        extractedAt: string;
+        extractedByUserId: string;
+    } | null;
     loginEnabled?: boolean;
     // Goal
     goal?: string | null;

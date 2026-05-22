@@ -148,7 +148,7 @@ export default function ClientsPage() {
     const meta = data?.meta;
 
     const handleAddClient = async (
-        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; dislikes?: string[]; likedFoods?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string; primaryDietitianId?: string; beforePhotoFiles?: { front?: File; side?: File; back?: File } },
+        clientData: { name: string; email?: string; phone?: string; altPhone?: string; altPhoneRelation?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; allergies?: string[]; medicalConditions?: string[]; dislikes?: string[]; likedFoods?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string; primaryDietitianId?: string; beforePhotoFiles?: { front?: File; side?: File; back?: File } },
         reactivate?: boolean,
     ): Promise<{ id: string } | void> => {
         try {
@@ -163,6 +163,8 @@ export default function ClientsPage() {
                 heightCm: clientData.height ? Number(clientData.height) : undefined,
                 currentWeightKg: clientData.weight ? Number(clientData.weight) : undefined,
                 targetWeightKg: clientData.targetWeight ? Number(clientData.targetWeight) : undefined,
+                allergies: clientData.allergies ?? [],
+                medicalConditions: clientData.medicalConditions ?? [],
                 dislikes: clientData.dislikes ?? [],
                 likedFoods: clientData.likedFoods ?? [],
                 goal: clientData.goal || undefined,

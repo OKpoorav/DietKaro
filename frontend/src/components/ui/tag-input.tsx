@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, X } from 'lucide-react';
 
 const FOOD_SUGGESTIONS = [
     'Peanuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Tree Nuts',
@@ -16,6 +16,8 @@ interface TagInputProps {
     value: string[];
     onChange: (tags: string[]) => void;
     suggestions?: string[];
+    /** When provided, queries server for suggestions on each keystroke (debounced). */
+    searchFn?: (q: string) => Promise<string[]>;
     placeholder?: string;
 }
 
@@ -23,23 +25,64 @@ export function TagInput({
     value,
     onChange,
     suggestions = FOOD_SUGGESTIONS,
+    searchFn,
     placeholder = 'Type to search or add...',
 }: TagInputProps) {
     const [input, setInput] = useState('');
     const [open, setOpen] = useState(false);
     const [highlighted, setHighlighted] = useState(-1);
+    const [asyncResults, setAsyncResults] = useState<string[]>([]);
+    const [asyncLoading, setAsyncLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const requestSeqRef = useRef(0);
 
     const lowerValues = value.map((v) => v.toLowerCase());
-    const filtered = input.trim()
-        ? suggestions
-              .filter(
-                  (s) =>
-                      s.toLowerCase().includes(input.toLowerCase()) &&
-                      !lowerValues.includes(s.toLowerCase()),
-              )
-              .slice(0, 6)
-        : [];
+
+    // Debounced server-side search
+    useEffect(() => {
+        if (!searchFn) return;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        const q = input.trim();
+        if (!q) {
+            setAsyncResults([]);
+            setAsyncLoading(false);
+            return;
+        }
+        setAsyncLoading(true);
+        const seq = ++requestSeqRef.current;
+        debounceRef.current = setTimeout(async () => {
+            try {
+                const results = await searchFn(q);
+                if (seq !== requestSeqRef.current) return;
+                setAsyncResults(results);
+            } catch {
+                if (seq !== requestSeqRef.current) return;
+                setAsyncResults([]);
+            } finally {
+                if (seq === requestSeqRef.current) setAsyncLoading(false);
+            }
+        }, 250);
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [input, searchFn]);
+
+    // Build filtered list — server results if searchFn provided, else static suggestions
+    const filtered = (() => {
+        if (!input.trim()) return [];
+        const pool = searchFn ? asyncResults : suggestions;
+        const seen = new Set<string>();
+        return pool
+            .filter((s) => {
+                const l = s.toLowerCase();
+                if (lowerValues.includes(l) || seen.has(l)) return false;
+                seen.add(l);
+                if (searchFn) return true; // server already filtered
+                return l.includes(input.toLowerCase());
+            })
+            .slice(0, 8);
+    })();
 
     const add = (tag: string) => {
         const t = tag.trim();
@@ -70,6 +113,8 @@ export function TagInput({
             onChange(value.slice(0, -1));
         }
     };
+
+    const showDropdown = open && input.trim() && (asyncLoading || filtered.length > 0);
 
     return (
         <div className="relative">
@@ -107,21 +152,27 @@ export function TagInput({
                     placeholder={value.length === 0 ? placeholder : ''}
                 />
             </div>
-            {open && filtered.length > 0 && (
-                <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                    {filtered.map((s, i) => (
-                        <li
-                            key={s}
-                            className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                                i === highlighted
-                                    ? 'bg-brand/10 text-brand font-medium'
-                                    : 'text-gray-700 hover:bg-gray-50'
-                            }`}
-                            onMouseDown={() => add(s)}
-                        >
-                            {s}
+            {showDropdown && (
+                <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+                    {asyncLoading && filtered.length === 0 ? (
+                        <li className="px-3 py-2 text-xs text-gray-400 flex items-center gap-2">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Searching…
                         </li>
-                    ))}
+                    ) : (
+                        filtered.map((s, i) => (
+                            <li
+                                key={s}
+                                className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                                    i === highlighted
+                                        ? 'bg-brand/10 text-brand font-medium'
+                                        : 'text-gray-700 hover:bg-gray-50'
+                                }`}
+                                onMouseDown={() => add(s)}
+                            >
+                                {s}
+                            </li>
+                        ))
+                    )}
                 </ul>
             )}
         </div>

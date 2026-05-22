@@ -1,15 +1,11 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useCallback, useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { TagInput } from '@/components/ui/tag-input';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/api/v1`;
-
-const ALLERGY_SUGGESTIONS = ['Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish', 'Sesame', 'Gluten', 'Lactose'];
-const DISLIKE_SUGGESTIONS = ['Broccoli', 'Spinach', 'Bitter Gourd', 'Lady Finger', 'Mushroom', 'Onion', 'Garlic', 'Fish', 'Eggs', 'Paneer', 'Tofu'];
-const LIKE_SUGGESTIONS = ['Rice', 'Chapati', 'Dal', 'Chicken', 'Paneer', 'Curd', 'Fruits', 'Salad', 'Oats', 'Eggs', 'Nuts', 'Milk', 'Vegetables'];
 
 interface ClientInfo {
     id: string;
@@ -57,6 +53,26 @@ function OnboardingForm() {
     }, [token]);
 
     const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+    const searchIngredients = useCallback(async (q: string): Promise<string[]> => {
+        if (!token) return [];
+        try {
+            const { data } = await axios.get(`${API}/onboarding-invite/${token}/base-ingredients`, { params: { q } });
+            return (data?.data ?? []).map((x: { name: string }) => x.name);
+        } catch {
+            return [];
+        }
+    }, [token]);
+
+    const searchFoodItems = useCallback(async (q: string): Promise<string[]> => {
+        if (!token) return [];
+        try {
+            const { data } = await axios.get(`${API}/onboarding-invite/${token}/food-items`, { params: { q } });
+            return (data?.data ?? []).map((x: { name: string }) => x.name);
+        } catch {
+            return [];
+        }
+    }, [token]);
 
     const handlePhotoChange = async (type: 'front' | 'side' | 'back', file: File | null) => {
         if (!file || !token) return;
@@ -229,17 +245,17 @@ function OnboardingForm() {
                         <div className="space-y-4">
                             <div>
                                 <label className={label}>Allergies</label>
-                                <TagInput value={allergies} onChange={setAllergies} suggestions={ALLERGY_SUGGESTIONS} placeholder="Type an allergy..." />
+                                <TagInput value={allergies} onChange={setAllergies} searchFn={searchIngredients} placeholder="Search ingredients..." />
                                 <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
                             </div>
                             <div>
                                 <label className={label}>Food Dislikes</label>
-                                <TagInput value={dislikes} onChange={setDislikes} suggestions={DISLIKE_SUGGESTIONS} placeholder="Foods you don't like..." />
+                                <TagInput value={dislikes} onChange={setDislikes} searchFn={searchFoodItems} placeholder="Search foods you don't like..." />
                                 <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
                             </div>
                             <div>
                                 <label className={label}>Food Likes</label>
-                                <TagInput value={likedFoods} onChange={setLikedFoods} suggestions={LIKE_SUGGESTIONS} placeholder="Foods you enjoy..." />
+                                <TagInput value={likedFoods} onChange={setLikedFoods} searchFn={searchFoodItems} placeholder="Search foods you enjoy..." />
                                 <p className="mt-1 text-xs text-gray-400">Press Enter or comma to add</p>
                             </div>
                         </div>

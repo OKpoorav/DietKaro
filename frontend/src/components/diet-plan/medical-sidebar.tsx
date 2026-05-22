@@ -16,8 +16,12 @@ import {
     Trash2,
     Heart,
     StickyNote,
+    Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { NotesViewModal } from '@/components/clients/notes-view-modal';
+import { NotesContent } from '@/components/clients/notes-content';
+import type { NotesExtraction } from '@/lib/hooks/use-notes-extract';
 import {
     useClientDocumentSummary,
     useRegenerateDocumentSummary,
@@ -46,6 +50,7 @@ interface MedicalSidebarProps {
     className?: string;
     clientPreferences?: ClientPreferences;
     clientRemarks?: string | null;
+    clientExtractedNotes?: NotesExtraction | null;
 }
 
 // ─── Status helpers ───────────────────────────────────────────────
@@ -357,10 +362,11 @@ function ReportRow({
 
 type SidebarTab = 'reports' | 'preferences';
 
-export function MedicalSidebar({ clientId, className = '', clientPreferences, clientRemarks }: MedicalSidebarProps) {
+export function MedicalSidebar({ clientId, className = '', clientPreferences, clientRemarks, clientExtractedNotes }: MedicalSidebarProps) {
     const { data: docSummary, isLoading } = useClientDocumentSummary(clientId);
     const [search, setSearch] = useState('');
     const [sidebarTab, setSidebarTab] = useState<SidebarTab>('reports');
+    const [notesViewOpen, setNotesViewOpen] = useState(false);
 
     const documents = docSummary?.documents ?? [];
 
@@ -468,20 +474,40 @@ export function MedicalSidebar({ clientId, className = '', clientPreferences, cl
                         </div>
 
                         {/* Notes — internal remarks from client profile */}
-                        {clientRemarks && clientRemarks.trim() && (
+                        {((clientRemarks && clientRemarks.trim()) || clientExtractedNotes) && (
                             <div className="px-4 pb-4 pt-1 border-t border-gray-100">
-                                <div className="flex items-center gap-1.5 text-gray-900 text-sm font-medium mt-3 mb-2">
-                                    <StickyNote className="w-3.5 h-3.5 text-brand" />
-                                    Notes
+                                <div className="flex items-center justify-between gap-2 mt-3 mb-2">
+                                    <div className="flex items-center gap-1.5 text-gray-900 text-sm font-medium">
+                                        <StickyNote className="w-3.5 h-3.5 text-brand" />
+                                        Notes
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotesViewOpen(true)}
+                                        className="text-gray-400 hover:text-brand transition-colors p-0.5"
+                                        aria-label="View full notes"
+                                        title="View full notes"
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                    </button>
                                 </div>
-                                <p className="text-xs text-gray-600 whitespace-pre-wrap break-words leading-relaxed">
-                                    {clientRemarks}
-                                </p>
+                                <NotesContent
+                                    rawNotes={clientRemarks}
+                                    extracted={clientExtractedNotes ?? null}
+                                    density="compact"
+                                    clamp
+                                />
                             </div>
                         )}
                     </>
                 )}
             </div>
+            <NotesViewModal
+                isOpen={notesViewOpen}
+                onClose={() => setNotesViewOpen(false)}
+                notes={clientRemarks}
+                extracted={clientExtractedNotes}
+            />
         </div>
     );
 }

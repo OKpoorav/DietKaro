@@ -45,7 +45,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://api.healthpractix.com/api/v1",
+      "apiUrl": "http://100.128.162.223:3001/api/v1",
       "clerkPublishableKey": "pk_test_Y29oZXJlbnQtb3NwcmV5LTc5LmNsZXJrLmFjY291bnRzLmRldiQ",
       "eas": {
         "projectId": "e06a17c8-8a52-4f1f-ac23-78c6f042ef1f"

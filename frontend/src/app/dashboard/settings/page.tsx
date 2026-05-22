@@ -14,6 +14,7 @@ import {
     Check,
     Loader2,
     Tag,
+    Stethoscope,
     ChevronRight,
 } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
@@ -118,6 +119,16 @@ export default function SettingsPage() {
                             >
                                 <Tag className="w-5 h-5" />
                                 <span className="text-sm font-medium flex-1">Client Tags</span>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                            </Link>
+                        )}
+                        {canManageOrg && (
+                            <Link
+                                href="/dashboard/settings/medical-conditions"
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100"
+                            >
+                                <Stethoscope className="w-5 h-5" />
+                                <span className="text-sm font-medium flex-1">Medical Conditions</span>
                                 <ChevronRight className="w-4 h-4 text-gray-400" />
                             </Link>
                         )}

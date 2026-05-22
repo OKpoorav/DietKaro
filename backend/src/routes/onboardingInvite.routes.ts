@@ -101,4 +101,32 @@ router.post('/onboarding-invite/:token/submit',
     }),
 );
 
+// Public catalog search scoped by onboarding token (read-only)
+router.get('/onboarding-invite/:token/base-ingredients', asyncHandler(async (req: Request, res: Response) => {
+    await inviteService.validateToken(req.params.token);
+    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+    const ingredients = await (await import('../utils/prisma')).default.foodItem.findMany({
+        where: {
+            isBaseIngredient: true,
+            ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}),
+        },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+        take: 20,
+    });
+    res.json({ success: true, data: ingredients });
+}));
+
+router.get('/onboarding-invite/:token/food-items', asyncHandler(async (req: Request, res: Response) => {
+    await inviteService.validateToken(req.params.token);
+    const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+    const items = await (await import('../utils/prisma')).default.foodItem.findMany({
+        where: q ? { name: { contains: q, mode: 'insensitive' as const } } : {},
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+        take: 20,
+    });
+    res.json({ success: true, data: items });
+}));
+
 export default router;

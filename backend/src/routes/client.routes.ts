@@ -12,6 +12,8 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from '../errors/AppError';
 import { clientService } from '../services/client.service';
 import { labService } from '../services/lab.service';
+import { extractFromNotes } from '../services/ai/notes-extract';
+import { applyExtractedNotes } from '../services/clientNotesApply.service';
 import prisma from '../utils/prisma';
 import { signDownloadToken } from './media.routes';
 import { uploadSingleDietitianReport, upload, validateFileContent, REPORT_MIMES, IMAGE_MIMES } from '../middleware/upload.middleware';
@@ -309,6 +311,51 @@ router.post('/:clientId/before-photos',
         });
 
         res.json({ success: true, data: { url } });
+    }),
+);
+
+// ============ NOTES EXTRACTION ============
+// Stateless extraction: returns structured data without saving anywhere.
+router.post('/:clientId/notes/extract',
+    writeOperationLimiter,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        if (!req.user) throw AppError.unauthorized();
+        const { notes } = req.body ?? {};
+        if (typeof notes !== 'string' || !notes.trim()) {
+            throw AppError.badRequest('notes is required', 'NOTES_REQUIRED');
+        }
+        // Guard the AI cost: only allow extraction for clients in the caller's org.
+        const client = await prisma.client.findFirst({
+            where: { id: req.params.clientId, orgId: req.user.organizationId, isActive: true },
+            select: { id: true },
+        });
+        if (!client) throw AppError.notFound('Client not found', 'CLIENT_NOT_FOUND');
+
+        const extracted = await extractFromNotes(notes);
+        res.json({ success: true, data: extracted });
+    }),
+);
+
+// Apply the (possibly user-edited) extracted payload to the client + related tables.
+router.post('/:clientId/notes/extract/apply',
+    writeOperationLimiter,
+    asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        if (!req.user) throw AppError.unauthorized();
+        const { extracted, notes } = req.body ?? {};
+        if (!extracted || typeof extracted !== 'object') {
+            throw AppError.badRequest('extracted payload required', 'EXTRACTED_REQUIRED');
+        }
+        if (typeof notes !== 'string') {
+            throw AppError.badRequest('notes required', 'NOTES_REQUIRED');
+        }
+        const result = await applyExtractedNotes({
+            clientId: req.params.clientId,
+            orgId: req.user.organizationId,
+            userId: req.user.id,
+            extracted,
+            rawNotes: notes,
+        });
+        res.json({ success: true, data: result });
     }),
 );
 

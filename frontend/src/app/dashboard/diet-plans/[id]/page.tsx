@@ -3,11 +3,13 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useDietPlan, usePublishDietPlan, useUpdateDietPlan, useExtendDietPlan } from '@/lib/hooks/use-diet-plans';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer, RefreshCw, SquarePen } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer, RefreshCw, SquarePen, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
 import { toast } from 'sonner';
+import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
+import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 
 // Default column ordering — meals whose name matches get this priority, rest sorted by time
 const KNOWN_MEAL_ORDER: Record<string, number> = {
@@ -194,6 +196,51 @@ export default function DietPlanDetailPage() {
     const [extensionStartDate, setExtensionStartDate] = useState('');
     const [extendMode, setExtendMode] = useState<'repeat' | 'custom'>('repeat');
     const [extendWeeks, setExtendWeeks] = useState(1);
+    const [showWhatsApp, setShowWhatsApp] = useState(false);
+
+    // Build weeklyMeals from plan.meals for WhatsApp share
+    const whatsAppData = useMemo(() => {
+        if (!plan || !plan.meals || plan.meals.length === 0) {
+            return { weeklyMeals: {} as Record<number, LocalMeal[]>, numDays: 0, startDate: new Date() };
+        }
+        const startDate = new Date(plan.startDate);
+        const weeklyMeals: Record<number, LocalMeal[]> = {};
+        let maxDay = 0;
+        for (const meal of plan.meals) {
+            let dayIdx = meal.dayOfWeek ?? 0;
+            if (meal.mealDate) {
+                const d = new Date(meal.mealDate);
+                dayIdx = Math.floor((d.getTime() - startDate.getTime()) / 86400000);
+            }
+            if (dayIdx < 0) dayIdx = 0;
+            if (dayIdx > maxDay) maxDay = dayIdx;
+            if (!weeklyMeals[dayIdx]) weeklyMeals[dayIdx] = [];
+            const foods: LocalFoodItem[] = (meal.foodItems || []).map((fi, idx) => ({
+                id: fi.foodItem.id,
+                tempId: `${fi.foodItem.id}-${idx}`,
+                name: fi.foodItem.name,
+                quantity: fi.notes || `${fi.quantityG}g`,
+                quantityValue: fi.quantityG,
+                calories: fi.foodItem.calories,
+                protein: fi.foodItem.proteinG,
+                carbs: fi.foodItem.carbsG,
+                fat: fi.foodItem.fatsG,
+                hasWarning: false,
+                optionGroup: fi.optionGroup ?? 0,
+                optionLabel: fi.optionLabel,
+            }));
+            weeklyMeals[dayIdx].push({
+                id: meal.id,
+                name: meal.name,
+                type: meal.mealType,
+                time: meal.timeOfDay || '',
+                description: meal.description,
+                instructions: meal.instructions,
+                foods,
+            });
+        }
+        return { weeklyMeals, numDays: maxDay + 1, startDate };
+    }, [plan]);
 
     const handlePublish = async () => {
         if (!plan) return;
@@ -410,6 +457,16 @@ export default function DietPlanDetailPage() {
                     >
                         <Printer className="w-5 h-5 text-gray-600" />
                     </button>
+                    {plan.client?.phone && (
+                        <button
+                            onClick={() => setShowWhatsApp(true)}
+                            className="flex items-center gap-2 px-3 py-2 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg transition-colors"
+                            title="Share on WhatsApp"
+                        >
+                            <MessageCircle className="w-4 h-4" />
+                            Share on WhatsApp
+                        </button>
+                    )}
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor}`}>
                         {plan.status === 'active' ? 'Active' : 'Draft'}
                     </span>
@@ -616,6 +673,19 @@ export default function DietPlanDetailPage() {
                 </div>
                 );
             })()}
+
+            {/* WhatsApp share modal */}
+            {showWhatsApp && plan.client?.phone && (
+                <WhatsAppShareModal
+                    phone={plan.client.phone}
+                    clientName={plan.client.fullName}
+                    planName={plan.name}
+                    startDate={whatsAppData.startDate}
+                    numDays={whatsAppData.numDays}
+                    weeklyMeals={whatsAppData.weeklyMeals}
+                    onClose={() => setShowWhatsApp(false)}
+                />
+            )}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
 import { User, Mail, Calendar, Target, AlertCircle, Goal, CalendarClock, FileText, Check, Flag, Tag, Send } from 'lucide-react';
@@ -12,6 +12,7 @@ import { TagInput } from '@/components/ui/tag-input';
 import { OnboardingLinkModal } from '@/components/modals/onboarding-link-modal';
 import { useTeam } from '@/lib/hooks/use-team';
 import { usePermissions } from '@/lib/hooks/use-permissions';
+import { useApiClient } from '@/lib/api/use-api-client';
 import { toast } from 'sonner';
 
 interface AddClientModalProps {
@@ -33,8 +34,8 @@ interface ClientFormData {
     height: string;
     weight: string;
     targetWeight: string;
-    allergies: string;
-    medicalConditions: string;
+    allergies: string[];
+    medicalConditions: string[];
     dislikes: string[];
     likedFoods: string[];
     goal: string;
@@ -56,8 +57,8 @@ const INITIAL_FORM: ClientFormData = {
     height: '',
     weight: '',
     targetWeight: '',
-    allergies: '',
-    medicalConditions: '',
+    allergies: [],
+    medicalConditions: [],
     dislikes: [],
     likedFoods: [],
     goal: '',
@@ -87,13 +88,24 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
         () =>
             suggestTagIds(tags ?? [], {
                 goal: formData.goal,
-                medicalConditions: formData.medicalConditions
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean),
+                medicalConditions: formData.medicalConditions,
             }),
         [tags, formData.goal, formData.medicalConditions],
     );
+
+    const api = useApiClient();
+    const searchIngredients = useCallback(async (q: string): Promise<string[]> => {
+        const { data } = await api.get('/food-items/base-ingredients', { params: { q, pageSize: 20 } });
+        return (data?.data ?? []).map((x: { name: string }) => x.name);
+    }, [api]);
+    const searchFoodItems = useCallback(async (q: string): Promise<string[]> => {
+        const { data } = await api.get('/food-items', { params: { q, pageSize: 20 } });
+        return (data?.data ?? []).map((x: { name: string }) => x.name);
+    }, [api]);
+    const searchConditions = useCallback(async (q: string): Promise<string[]> => {
+        const { data } = await api.get('/medical-conditions', { params: { q } });
+        return (data?.data ?? []).map((x: { name: string }) => x.name);
+    }, [api]);
 
     // Auto-fill suggestions until the user touches the multi-select.
     useEffect(() => {
@@ -334,15 +346,21 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Allergies</label>
-                                <textarea name="allergies" value={formData.allergies} onChange={handleChange} rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
-                                    placeholder="Dairy, Peanuts…" />
+                                <TagInput
+                                    value={formData.allergies}
+                                    onChange={(tags) => setFormData({ ...formData, allergies: tags })}
+                                    searchFn={searchIngredients}
+                                    placeholder="Search ingredients…"
+                                />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">Conditions</label>
-                                <textarea name="medicalConditions" value={formData.medicalConditions} onChange={handleChange} rows={2}
-                                    className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
-                                    placeholder="Diabetes, HTN…" />
+                                <TagInput
+                                    value={formData.medicalConditions}
+                                    onChange={(tags) => setFormData({ ...formData, medicalConditions: tags })}
+                                    searchFn={searchConditions}
+                                    placeholder="Search conditions…"
+                                />
                             </div>
                         </div>
                     </div>
@@ -360,7 +378,8 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 <TagInput
                                     value={formData.dislikes}
                                     onChange={(tags) => setFormData({ ...formData, dislikes: tags })}
-                                    placeholder="Type a food, press Enter…"
+                                    searchFn={searchFoodItems}
+                                    placeholder="Search foods…"
                                 />
                             </div>
                             <div>
@@ -368,7 +387,8 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                                 <TagInput
                                     value={formData.likedFoods}
                                     onChange={(tags) => setFormData({ ...formData, likedFoods: tags })}
-                                    placeholder="Type a food, press Enter…"
+                                    searchFn={searchFoodItems}
+                                    placeholder="Search foods…"
                                 />
                             </div>
                         </div>

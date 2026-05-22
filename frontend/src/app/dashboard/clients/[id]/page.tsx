@@ -27,6 +27,7 @@ import {
     MessageCircle,
     UserPlus,
     X,
+    Eye,
 } from 'lucide-react';
 import { useClient, useClientProgress, useUpdateClient } from '@/lib/hooks/use-clients';
 import { useTeam } from '@/lib/hooks/use-team';
@@ -37,6 +38,8 @@ import { useMealLogs } from '@/lib/hooks/use-meal-logs';
 import { getInitials, calculateAge } from '@/lib/utils/formatters';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { EditClientModal, type EditClientFormData } from '@/components/modals/edit-client-modal';
+import { NotesViewModal } from '@/components/clients/notes-view-modal';
+import { NotesContent } from '@/components/clients/notes-content';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 import { useSetClientTags } from '@/lib/hooks/use-tags';
 import { TagChip } from '@/components/clients/tag-chip';
@@ -440,6 +443,7 @@ export default function ClientProfilePage() {
     const [consultationModalOpen, setConsultationModalOpen] = useState(false);
     const [reassignOpen, setReassignOpen] = useState(false);
     const [reassignUserId, setReassignUserId] = useState('');
+    const [notesViewOpen, setNotesViewOpen] = useState(false);
     const { data: org } = useOrganization();
     const setClientTags = useSetClientTags();
     const { data: teamMembers = [] } = useTeam();
@@ -648,23 +652,39 @@ export default function ClientProfilePage() {
                             </div>
                         )}
 
-                        <div className="flex flex-col gap-1 md:min-w-[220px] md:max-w-[280px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
+                        <div className="flex flex-col gap-1 md:min-w-[220px] md:max-w-[320px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
                             <div className="flex items-center justify-between gap-2">
                                 <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Notes</p>
-                                <button
-                                    type="button"
-                                    onClick={() => setEditClientOpen(true)}
-                                    className="text-gray-400 hover:text-brand transition-colors"
-                                    aria-label="Edit notes"
-                                    title="Edit notes"
-                                >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    {(client.remarks || client.extractedNotes) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setNotesViewOpen(true)}
+                                            className="text-gray-400 hover:text-brand transition-colors p-0.5"
+                                            aria-label="View full notes"
+                                            title="View full notes"
+                                        >
+                                            <Eye className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditClientOpen(true)}
+                                        className="text-gray-400 hover:text-brand transition-colors p-0.5"
+                                        aria-label="Edit notes"
+                                        title="Edit notes"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
                             </div>
-                            {client.remarks ? (
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap break-words line-clamp-6">
-                                    {client.remarks}
-                                </p>
+                            {client.remarks || client.extractedNotes ? (
+                                <NotesContent
+                                    rawNotes={client.remarks}
+                                    extracted={client.extractedNotes?.extracted}
+                                    density="compact"
+                                    clamp
+                                />
                             ) : (
                                 <button
                                     type="button"
@@ -871,7 +891,6 @@ export default function ClientProfilePage() {
                             {/* Medical Summary */}
                             <MedicalSidebar
                                 clientId={clientId}
-                                clientRemarks={client.remarks}
                                 clientPreferences={{
                                     allergies: client.allergies ?? [],
                                     intolerances: client.intolerances ?? [],
@@ -1266,6 +1285,12 @@ export default function ClientProfilePage() {
                 client={client}
                 onSubmit={handleEditClient}
                 isLoading={updateClient.isPending}
+            />
+            <NotesViewModal
+                isOpen={notesViewOpen}
+                onClose={() => setNotesViewOpen(false)}
+                notes={client.remarks}
+                extracted={client.extractedNotes?.extracted}
             />
             <OnboardingLinkModal
                 isOpen={onboardingModalOpen}
