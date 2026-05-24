@@ -8,13 +8,20 @@ const googleClient = createGoogleGenerativeAI({
 });
 
 /**
- * Mini model — Gemini Flash
+ * Mini model — Gemini 2.5 Flash
  * Used for per-document extraction: high volume, low cost, runs eagerly on every upload.
  */
 export const miniModel = googleClient("gemini-2.5-flash");
 
 /**
- * Default model — GPT-5
+ * Agent model — Gemini 3.5 Flash (GA May 19, 2026).
+ * Used for tool-use heavy agentic flows (meal-plan drafter). Faster + cheaper
+ * than gpt-4o while matching its tool-use quality for structured agents.
+ */
+export const agentModel = googleClient("gemini-3.5-flash");
+
+/**
+ * Default model — GPT-4o
  * Used for the unified client summary: on-demand, dietitian-facing, premium quality synthesis.
  */
 export const defaultModel = openaiClient("gpt-4o");

@@ -56,9 +56,20 @@ function buildMessage(
             lines.push(`*Day ${day + 1} – ${dayLabel}*`);
         }
 
+        // Sort chronologically by time. Falls back to meal-type order when time
+        // is missing (defensive — every meal should have a time set).
+        const typeOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
+        const timeKey = (t: string | undefined): number => {
+            if (!t) return Infinity;
+            const [h, m] = t.split(':').map(Number);
+            if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
+            return Infinity;
+        };
         const meals = (weeklyMeals[day] || []).slice().sort((a, b) => {
-            const order = ['breakfast', 'lunch', 'dinner', 'snack'];
-            return order.indexOf(a.type) - order.indexOf(b.type);
+            const ta = timeKey(a.time);
+            const tb = timeKey(b.time);
+            if (ta !== tb) return ta - tb;
+            return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
         });
 
         if (meals.length === 0) {
@@ -71,11 +82,36 @@ function buildMessage(
                 lines.push(`${emoji} *${meal.name}*${timePart}`);
                 if (meal.description) lines.push(`  _${meal.description}_`);
                 if (meal.instructions) lines.push(`  📝 ${meal.instructions}`);
-                const defaultFoods = meal.foods.filter(f => f.optionGroup === 0);
-                for (const food of defaultFoods) {
-                    lines.push(`  • ${food.name} – ${food.quantity || `${food.quantityValue}g`}`);
+
+                // Group foods by optionGroup. Group 0 = primary (always eaten).
+                // Groups 1+ = alternatives within the meal (pick one per group).
+                const groups = new Map<number, typeof meal.foods>();
+                for (const f of meal.foods) {
+                    const g = f.optionGroup ?? 0;
+                    if (!groups.has(g)) groups.set(g, []);
+                    groups.get(g)!.push(f);
                 }
-                if (defaultFoods.length === 0) lines.push('  _No items_');
+                const sortedGroupKeys = Array.from(groups.keys()).sort((a, b) => a - b);
+
+                let totalRendered = 0;
+                for (const g of sortedGroupKeys) {
+                    const items = groups.get(g)!;
+                    if (g === 0) {
+                        for (const food of items) {
+                            lines.push(`  • ${food.name} – ${food.quantity || `${food.quantityValue}g`}`);
+                            totalRendered += 1;
+                        }
+                    } else {
+                        // Render alternatives joined by " OR " on a single sub-line so
+                        // the client clearly sees them as a pick-one group.
+                        const altLabel = items
+                            .map((f) => `${f.name} – ${f.quantity || `${f.quantityValue}g`}`)
+                            .join('  *OR*  ');
+                        lines.push(`  ↳ ${altLabel}`);
+                        totalRendered += items.length;
+                    }
+                }
+                if (totalRendered === 0) lines.push('  _No items_');
             }
         }
 

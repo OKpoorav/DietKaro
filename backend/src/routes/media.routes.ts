@@ -24,6 +24,11 @@ const BUCKET = process.env.S3_BUCKET || 'healthpractix-media';
 
 const ALLOWED_PREFIXES = ['meal-photos', 'weight-photos', 'reports', 'profile-photos'];
 
+// Some keys are nested deeper than `prefix/orgId/entity/file` — e.g. dietitian
+// uploaded reports use `clients/{clientId}/reports/{role}/{file}`. We accept
+// these as long as the first path segment is one of these top-level namespaces.
+const ALLOWED_NAMESPACES = new Set([...ALLOWED_PREFIXES, 'clients']);
+
 // ─── Signed download tokens ────────────────────────────────────────
 // Short-lived HMAC tokens so authenticated users can open media in a
 // new browser tab (where Clerk/JWT headers aren't available).
@@ -234,6 +239,94 @@ router.get('/:prefix/:orgId/:entityId/:filename',
             }
             logger.error('Media fetch failed', { error: error.message });
             res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch image' } });
+        }
+    }
+);
+
+/**
+ * GET /media/* — catch-all for deeper S3 keys (e.g. dietitian reports stored as
+ * `clients/{clientId}/reports/{role}/{file}` which the fixed 4-segment route
+ * above cannot match). Auth path:
+ *   1) signed download token (?token=) for the EXACT key — preferred
+ *   2) Clerk session + DB lookup to verify org membership
+ *   3) Client JWT + DB lookup
+ *
+ * Mounted last so it never shadows the explicit 4-segment routes.
+ */
+import prisma from '../utils/prisma';
+
+router.get('/{*splat}',
+    async (req: any, res: Response, next: any) => {
+        const token = req.query.token as string | undefined;
+        if (token) {
+            const verified = verifyDownloadToken(token);
+            if (verified) {
+                req._downloadToken = verified;
+                return next();
+            }
+        }
+        requireAuth(req, res, (err?: any) => {
+            if (!err && req.user) return next();
+            requireClientAuth(req, res, (err2?: any) => {
+                if (!err2 && req.client) return next();
+                return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+            });
+        });
+    },
+    async (req: any, res: Response) => {
+        try {
+            // Reconstruct the full key. Express 5 `{*splat}` puts segments in
+            // params.splat (array) or as a string depending on path-to-regexp
+            // build — handle both.
+            const splat = req.params.splat;
+            const key = Array.isArray(splat) ? splat.join('/') : (splat ?? '');
+            if (!key) {
+                return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Missing key' } });
+            }
+
+            const firstSegment = key.split('/')[0];
+            if (!ALLOWED_NAMESPACES.has(firstSegment)) {
+                return res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: `Invalid prefix '${firstSegment}'.` } });
+            }
+
+            // Token-based auth: token must be signed for the EXACT key.
+            if (req._downloadToken) {
+                if (req._downloadToken.key !== key) {
+                    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Token does not match requested resource' } });
+                }
+            } else {
+                // Session-based auth: derive expected orgId from key shape and compare.
+                const segments = key.split('/');
+                const userOrgId: string | undefined = req.user?.organizationId || req.client?.orgId;
+                if (!userOrgId) {
+                    return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+                }
+
+                let keyOrgId: string | null = null;
+                if (firstSegment === 'clients') {
+                    // shape: clients/{clientId}/...  → resolve org via DB lookup.
+                    const clientId = segments[1];
+                    if (clientId) {
+                        const c = await prisma.client.findFirst({ where: { id: clientId }, select: { orgId: true } });
+                        keyOrgId = c?.orgId ?? null;
+                    }
+                } else {
+                    // legacy shape: {prefix}/{orgId}/...
+                    keyOrgId = segments[1] ?? null;
+                }
+
+                if (!keyOrgId || keyOrgId !== userOrgId) {
+                    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+                }
+            }
+
+            await serveFromS3(key, res);
+        } catch (error: any) {
+            if (error.name === 'NoSuchKey') {
+                return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'File not found' } });
+            }
+            logger.error('Media wildcard fetch failed', { error: error.message });
+            res.status(500).json({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch file' } });
         }
     }
 );

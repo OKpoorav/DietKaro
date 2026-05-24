@@ -370,10 +370,20 @@ function BuilderContent() {
             return defaultTime[type];
         };
 
+        const timeKey = (t: string | null | undefined, type: 'breakfast' | 'lunch' | 'snack' | 'dinner'): number => {
+            const src = t ?? defaultTime[type];
+            const [h, m] = src.split(':').map(Number);
+            if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
+            return Infinity;
+        };
+
         const map: Record<number, LocalMeal[]> = {};
         for (const day of draft.days) {
+            // Sort meals chronologically — the agent assigns sequenceNumber in
+            // parse order (the order it encountered text), which jumbles
+            // morning snacks below dinner in the UI / PDF / WhatsApp share.
             const meals: LocalMeal[] = [...day.meals]
-                .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+                .sort((a, b) => timeKey(a.timeOfDay, a.mealType) - timeKey(b.timeOfDay, b.mealType))
                 .map((meal) => ({
                     id: makeTempId(),
                     name: meal.name || meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1),

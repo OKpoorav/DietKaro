@@ -961,13 +961,22 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             dayMeals.forEach(m => {
                 const mealType = inferMealType(m.name);
                 // Meal structure saves: strip all food items, keep only slots
-                const foodItems = slotOnly ? [] : m.foods.map(f => ({
-                    foodId: f.id,
-                    quantityG: f.quantityValue,
-                    notes: f.quantity,
-                    optionGroup: f.optionGroup,
-                    optionLabel: f.optionLabel,
-                }));
+                const foodItems = slotOnly ? [] : m.foods.map(f => {
+                    // Coerce defensively: quantityValue can become a string if the
+                    // value originated from a Prisma Decimal (loaded plan/template)
+                    // and was never re-set via the qty input. The backend schema
+                    // is strict z.number() so any stringy value crashes publish.
+                    const qty = typeof f.quantityValue === 'number'
+                        ? f.quantityValue
+                        : Number(f.quantityValue);
+                    return {
+                        foodId: f.id,
+                        quantityG: Number.isFinite(qty) && qty > 0 ? qty : 100,
+                        notes: f.quantity,
+                        optionGroup: f.optionGroup,
+                        optionLabel: f.optionLabel,
+                    };
+                });
                 if (isTemplateMode) {
                     apiMeals.push({
                         dayOfWeek: parseInt(dayIdx),

@@ -58,6 +58,20 @@ function groupMealsByDate(meals: MealWithFoodItems[], startDate: Date): {
         typeMap.get(type)!.push(meal);
     }
 
+    // Sort meals within each type group by time-of-day. A snack at 07:00 must
+    // not appear after a snack at 21:00 just because they share `type=snack`.
+    const timeKey = (t: string | null | undefined): number => {
+        if (!t) return Infinity;
+        const [h, m] = t.split(':').map(Number);
+        if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
+        return Infinity;
+    };
+    for (const typeMap of byDate.values()) {
+        for (const list of typeMap.values()) {
+            list.sort((a, b) => timeKey(a.timeOfDay) - timeKey(b.timeOfDay));
+        }
+    }
+
     const sortedDateKeys = Array.from(byDate.keys()).sort();
     const mealTypes = MEAL_TYPE_ORDER.filter(t => mealTypesFound.has(t));
     return { sortedDateKeys, byDate, mealTypes };
