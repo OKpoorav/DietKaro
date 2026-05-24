@@ -99,7 +99,7 @@ app.use((req, res, next) => {
     const p = req.path;
     const isMobileRoute = p.startsWith('/api/v1/client') && !p.startsWith('/api/v1/clients');
     if (isMobileRoute) return next();
-    return clerkMiddleware({ clockSkewInMs: 10_000 })(req, res, next);
+    return clerkMiddleware()(req, res, next);
 });
 
 // Health check (liveness)

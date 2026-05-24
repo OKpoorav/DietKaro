@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, CopyPlus, Files, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown, Sparkles } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -76,6 +76,33 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
     const sameDay = otherPaneDay !== undefined && otherPaneDay === dayIndex;
     const dayMeals = builder.getDayMeals(dayIndex);
     const dayKcal = builder.getDayNutrition(dayIndex).calories;
+    const [showCopyAllConfirm, setShowCopyAllConfirm] = useState(false);
+    const [showCopyToSelected, setShowCopyToSelected] = useState(false);
+    const [copyToSelection, setCopyToSelection] = useState<Set<number>>(() => new Set());
+
+    const sourceIsEmpty = dayMeals.length === 0 || dayMeals.every(m => m.foods.length === 0);
+    const canBulkCopy = builder.numDays > 1 && !sourceIsEmpty;
+
+    const handleCopyToAll = () => {
+        builder.copyDayToAll(dayIndex);
+        setShowCopyAllConfirm(false);
+    };
+    const openCopyToSelected = () => {
+        setCopyToSelection(new Set());
+        setShowCopyToSelected(true);
+    };
+    const toggleSelection = (i: number) => {
+        setCopyToSelection(prev => {
+            const next = new Set(prev);
+            if (next.has(i)) next.delete(i);
+            else next.add(i);
+            return next;
+        });
+    };
+    const handleCopyToSelectedConfirm = () => {
+        builder.copyDayToSelected(dayIndex, Array.from(copyToSelection));
+        setShowCopyToSelected(false);
+    };
 
     return (
         <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto pr-1">
@@ -100,7 +127,7 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
                     <button
                         onClick={() => builder.copyDay(dayIndex)}
                         className="h-8 px-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors"
-                        title="Copy Day"
+                        title="Copy Day (to clipboard)"
                     >
                         <Copy className="w-3.5 h-3.5" />
                     </button>
@@ -111,6 +138,24 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
                         title="Paste Day"
                     >
                         <ClipboardPaste className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                        onClick={() => setShowCopyAllConfirm(true)}
+                        disabled={!canBulkCopy}
+                        className="h-8 px-2 inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors disabled:opacity-30"
+                        title={sourceIsEmpty ? 'Day is empty' : `Copy Day ${dayIndex + 1} to all other days`}
+                    >
+                        <CopyPlus className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-medium hidden md:inline">All</span>
+                    </button>
+                    <button
+                        onClick={openCopyToSelected}
+                        disabled={!canBulkCopy}
+                        className="h-8 px-2 inline-flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md transition-colors disabled:opacity-30"
+                        title={sourceIsEmpty ? 'Day is empty' : `Copy Day ${dayIndex + 1} to selected days`}
+                    >
+                        <Files className="w-3.5 h-3.5" />
+                        <span className="text-[11px] font-medium hidden md:inline">Selected</span>
                     </button>
                     <button
                         onClick={() => builder.clearDay(dayIndex)}
@@ -160,6 +205,77 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
                     hasMealClipboard={!!builder.clipboardMeal}
                 />
             </ErrorBoundary>
+
+            {/* Copy-to-all confirmation */}
+            {showCopyAllConfirm && (
+                <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <h3 className="text-base font-bold text-gray-900">Overwrite all other days with Day {dayIndex + 1}?</h3>
+                        <p className="text-sm text-gray-600">
+                            This replaces every other day's meals with a copy of Day {dayIndex + 1}. It can't be undone.
+                        </p>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowCopyAllConfirm(false)}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCopyToAll}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm"
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Copy-to-selected days modal */}
+            {showCopyToSelected && (
+                <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/40 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-bold text-gray-900">Copy Day {dayIndex + 1} to selected days</h3>
+                            <button onClick={() => setShowCopyToSelected(false)} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
+                        </div>
+                        <p className="text-xs text-gray-500">Select days to copy to (will overwrite):</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {Array.from({ length: builder.numDays }, (_, i) => i).filter(i => i !== dayIndex).map(i => (
+                                <label key={i} className="flex items-center gap-2 px-2.5 py-2 rounded-md border border-gray-200 hover:border-brand hover:bg-brand/5 cursor-pointer transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={copyToSelection.has(i)}
+                                        onChange={() => toggleSelection(i)}
+                                        className="w-3.5 h-3.5 accent-brand"
+                                    />
+                                    <span className="text-sm text-gray-700">Day {i + 1}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowCopyToSelected(false)}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCopyToSelectedConfirm}
+                                disabled={copyToSelection.size === 0}
+                                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-brand rounded-xl hover:bg-brand/90 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                Copy to {copyToSelection.size} day{copyToSelection.size === 1 ? '' : 's'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -540,6 +540,53 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         toast.success('Day cleared');
     }, [client]);
 
+    /** Internal: deep-clone a day's meals with fresh temp IDs so edits to one
+     *  copy don't bleed into another. */
+    const cloneDay = (meals: LocalMeal[]): LocalMeal[] =>
+        meals.map(m => ({
+            ...m,
+            id: makeId(),
+            foods: m.foods.map(f => ({ ...f, tempId: makeId() })),
+        }));
+
+    /** Replace every other day in the plan with a clone of `fromDayIndex`. */
+    const copyDayToAll = useCallback((fromDayIndex: number) => {
+        const source = weeklyMeals[fromDayIndex];
+        if (!source || source.length === 0) {
+            toast.error('Nothing to copy — this day is empty');
+            return;
+        }
+        setWeeklyMealsDirty(prev => {
+            const next = { ...prev };
+            for (let i = 0; i < numDays; i += 1) {
+                if (i === fromDayIndex) continue;
+                next[i] = cloneDay(source);
+            }
+            return next;
+        });
+        toast.success(`Copied Day ${fromDayIndex + 1} to ${numDays - 1} day(s)`);
+    }, [weeklyMeals, numDays, setWeeklyMealsDirty]);
+
+    /** Replace specified target days with a clone of `fromDayIndex`. */
+    const copyDayToSelected = useCallback((fromDayIndex: number, targetIndices: number[]) => {
+        const source = weeklyMeals[fromDayIndex];
+        if (!source || source.length === 0) {
+            toast.error('Nothing to copy — this day is empty');
+            return;
+        }
+        const targets = targetIndices.filter(i => i !== fromDayIndex && i >= 0 && i < numDays);
+        if (targets.length === 0) {
+            toast.error('Pick at least one day to copy to');
+            return;
+        }
+        setWeeklyMealsDirty(prev => {
+            const next = { ...prev };
+            for (const i of targets) next[i] = cloneDay(source);
+            return next;
+        });
+        toast.success(`Copied Day ${fromDayIndex + 1} to ${targets.length} day(s)`);
+    }, [weeklyMeals, numDays, setWeeklyMealsDirty]);
+
     // Per-meal clipboard — independent of clipboardDay.
     const copyMeal = useCallback((dayIndex: number, mealId: string) => {
         const meal = (weeklyMeals[dayIndex] || []).find(m => m.id === mealId);
@@ -1167,6 +1214,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         clipboardDay,
         copyDay,
         pasteDay,
+        copyDayToAll,
+        copyDayToSelected,
         clearDay,
         clipboardMeal,
         copyMeal,

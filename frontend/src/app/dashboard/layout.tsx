@@ -107,14 +107,23 @@ export default function DashboardLayout({
                     sidebarCollapsed ? 'w-16' : 'w-64'
                 )}
             >
-                {/* Logo */}
-                <div className={cn('flex items-center h-16 border-b border-gray-200 flex-shrink-0', sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-4')}>
-                    <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
-                        <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center shrink-0">
+                {/* Logo — padding matches the nav wrapper below so the logo box and the
+                    first nav item's active tile share the same left/right edges. */}
+                <div className={cn('flex items-center h-16 border-b border-gray-200 flex-shrink-0', sidebarCollapsed ? 'justify-center px-2' : 'justify-between px-3')}>
+                    {sidebarCollapsed ? (
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center justify-center w-full p-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                            title="HealthPractix"
+                        >
                             <UtensilsCrossed className="w-5 h-5 text-white" />
-                        </div>
-                        {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 truncate">HealthPractix</span>}
-                    </Link>
+                        </Link>
+                    ) : (
+                        <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors min-w-0">
+                            <UtensilsCrossed className="w-5 h-5 text-emerald-600 shrink-0" />
+                            <span className="text-lg font-bold text-gray-900 truncate">HealthPractix</span>
+                        </Link>
+                    )}
                     <button
                         className="lg:hidden p-2 text-gray-500 hover:text-gray-700"
                         onClick={() => setSidebarOpen(false)}
@@ -218,7 +227,7 @@ export default function DashboardLayout({
 
                 {/* Desktop top bar */}
                 <header className="sticky top-0 z-30 bg-white border-b border-gray-200 hidden lg:block">
-                    <div className="flex items-center justify-end h-14 px-6 gap-3">
+                    <div className="flex items-center justify-end h-16 px-6 gap-3">
                         <NotificationDropdown />
                         <UserButton afterSignOutUrl="/" />
                     </div>
