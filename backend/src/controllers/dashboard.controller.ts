@@ -221,7 +221,7 @@ export const getDietitianAnalytics = asyncHandler(async (req: AuthenticatedReque
             WHERE dp."orgId" = ${orgId}
               AND dp."status" = 'active'
               AND dp."deletedAt" IS NULL
-              AND c."primaryDietitianId" = ANY(${dietitianIds}::uuid[])
+              AND c."primaryDietitianId" = ANY(${dietitianIds}::text[])
             GROUP BY c."primaryDietitianId"
         `,
 
@@ -234,7 +234,7 @@ export const getDietitianAnalytics = asyncHandler(async (req: AuthenticatedReque
               AND ml."status" IN ('eaten', 'skipped', 'substituted')
               AND ml."reviewedByUserId" IS NULL
               AND ml."deletedAt" IS NULL
-              AND c."primaryDietitianId" = ANY(${dietitianIds}::uuid[])
+              AND c."primaryDietitianId" = ANY(${dietitianIds}::text[])
             GROUP BY c."primaryDietitianId"
         `,
 
@@ -246,7 +246,7 @@ export const getDietitianAnalytics = asyncHandler(async (req: AuthenticatedReque
             WHERE ml."orgId" = ${orgId}
               AND ml."scheduledDate" >= ${thirtyDaysAgo}
               AND ml."deletedAt" IS NULL
-              AND c."primaryDietitianId" = ANY(${dietitianIds}::uuid[])
+              AND c."primaryDietitianId" = ANY(${dietitianIds}::text[])
             GROUP BY c."primaryDietitianId", ml."status"
         `,
     ]);

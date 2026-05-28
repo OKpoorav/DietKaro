@@ -69,7 +69,9 @@ export function useAiMealPlanDraft() {
     const api = useApiClient();
     return useMutation({
         mutationFn: async (input: { clientId: string; prompt: string }): Promise<MealPlanDraftResult> => {
-            const { data } = await api.post('/diet-plans/ai-draft', input);
+            // Agent can run 30-90s for multi-day plans; explicit long timeout so
+            // axios doesn't bail before nginx/upstream replies.
+            const { data } = await api.post('/diet-plans/ai-draft', input, { timeout: 180_000 });
             return data.data as MealPlanDraftResult;
         },
     });
