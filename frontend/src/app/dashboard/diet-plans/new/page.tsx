@@ -903,8 +903,17 @@ function BuilderContent() {
                     numDays={builder.numDays}
                     weeklyMeals={builder.weeklyMeals}
                     onClose={() => {
+                        // Navigate FIRST, then clear state. Doing it in the
+                        // opposite order caused the modal-close click to be
+                        // batched with the state update and the navigation
+                        // got dropped on some renders. Wrap in setTimeout so
+                        // React commits the state change before the route
+                        // transition starts.
+                        const target = whatsAppNav;
                         setWhatsAppNav(null);
-                        router.push(whatsAppNav);
+                        setTimeout(() => {
+                            if (target) router.push(target);
+                        }, 0);
                     }}
                 />
             )}
