@@ -50,7 +50,9 @@ function dayNumberToWeekday(dayNumber: number): typeof DAY_OF_WEEK[number] {
 
 export interface GenerateDraftInput {
     prompt: string;
-    clientId: string;
+    /** Null in template mode — validation against client allergies/diet is skipped. */
+    clientId: string | null;
+    templateMode: boolean;
     orgId: string;
     userId: string;
 }
@@ -73,6 +75,7 @@ export class AiMealPlanDraftService {
 
         logger.info('AI meal-plan draft assembled', {
             clientId: input.clientId,
+            templateMode: input.templateMode,
             ...summary,
         });
 
@@ -157,7 +160,7 @@ export class AiMealPlanDraftService {
     /** Re-validate every item server-side and attach severity/alerts + scaled nutrition. */
     private async resolveDays(
         payload: AgentDraftPayload,
-        clientId: string,
+        clientId: string | null,
         nutritionByFoodId: Map<string, FoodNutritionRow>,
     ): Promise<ResolvedDay[]> {
         const days: ResolvedDay[] = [];
@@ -166,7 +169,11 @@ export class AiMealPlanDraftService {
             const meals = await Promise.all(
                 day.meals.map((meal) => this.resolveMeal(meal, day, clientId, nutritionByFoodId)),
             );
-            days.push({ dayNumber: day.dayNumber, meals });
+            days.push({
+                dayNumber: day.dayNumber,
+                note: day.note?.trim() ? day.note.trim() : null,
+                meals,
+            });
         }
 
         return days;
@@ -175,7 +182,7 @@ export class AiMealPlanDraftService {
     private async resolveMeal(
         meal: DraftMeal,
         day: DraftDay,
-        clientId: string,
+        clientId: string | null,
         nutritionByFoodId: Map<string, FoodNutritionRow>,
     ) {
         const items = await Promise.all(
@@ -195,10 +202,18 @@ export class AiMealPlanDraftService {
         item: DraftFoodItem,
         meal: DraftMeal,
         day: DraftDay,
-        clientId: string,
+        clientId: string | null,
         nutritionByFoodId: Map<string, FoodNutritionRow>,
     ): Promise<ResolvedFoodItem> {
         const nutrition = this.scaleItemNutrition(item, nutritionByFoodId);
+        // Template mode — no client to validate against. Pass everything as GREEN.
+        if (!clientId) {
+            return {
+                ...item,
+                nutrition,
+                validation: { severity: ValidationSeverity.GREEN, alerts: [], blocked: false },
+            };
+        }
         try {
             const result = await validationEngine.validate(clientId, item.foodId, {
                 currentDay: dayNumberToWeekday(day.dayNumber),

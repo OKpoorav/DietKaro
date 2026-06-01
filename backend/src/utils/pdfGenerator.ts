@@ -38,6 +38,22 @@ function resolveMealDate(meal: MealWithFoodItems, planStartDate: Date): Date {
     return d;
 }
 
+/** Resolve a per-day note for a given dateKey (YYYY-MM-DD) by mapping back to day index from plan start. */
+function readDayNote(
+    plan: { startDate: Date; dayNotes?: unknown },
+    dateKey: string,
+): string | null {
+    if (!plan.dayNotes || typeof plan.dayNotes !== 'object') return null;
+    const start = new Date(plan.startDate);
+    start.setUTCHours(0, 0, 0, 0);
+    const date = new Date(dateKey + 'T00:00:00Z');
+    const idx = Math.round((date.getTime() - start.getTime()) / 86400000);
+    if (idx < 0) return null;
+    const map = plan.dayNotes as Record<string, unknown>;
+    const v = map[String(idx)];
+    return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
+
 /** Group meals into an ordered map of dateKey → (mealType → meals[]) */
 function groupMealsByDate(meals: MealWithFoodItems[], startDate: Date): {
     sortedDateKeys: string[];
@@ -163,6 +179,21 @@ export function generateDietPlanPDF(plan: DietPlanWithRelations): PDFKit.PDFDocu
         const date = new Date(dateKey + 'T00:00:00Z');
         const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
         const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+        const dayNote = readDayNote(plan, dateKey);
+
+        // Day-note band — spans full table width above the meals row.
+        if (dayNote) {
+            const noteH = 18;
+            if (tableY + noteH > 550) {
+                doc.addPage({ size: 'A4', layout: 'landscape' });
+                tableY = 40;
+            }
+            doc.rect(40, tableY, PAGE_W, noteH).fill('#fef3c7');
+            doc.rect(40, tableY, PAGE_W, noteH).strokeColor('#fcd34d').lineWidth(0.5).stroke();
+            doc.fontSize(8).fillColor('#92400e')
+                .text(`★ ${dayNote}`, 40 + 8, tableY + 5, { width: PAGE_W - 16 });
+            tableY += noteH;
+        }
 
         // Calculate row height needed
         let maxLines = 1;
@@ -306,10 +337,16 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
         `<th>${escapeHtml(MEAL_TYPE_LABELS[t] || t)}</th>`
     ).join('');
 
+    const totalCols = mealTypes.length + 1; // +1 for the date column
+
     // Build table rows
     const rows = sortedDateKeys.map(dateKey => {
         const typeMap = byDate.get(dateKey)!;
         const date = new Date(dateKey + 'T00:00:00Z');
+        const dayNote = readDayNote(plan, dateKey);
+        const noteRow = dayNote
+            ? `<tr class="day-note"><td colspan="${totalCols}">★ ${escapeHtml(dayNote)}</td></tr>`
+            : '';
 
         const tdCells = mealTypes.map(type => {
             const meals = typeMap.get(type) || [];
@@ -346,7 +383,7 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
             return `<td>${inner}</td>`;
         }).join('');
 
-        return `<tr><td class="date-cell"><strong>${escapeHtml(fmtDate(date))}</strong></td>${tdCells}</tr>`;
+        return `${noteRow}<tr><td class="date-cell"><strong>${escapeHtml(fmtDate(date))}</strong></td>${tdCells}</tr>`;
     }).join('');
 
     const targetsHtml = plan.targetCalories ? `
@@ -387,6 +424,7 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
         .option-label { font-size: 11px; font-weight: 600; color: #17cf54; margin: 4px 0 2px; }
         .or-divider { font-size: 10px; color: #9ca3af; text-align: center; margin: 4px 0; font-weight: 500; }
         .meal-cell + .meal-cell { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e5e7eb; }
+        tr.day-note td { background: #fef3c7 !important; color: #92400e; font-size: 11px; font-weight: 600; padding: 6px 12px; border-color: #fcd34d; }
         .notes { background: #f9fafb; padding: 16px 20px; border-radius: 10px; margin-top: 24px; }
         .notes h3 { font-size: 14px; margin-bottom: 8px; }
         .notes p { color: #374151; line-height: 1.6; }

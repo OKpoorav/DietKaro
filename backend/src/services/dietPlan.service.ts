@@ -8,6 +8,16 @@ import { getIO } from '../socket';
 import { notificationService } from './notification.service';
 import { invalidateClientCache } from '../utils/cache';
 
+/** Strip empty/whitespace-only entries; return undefined when nothing remains. */
+function normalizeDayNotes(input?: Record<string, string>): Record<string, string> | undefined {
+    if (!input) return undefined;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(input)) {
+        if (typeof v === 'string' && v.trim().length > 0) out[k] = v.trim();
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export class DietPlanService {
     async createPlan(data: CreateDietPlanInput, orgId: string, userId: string) {
         const isTemplate = data.options?.saveAsTemplate || false;
@@ -52,6 +62,7 @@ export class DietPlanService {
                 targetFiberG: data.targetFiberG,
                 notesForClient: data.notesForClient,
                 internalNotes: data.internalNotes,
+                dayNotes: normalizeDayNotes(data.dayNotes),
                 hideCaloriesFromClient: data.hideCaloriesFromClient ?? false,
                 status: isTemplate ? 'active' : 'draft',
                 isTemplate,
@@ -192,6 +203,7 @@ export class DietPlanService {
         if (data.targetFiberG !== undefined) updateData.targetFiberG = data.targetFiberG;
         if (data.notesForClient !== undefined) updateData.notesForClient = data.notesForClient;
         if (data.internalNotes !== undefined) updateData.internalNotes = data.internalNotes;
+        if (data.dayNotes !== undefined) updateData.dayNotes = normalizeDayNotes(data.dayNotes) ?? Prisma.JsonNull;
         if (data.hideCaloriesFromClient !== undefined) updateData.hideCaloriesFromClient = data.hideCaloriesFromClient;
 
         // If meals are provided, replace all existing meals atomically
@@ -470,6 +482,7 @@ export class DietPlanService {
                 targetFiberG: template.targetFiberG,
                 notesForClient: template.notesForClient,
                 internalNotes: template.internalNotes,
+                dayNotes: template.dayNotes ?? Prisma.JsonNull,
                 status: 'draft',
                 isTemplate: false,
                 meals: {

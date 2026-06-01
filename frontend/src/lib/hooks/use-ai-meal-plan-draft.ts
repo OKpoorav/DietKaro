@@ -47,6 +47,8 @@ export interface DraftMeal {
 
 export interface DraftDay {
     dayNumber: number;
+    /** Whole-day note populated by the AI. Surfaced above the day's meals. */
+    note?: string | null;
     meals: DraftMeal[];
 }
 
@@ -68,10 +70,13 @@ export interface MealPlanDraftResult {
 export function useAiMealPlanDraft() {
     const api = useApiClient();
     return useMutation({
-        mutationFn: async (input: { clientId: string; prompt: string }): Promise<MealPlanDraftResult> => {
+        mutationFn: async (input: { clientId?: string | null; prompt: string; templateMode?: boolean }): Promise<MealPlanDraftResult> => {
             // Agent can run 30-90s for multi-day plans; explicit long timeout so
             // axios doesn't bail before nginx/upstream replies.
-            const { data } = await api.post('/diet-plans/ai-draft', input, { timeout: 180_000 });
+            const body: Record<string, unknown> = { prompt: input.prompt };
+            if (input.clientId) body.clientId = input.clientId;
+            if (input.templateMode || !input.clientId) body.templateMode = true;
+            const { data } = await api.post('/diet-plans/ai-draft', body, { timeout: 180_000 });
             return data.data as MealPlanDraftResult;
         },
     });

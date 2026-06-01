@@ -5,7 +5,7 @@ import { useDietPlan, usePublishDietPlan, useUpdateDietPlan, useExtendDietPlan }
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ArrowLeft, Calendar, User, FileText, Utensils, Loader2, Clock, AlertCircle, Pencil, Download, Printer, RefreshCw, SquarePen, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useApiClient } from '@/lib/api/use-api-client';
 import { toast } from 'sonner';
 import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
@@ -81,7 +81,18 @@ function MealCell({ meal }: { meal: any }) {
     );
 }
 
-function MealsSpreadsheet({ meals, startDate }: { meals: any[]; startDate: string }) {
+function MealsSpreadsheet({ meals, startDate, dayNotes }: { meals: any[]; startDate: string; dayNotes?: Record<string, string> | null }) {
+    /** Resolve the per-day note for a given date key (YYYY-MM-DD). */
+    const noteForDate = (dateKey: string): string | null => {
+        if (!dayNotes) return null;
+        const start = new Date(startDate);
+        start.setUTCHours(0, 0, 0, 0);
+        const d = new Date(dateKey + 'T00:00:00Z');
+        const idx = Math.round((d.getTime() - start.getTime()) / 86400000);
+        if (idx < 0) return null;
+        const v = dayNotes[String(idx)];
+        return typeof v === 'string' && v.trim() ? v.trim() : null;
+    };
     // Build date → mealName → meal[] map, using meal name as the column key
     const dateMap = new Map<string, Map<string, any[]>>();
     const columnSet = new Map<string, { time: string }>(); // track earliest time per column
@@ -147,30 +158,41 @@ function MealsSpreadsheet({ meals, startDate }: { meals: any[]; startDate: strin
                         const dayLabel = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
                         const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
                         const isEven = rowIdx % 2 === 0;
+                        const note = noteForDate(dateKey);
+                        const totalCols = columns.length + 1;
 
                         return (
-                            <tr key={dateKey} className={isEven ? 'bg-white' : 'bg-gray-50/50'}>
-                                <td className={`px-4 py-3 border-b border-r border-gray-200 sticky left-0 z-10 ${isEven ? 'bg-white' : 'bg-gray-50/50'}`}>
-                                    <p className="font-semibold text-gray-800 text-sm">{dayLabel}</p>
-                                    <p className="text-xs text-gray-400">{dateLabel}</p>
-                                </td>
-                                {columns.map(col => {
-                                    const cellMeals = nameMap.get(col) || [];
-                                    return (
-                                        <td key={col} className="px-4 py-3 border-b border-r border-gray-200 align-top">
-                                            {cellMeals.length > 0 ? (
-                                                <div className="space-y-2">
-                                                    {cellMeals.map((meal: any, mi: number) => (
-                                                        <MealCell key={meal.id || mi} meal={meal} />
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-200 text-xs">—</span>
-                                            )}
+                            <Fragment key={dateKey}>
+                                {note && (
+                                    <tr className="bg-amber-50">
+                                        <td colSpan={totalCols} className="px-4 py-2 border-b border-amber-200 text-xs font-semibold text-amber-800 sticky left-0">
+                                            <span className="mr-1.5">★</span>{note}
                                         </td>
-                                    );
-                                })}
-                            </tr>
+                                    </tr>
+                                )}
+                                <tr className={isEven ? 'bg-white' : 'bg-gray-50/50'}>
+                                    <td className={`px-4 py-3 border-b border-r border-gray-200 sticky left-0 z-10 ${isEven ? 'bg-white' : 'bg-gray-50/50'}`}>
+                                        <p className="font-semibold text-gray-800 text-sm">{dayLabel}</p>
+                                        <p className="text-xs text-gray-400">{dateLabel}</p>
+                                    </td>
+                                    {columns.map(col => {
+                                        const cellMeals = nameMap.get(col) || [];
+                                        return (
+                                            <td key={col} className="px-4 py-3 border-b border-r border-gray-200 align-top">
+                                                {cellMeals.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {cellMeals.map((meal: any, mi: number) => (
+                                                            <MealCell key={meal.id || mi} meal={meal} />
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-200 text-xs">—</span>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            </Fragment>
                         );
                     })}
                 </tbody>
@@ -550,7 +572,7 @@ export default function DietPlanDetailPage() {
                     }
                 >
                 {plan.meals && plan.meals.length > 0 ? (
-                    <MealsSpreadsheet meals={plan.meals} startDate={plan.startDate} />
+                    <MealsSpreadsheet meals={plan.meals} startDate={plan.startDate} dayNotes={plan.dayNotes} />
                 ) : (
                     <div className="text-center py-12 text-gray-500">
                         <Utensils className="w-8 h-8 mx-auto mb-2 text-gray-400" />
@@ -683,6 +705,9 @@ export default function DietPlanDetailPage() {
                     startDate={whatsAppData.startDate}
                     numDays={whatsAppData.numDays}
                     weeklyMeals={whatsAppData.weeklyMeals}
+                    dayNotes={plan.dayNotes
+                        ? Object.fromEntries(Object.entries(plan.dayNotes).map(([k, v]) => [Number(k), v]))
+                        : undefined}
                     onClose={() => setShowWhatsApp(false)}
                 />
             )}

@@ -9,19 +9,22 @@ import type { AiMealPlanDraftRequest } from '../schemas/aiMealPlan.schema';
 export const generateAiMealPlanDraft = asyncHandler(
     async (req: AuthenticatedRequest, res: Response) => {
         if (!req.user) throw AppError.unauthorized();
-        const { clientId, prompt } = req.body as AiMealPlanDraftRequest;
+        const { clientId, prompt, templateMode } = req.body as AiMealPlanDraftRequest;
         const orgId = req.user.organizationId;
 
-        // Authorization: client must belong to the dietitian's org.
-        const client = await prisma.client.findFirst({
-            where: { id: clientId, orgId },
-            select: { id: true },
-        });
-        if (!client) throw AppError.notFound('Client not found');
+        if (clientId) {
+            // Authorization: client must belong to the dietitian's org.
+            const client = await prisma.client.findFirst({
+                where: { id: clientId, orgId },
+                select: { id: true },
+            });
+            if (!client) throw AppError.notFound('Client not found');
+        }
 
         const result = await aiMealPlanDraftService.generateDraft({
             prompt,
-            clientId,
+            clientId: clientId ?? null,
+            templateMode: !!templateMode || !clientId,
             orgId,
             userId: req.user.id,
         });

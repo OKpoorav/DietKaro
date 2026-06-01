@@ -22,7 +22,8 @@ import type { AgentDraftPayload, DraftDay } from '../../../types/aiMealPlan.type
 import logger from '../../../utils/logger';
 
 export interface AgentToolContext {
-    clientId: string;
+    /** Null in template mode — agent has no client context, get_client_context/validate_food become noops. */
+    clientId: string | null;
     orgId: string;
     userId: string;
     /** Mutated by submit_draft. Read by the orchestrator after the agent finishes. */
@@ -37,6 +38,9 @@ export interface AgentToolContext {
 // Tight validation runs server-side (orchestrator + validationEngine) anyway.
 const draftDaySchema = z.object({
     dayNumber: z.number().int(),
+    // Optional whole-day note ("3L water", "30-min walk after dinner") — surfaced
+    // in the builder + PDF + WhatsApp + mobile app. Keep short.
+    note: z.string().max(500).nullable().optional(),
     meals: z.array(
         z.object({
             sequenceNumber: z.number().int(),
@@ -70,9 +74,13 @@ export const makeGetClientContextTool = (ctx: AgentToolContext) =>
         description:
             'Returns the client\'s preferences, allergies, intolerances, diet pattern, ' +
             'dislikes, and other restrictions. Call this ONCE at the start so you know ' +
-            'which foods are safe.',
+            'which foods are safe. In TEMPLATE MODE no client exists — this returns ' +
+            '{ templateMode: true } and you must rely solely on the prompt for restrictions.',
         inputSchema: z.object({}),
         execute: async () => {
+            if (!ctx.clientId) {
+                return { templateMode: true };
+            }
             const client = await prisma.client.findFirst({
                 where: { id: ctx.clientId, orgId: ctx.orgId },
                 select: {
@@ -262,6 +270,14 @@ export const makeValidateFoodTool = (ctx: AgentToolContext) =>
                 .default('monday'),
         }),
         execute: async ({ foodId, mealType, dayOfWeek }) => {
+            if (!ctx.clientId) {
+                return {
+                    severity: ValidationSeverity.GREEN,
+                    canAdd: true,
+                    alerts: [],
+                    templateMode: true,
+                };
+            }
             try {
                 const result = await validationEngine.validate(ctx.clientId, foodId, {
                     currentDay: dayOfWeek,

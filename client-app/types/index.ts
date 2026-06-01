@@ -78,6 +78,8 @@ export interface MealLog {
     dietitianFeedback?: string;
     dietitianFeedbackAt?: string;
     loggedAt?: string;
+    /** Full-day note set by the dietitian — same across every meal of that day. */
+    dayNote?: string | null;
     meal: Meal;
 }
 

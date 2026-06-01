@@ -52,6 +52,8 @@ export interface DraftMeal {
 export interface DraftDay {
     /** 1-indexed day number from the prompt. */
     dayNumber: number;
+    /** Optional whole-day note ("3L water", "30-min walk after dinner"). */
+    note?: string | null;
     meals: DraftMeal[];
 }
 

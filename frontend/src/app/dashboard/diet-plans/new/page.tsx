@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, CopyPlus, Files, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Send, Loader2, LayoutTemplate, SlidersHorizontal, Copy, CopyPlus, Files, ClipboardPaste, Eraser, Columns2, Square, Clock, CalendarDays, BookOpen, AlertTriangle, ChevronDown, Sparkles, StickyNote, X as XIcon } from 'lucide-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AddFoodModal } from '@/components/modals/add-food-modal';
 import { ClientSelector } from '@/components/diet-plan/client-selector';
@@ -59,6 +59,65 @@ function ClientPreferencesCard({ client }: { client: NonNullable<ReturnType<type
                     />
                 </div>
             )}
+        </div>
+    );
+}
+
+/**
+ * Per-day note card shown above the meal editor. Collapses to a single line
+ * "Add a note for the day" until the dietitian or AI writes something. Visible
+ * to the client after publish (PDF, WhatsApp, mobile app).
+ */
+function DayNoteCard({ value, onChange, onClear }: {
+    value: string;
+    onChange: (v: string) => void;
+    onClear: () => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const hasValue = value.trim().length > 0;
+    const showEditor = expanded || hasValue;
+
+    if (!showEditor) {
+        return (
+            <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="flex-shrink-0 w-full flex items-center gap-2 px-3 py-2 bg-amber-50/60 hover:bg-amber-50 border border-dashed border-amber-300 text-amber-700 text-xs font-medium rounded-lg transition-colors"
+                title="Add a note that applies to the entire day"
+            >
+                <StickyNote className="w-3.5 h-3.5" />
+                Add a note for this day
+                <span className="ml-auto text-[10px] text-amber-500 hidden md:inline">visible to client</span>
+            </button>
+        );
+    }
+
+    return (
+        <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2.5">
+            <div className="flex items-center gap-1.5 mb-1.5">
+                <StickyNote className="w-3.5 h-3.5 text-amber-700" />
+                <span className="text-[11px] font-semibold text-amber-800">Day note</span>
+                <span className="text-[10px] text-amber-600">visible to client</span>
+                {hasValue && (
+                    <button
+                        type="button"
+                        onClick={onClear}
+                        className="ml-auto text-amber-500 hover:text-amber-700 p-0.5"
+                        title="Clear note"
+                    >
+                        <XIcon className="w-3 h-3" />
+                    </button>
+                )}
+            </div>
+            <textarea
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="e.g. Hydration day — drink 3L water. 30-min walk after dinner."
+                rows={2}
+                maxLength={500}
+                onBlur={() => { if (!hasValue) setExpanded(false); }}
+                className="w-full text-sm text-amber-900 bg-white/60 placeholder:text-amber-400 border border-amber-200 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400 resize-y"
+            />
         </div>
     );
 }
@@ -179,6 +238,13 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
                 }}
                 onRemoveDay={builder.removeDay}
             />
+
+            <DayNoteCard
+                value={builder.dayNotes[dayIndex] ?? ''}
+                onChange={(v) => builder.updateDayNote(dayIndex, v)}
+                onClear={() => builder.clearDayNote(dayIndex)}
+            />
+
             <ErrorBoundary
                 fallback={
                     <div className="flex flex-col items-center justify-center p-6 bg-white rounded-xl border border-red-200">
@@ -494,6 +560,7 @@ function BuilderContent() {
         };
 
         const map: Record<number, LocalMeal[]> = {};
+        const notes: Record<number, string> = {};
         for (const day of draft.days) {
             // Sort meals chronologically — the agent assigns sequenceNumber in
             // parse order (the order it encountered text), which jumbles
@@ -524,9 +591,10 @@ function BuilderContent() {
                     })),
                 }));
             map[day.dayNumber - 1] = meals;
+            if (day.note && day.note.trim()) notes[day.dayNumber - 1] = day.note.trim();
         }
 
-        builder.replaceAllDays(map);
+        builder.replaceAllDays(map, notes);
 
         const { summary } = draft;
         const parts: string[] = [`${summary.totalItems - summary.blockedItems} added`];
@@ -649,6 +717,14 @@ function BuilderContent() {
                     </button>
                     {isTemplateMode ? (
                         <div className="flex gap-2">
+                            <button
+                                onClick={() => setShowAiDraft(true)}
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
+                                title="Draft this template from a free-form prompt"
+                            >
+                                <Sparkles className="w-4 h-4" />
+                                <span className="hidden sm:inline">AI Draft</span>
+                            </button>
                             <button
                                 onClick={() => builder.save(false, true)}
                                 disabled={builder.isSaving}
@@ -902,6 +978,7 @@ function BuilderContent() {
                     startDate={builder.startDate}
                     numDays={builder.numDays}
                     weeklyMeals={builder.weeklyMeals}
+                    dayNotes={builder.dayNotes}
                     onClose={() => {
                         // Navigate FIRST, then clear state. Doing it in the
                         // opposite order caused the modal-close click to be
@@ -1118,6 +1195,7 @@ function BuilderContent() {
             {/* AI Draft — chat + preview */}
             <AiDraftPanel
                 clientId={clientId}
+                templateMode={isTemplateMode}
                 isOpen={showAiDraft}
                 onClose={() => setShowAiDraft(false)}
                 onApply={handleAiDraftApply}

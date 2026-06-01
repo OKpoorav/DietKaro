@@ -13,6 +13,8 @@ export const createDietPlanSchema = z.object({
     targetFiberG: z.number().min(0).max(200).optional(),
     notesForClient: z.string().optional(),
     internalNotes: z.string().optional(),
+    // Per-day notes keyed by 0-indexed day-number-as-string. Empty strings are stripped server-side.
+    dayNotes: z.record(z.string(), z.string().max(1000)).optional(),
     hideCaloriesFromClient: z.boolean().optional(),
     meals: z.array(z.object({
         dayOfWeek: z.number().min(0).max(6).optional(),

@@ -10,6 +10,8 @@ import { AiDraftProgress } from './ai-draft-progress';
 
 interface AiDraftPanelProps {
     clientId: string | null;
+    /** When true, send the prompt without a client (used for templates). */
+    templateMode?: boolean;
     isOpen: boolean;
     onClose: () => void;
     onApply: (draft: MealPlanDraftResult) => void;
@@ -24,7 +26,7 @@ const PLACEHOLDER = `Day 1
 Day 2
   ...`;
 
-export function AiDraftPanel({ clientId, isOpen, onClose, onApply }: AiDraftPanelProps) {
+export function AiDraftPanel({ clientId, templateMode = false, isOpen, onClose, onApply }: AiDraftPanelProps) {
     const [prompt, setPrompt] = useState('');
     const [draft, setDraft] = useState<MealPlanDraftResult | null>(null);
     const [showPreview, setShowPreview] = useState(false);
@@ -46,7 +48,7 @@ export function AiDraftPanel({ clientId, isOpen, onClose, onApply }: AiDraftPane
     };
 
     const handleSubmit = async () => {
-        if (!clientId) {
+        if (!templateMode && !clientId) {
             toast.error('Select a client first');
             return;
         }
@@ -57,7 +59,11 @@ export function AiDraftPanel({ clientId, isOpen, onClose, onApply }: AiDraftPane
         setErrorMessage(null);
         startedAtRef.current = Date.now();
         try {
-            const result = await mutation.mutateAsync({ clientId, prompt: prompt.trim() });
+            const result = await mutation.mutateAsync({
+                clientId: templateMode ? null : clientId,
+                prompt: prompt.trim(),
+                templateMode,
+            });
             if (result.days.length === 0) {
                 setErrorMessage('Could not detect any days in the prompt — try a clearer format with explicit "Day 1", "Day 2" headers.');
                 return;
@@ -109,12 +115,18 @@ export function AiDraftPanel({ clientId, isOpen, onClose, onApply }: AiDraftPane
                     <div className="p-5 space-y-4">
                         <div className="rounded-md bg-brand/5 border border-brand/20 p-3">
                             <p className="text-xs text-gray-700 leading-relaxed">
-                                Paste a free-form meal plan and the AI will:
+                                {templateMode
+                                    ? 'Describe the template (calories, diet pattern, duration) — the AI will:'
+                                    : 'Paste a free-form meal plan and the AI will:'}
                             </p>
                             <ul className="text-xs text-gray-600 mt-1.5 space-y-0.5 list-disc list-inside">
                                 <li>Match foods to the database (case-insensitive)</li>
                                 <li>Create new food items when no match exists</li>
-                                <li>Block items the client is allergic / intolerant to</li>
+                                {templateMode ? (
+                                    <li>Apply restrictions you state in the prompt (e.g. "vegetarian", "no eggs")</li>
+                                ) : (
+                                    <li>Block items the client is allergic / intolerant to</li>
+                                )}
                                 <li>Use Indian household units (katori, cup, roti)</li>
                             </ul>
                             <p className="text-[11px] text-gray-500 mt-2">

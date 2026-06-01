@@ -105,6 +105,16 @@ export class ClientDashboardService {
             },
         });
 
+        // Today's day-note (relative to plan start)
+        const planStartUtc = new Date(activePlan.startDate);
+        planStartUtc.setUTCHours(0, 0, 0, 0);
+        const dayIdxFromPlanStart = Math.round((today.getTime() - planStartUtc.getTime()) / 86400000);
+        const dayNotesMap = (activePlan.dayNotes && typeof activePlan.dayNotes === 'object')
+            ? activePlan.dayNotes as Record<string, unknown>
+            : null;
+        const rawTodayNote = dayNotesMap?.[String(dayIdxFromPlanStart)];
+        const todayDayNote = typeof rawTodayNote === 'string' && rawTodayNote.trim() ? rawTodayNote.trim() : null;
+
         return activePlan.meals.map((meal) => {
             const log = mealLogs.find((l) => l.mealId === meal.id);
             const foodItems = meal.foodItems || [];
@@ -122,6 +132,7 @@ export class ClientDashboardService {
                 dietitianFeedback: log?.dietitianFeedback,
                 dietitianFeedbackAt: log?.dietitianFeedbackAt,
                 loggedAt: log?.loggedAt,
+                dayNote: todayDayNote,
                 meal: {
                     id: meal.id,
                     planId: meal.planId,
@@ -194,6 +205,14 @@ export class ClientDashboardService {
         const result: any[] = [];
         const currentDate = new Date(start);
 
+        // Pre-compute the plan's day-note lookup once. Keys in dayNotes are
+        // 0-indexed day-number strings relative to plan.startDate.
+        const planStartUtc = new Date(activePlan.startDate);
+        planStartUtc.setUTCHours(0, 0, 0, 0);
+        const dayNotesMap = (activePlan.dayNotes && typeof activePlan.dayNotes === 'object')
+            ? activePlan.dayNotes as Record<string, unknown>
+            : null;
+
         while (currentDate <= end) {
             const dayStart = new Date(currentDate);
             const dayEnd = new Date(currentDate);
@@ -202,6 +221,10 @@ export class ClientDashboardService {
             // Calculate day of week index (0=Monday, 6=Sunday)
             const jsDay = currentDate.getUTCDay();
             const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;
+
+            const dayIdxFromPlanStart = Math.round((dayStart.getTime() - planStartUtc.getTime()) / 86400000);
+            const rawNote = dayNotesMap?.[String(dayIdxFromPlanStart)];
+            const dayNote = typeof rawNote === 'string' && rawNote.trim() ? rawNote.trim() : null;
 
             // Filter meals for this specific day
             const dayMeals = activePlan.meals.filter(meal => {
@@ -239,6 +262,7 @@ export class ClientDashboardService {
                     dietitianFeedback: log?.dietitianFeedback,
                     dietitianFeedbackAt: log?.dietitianFeedbackAt,
                     loggedAt: log?.loggedAt,
+                    dayNote,
                     meal: {
                         id: meal.id,
                         planId: meal.planId,

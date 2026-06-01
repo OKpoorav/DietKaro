@@ -62,6 +62,8 @@ export interface DietPlan {
     mealCount?: number;
     numDays?: number;
     day0MealNames?: string[];
+    /** Per-day full-day notes keyed by 0-indexed day-number string. */
+    dayNotes?: Record<string, string> | null;
 }
 
 interface PaginatedResponse<T> {
@@ -95,6 +97,7 @@ export interface CreateDietPlanInput {
     targetFatsG?: number;
     notesForClient?: string;
     internalNotes?: string;
+    dayNotes?: Record<string, string>;
     hideCaloriesFromClient?: boolean;
     meals?: {
         dayOfWeek?: number;

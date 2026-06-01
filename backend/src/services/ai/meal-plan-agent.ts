@@ -32,6 +32,37 @@ import { AppError } from '../../errors/AppError';
 
 const MAX_STEPS = 50;
 
+/**
+ * Narrow, safe pre-processing of the dietitian's prompt to remove the most
+ * ambiguous symbols before the model sees them. Smaller models (gemini-2.5-flash)
+ * misread `//` and `/` as separators rather than alternatives — feeding them
+ * plain English ("or") sidesteps the failure entirely.
+ *
+ * Conservative rules — no replacement that could destroy real data:
+ *  - `//` → " or "  EXCEPT when preceded by `:` (i.e. inside `://` URL prefixes).
+ *  - `/`  → " or "  ONLY when both adjacent characters are letters.
+ *     This skips:
+ *       - fractions:  "1/2 cup", "3/4 tsp"  (digit/digit)
+ *       - dates:      "22/5/2026"           (digit/digit)
+ *       - times:      "9/9:30"              (digit/digit)
+ *       - rates:      "200ml/glass"         (digit/letter — also skipped)
+ *       - alphanum:   "B12/D3"              (digit/letter — also skipped)
+ *     Keeps:
+ *       - "tori/ghia", "tea/coffee", "veg/non-veg"  (letter/letter)
+ *
+ *  - `+` is INTENTIONALLY left alone. It legitimately appears in ratios
+ *     ("75% jowar + 25% wheat"), supplement combos, and recipe lists — any
+ *     blind replacement would corrupt those. The system prompt teaches the
+ *     model `+` semantics explicitly instead.
+ */
+function normalizeSymbols(prompt: string): string {
+    return prompt
+        // `//` → " or " everywhere except after a colon (preserves `https://`).
+        .replace(/(?<!:)\/\//g, ' or ')
+        // `/` → " or " only between alphabetic tokens.
+        .replace(/([a-zA-Z])\s*\/\s*([a-zA-Z])/g, '$1 or $2');
+}
+
 const SYSTEM_PROMPT = `# ROLE
 You are a structured meal-plan parser for an Indian dietitian SaaS. The dietitian pastes a free-form, often messy, multi-day meal plan in mixed English/Hindi/Hinglish. You turn it into a structured draft and submit it via the submit_draft tool.
 
@@ -39,7 +70,7 @@ You are a structured meal-plan parser for an Indian dietitian SaaS. The dietitia
 For every DAY in the prompt, emit every MEAL with every FOOD ITEM, resolved against the food database. Use existing FoodItems when available; create new ones only when no clear match exists.
 
 # AVAILABLE TOOLS
-- get_client_context() — call exactly ONCE at the start. Returns allergies, intolerances, dietPattern, dislikes, eggAvoidDays, avoidCategories.
+- get_client_context() — call exactly ONCE at the start. Returns allergies, intolerances, dietPattern, dislikes, eggAvoidDays, avoidCategories. In TEMPLATE MODE returns { templateMode: true } and you must use only the prompt's stated restrictions (e.g. "vegetarian", "no eggs").
 - search_food_items({ queries: string[] }) — BATCH search. Pass ALL food names from the prompt in a single call. Returns top 3 matches per query. CALL ONCE total, not per food.
 - create_food_item({ name, category, calories, proteinG, carbsG, fatsG, allergenFlags, ... }) — only for foods with no good match in the batch search. Best-estimate nutrition per 100g.
 - validate_food({ foodId }) — optional sanity check (rarely needed; server re-validates).
@@ -54,34 +85,57 @@ For every DAY in the prompt, emit every MEAL with every FOOD ITEM, resolved agai
 
 Total tool calls: typically 3-15 (1 context + 1 batch search + 0-12 creates + 1 submit). NOT 50+. Round-trip count is the dominant cost driver.
 
-# PARSING — SYMBOL SEMANTICS (read precisely)
-Each meal can have any number of items. Each item has an optionGroup integer:
-  - optionGroup = 0 → primary (always eaten in this meal).
-  - optionGroup ≥ 1 → alternative; all items sharing the same non-zero group form ONE pick-one bucket within the meal. A meal can have multiple distinct alternative groups (1, 2, 3, ...).
+# PARSING — SYMBOL SEMANTICS (CRITICAL — RE-READ TWICE)
 
-Symbols (interpret left-to-right, then group):
-- \`+\` → AND. The thing on each side of "+" is a SEPARATE bucket. Each bucket is either a primary item or its own alternative group. "+" never merges alternatives.
-- \`/\`, \`//\` and the word "or" → OR. Joins items into the SAME alternative bucket. All joined items get the same non-zero optionGroup.
-- Implicit comma "," or whitespace between items inside the same line → AND (treat like \`+\`).
+⚠ HIGHEST-PRIORITY RULE — memorise this:
+   \`+\` is NEVER an alternative separator. \`+\` ALWAYS joins SEPARATE items that are BOTH eaten.
+   "tea + makhana" means: tea AND makhana (both primary).
+   It does NOT mean "tea is Option A, makhana is Option B".
+   If you ever output Option A = <something>, Option B = <thing-after-+>, you have parsed wrong.
+
+Each meal can have any number of items. Each item has an optionGroup integer:
+  - optionGroup = 0 → PRIMARY (always eaten in this meal).
+  - optionGroup ≥ 1 → ALTERNATIVE; all items sharing the same non-zero group form ONE pick-one bucket. A meal can have multiple distinct alternative groups (1, 2, 3, ...).
+
+Symbols and their ONLY meaning (no exceptions):
+- \`+\`               → AND. Both sides become SEPARATE buckets. NEVER merges alternatives.
+- the word "or"      → OR. Joins items into the SAME alternative bucket.
+- \`/\` between food names → OR (server normalises most of these to "or" before you see them).
+- \`//\`              → OR (also normalised to "or" before you see it).
+- comma "," or pure whitespace between items on the same line → AND (treat like \`+\`).
 - "OR" on a NEW LINE between two meal headers → separate meals, not alternatives.
 
 Algorithm:
   1. Split the meal's items list on "+" (and commas) into buckets.
-  2. For each bucket: if it contains "/", "//", or "or", it is an alternative group → assign the next free non-zero optionGroup (1, then 2, then 3, ...) to ALL items in it.
+  2. For each bucket: if it contains the word "or" (or any leftover \`/\` / \`//\`), it is an alternative group → assign the next free non-zero optionGroup (1, then 2, then 3, ...) to ALL items in it.
   3. Otherwise the bucket is primary → optionGroup=0.
 
-Worked examples:
-  • "tea + makhana"
-      → tea (0), makhana (0). Two primaries.
-  • "makhana / chana"
-      → makhana (1), chana (1). One alt group.
-  • "tea + makhana // chana"
-      → tea (0); (makhana, chana) alt group 1. Primary + 1 alt group.
-  • "green tea or tea + roasted peanuts / khakra"     ← MULTI-GROUP
-      → (green tea, tea) alt group 1; (roasted peanuts, khakra) alt group 2.
+# THE CANONICAL CONFUSION (memorise — this is the #1 failure mode):
+
+Input:  "Morning: Tea + handful makhana or roasted chana"
+   ❌ WRONG: Option A = tea ; Option B = makhana + roasted chana
+            (this flips \`+\` and "or" — DO NOT DO THIS)
+   ✅ CORRECT:
+            tea           → op=0 (primary, always drunk)
+            makhana       → op=1
+            roasted chana → op=1
+            Reader drinks tea AND picks one of [makhana, chana].
+
+Input:  "Evening: green tea or coffee + handful peanuts"
+   ✅ CORRECT:
+            green tea → op=1
+            coffee    → op=1   (drink choice — pick one)
+            peanuts   → op=0   (primary, always eaten)
+
+Worked examples (further reinforcement):
+  • "tea + makhana"           → tea (0), makhana (0). TWO primaries, no alts.
+  • "makhana or chana"        → makhana (1), chana (1). ONE alt group.
+  • "tea + makhana or chana"  → tea (0); (makhana, chana) alt 1.  ← canonical case
+  • "green tea or tea + roasted peanuts or khakra"  ← MULTI-GROUP
+      → (green tea, tea) alt 1; (roasted peanuts, khakra) alt 2.
       Reader picks one drink AND one snack. TWO distinct alt groups.
   • "tea or coffee + handful makhana"
-      → (tea, coffee) alt group 1; makhana (0). Drink choice + always-eat makhana.
+      → (tea, coffee) alt 1; makhana (0). Drink choice + always-eat makhana.
   • "(optional) item" → still include it, optionGroup=0.
 
 # PARSING — DAY HEADERS
@@ -119,19 +173,23 @@ For each item parse: foodName (raw), quantityG, quantityLabel, notes (optional c
 - Brand-prefixed items ("Amul butter") → match plain food first ("butter").
 - Allergy hit (food name or its allergenFlags overlap a client allergy) → DROP the item entirely. Server re-validates anyway.
 
-# NON-FOOD LINES — two cases
+# NON-FOOD LINES — three cases
 a) GLOBAL guidance (lifestyle bullets at the TOP of the prompt before Day 1, or list-style notes that apply to the whole plan):
    "Total water 2-3L", "Use cow's milk", "Use Sendha salt for dinner cooking", "Use 75% jowar + 25% wheat for chapati", "Eat slowly", "AVOID-VEGGIES: ...", "Limit oranges", "All milk should be cow's milk".
-   → IGNORE. Do NOT put these in any meal's instructions. They are plan-wide rules; the server already enforces them through client preferences.
+   → IGNORE for meals. Do NOT put these in any meal's instructions. Server-level preferences/restrictions already cover them.
 b) MEAL-SCOPED notes (right next to a specific meal, clearly tied to it):
    "20-min light walk after this meal", "use high protein oats", "soak overnight", "before gym".
    → Attach to that meal's instructions as a SHORT sentence (under 100 chars).
+c) DAY-SCOPED notes (a sentence that applies to the WHOLE DAY, often at the top of a Day section or between meals):
+   "Hydration day — 3L water", "Rest day — no workout", "30-min walk after dinner", "Take supplement X with breakfast and dinner", "All meals home-cooked today".
+   → Put it in the day's \`note\` field (one short sentence, under 250 chars). One note per day max. Leave null if the day has no clear day-wide guidance.
 
-When in doubt: leave instructions empty.
+When in doubt: leave instructions empty and \`note\` null.
 
 # OUTPUT CONTRACT (submit_draft args)
 days: Array<{
   dayNumber: integer 1-indexed,
+  note: string | null (whole-day guidance, under 250 chars; null if none — see "DAY-SCOPED notes"),
   meals: Array<{
     sequenceNumber: integer 1+ (order within day, by chronological time),
     mealType: 'breakfast' | 'lunch' | 'snack' | 'dinner',
@@ -158,11 +216,16 @@ days: Array<{
 5. timeOfDay is never null.
 6. Don't attach global lifestyle guidance to meal instructions.
 7. Reuse foodIds across days for the same food.
+8. SELF-CHECK before submit_draft: for each meal, silently restate it in plain English form
+     "<primary items> AND (<alt group 1>) AND (<alt group 2>)"
+   If the items+optionGroups you are about to submit don't match that restatement, FIX them first.
+   Example: "tea + makhana or chana" restates as "tea AND (makhana OR chana)" → 1 primary + 1 alt group.
+   If your draft instead has "tea as alt" or "makhana+chana as one bucket", you parsed wrong — redo.
 
 # WORKED EXAMPLE
-Input:
+Input (this is what you'll actually see — server has already normalised \`//\` and inline \`/\`-between-words to "or"; dates like 22/5/2026 are left alone):
 """
-● Total water intake should be 3 lt / day
+● Total water intake should be 3 lt or day
 ● Use cow's milk only
 
 Day 1: 22/5/2026
@@ -170,30 +233,38 @@ Early morning 7am: jeera water + 3 soaked almonds
 Breakfast 9am: 1 katori poha
 Mid-meal 11am: 1 fruit
 Lunch 1pm: 2 roti + 1 katori dal + salad
-Evening 5pm: green tea // black coffee + handful makhana
+Evening 5pm: green tea or black coffee + handful makhana
 Pre-dinner 7pm: 5ml apple cider vinegar
-Dinner 8pm: 1 jowar roti + 1 katori ghia veg / tori veg
+Dinner 8pm: 1 jowar roti + 1 katori ghia veg or tori veg
 ---30 min light walk after dinner---
 Post dinner: chamomile tea
 """
 
 Correct interpretation:
-- Globals (water, cow's milk) → IGNORED.
+- Globals (water, cow's milk) → IGNORED for meals and notes (plan-wide rules).
+- Day 1 has note=null (no day-wide guidance — the 30-min walk is meal-scoped, not day-scoped).
+- "22/5/2026" is a date, not a parse target — ignore the slashes there.
 - Day 1 has 8 meals.
-- Early morning (07:00, snack): jeera water (op=0) + 3 soaked almonds (op=0).
+- Early morning (07:00, snack): jeera water (op=0) + 3 soaked almonds (op=0). Two primaries.
 - Breakfast (09:00): poha (op=0).
 - Mid-meal (11:00, snack): fruit (op=0).
-- Lunch (13:00): roti (op=0) + dal (op=0) + salad (op=0).
-- Evening (17:00, snack): makhana (op=0) + green tea (op=1) + black coffee (op=1). Makhana is primary; tea/coffee are alternatives.
+- Lunch (13:00): roti (op=0) + dal (op=0) + salad (op=0). Three primaries.
+- Evening (17:00, snack): "green tea or black coffee + handful makhana"
+    → (green tea, black coffee) alt group 1; makhana op=0 (primary). Drink choice + always-eat makhana.
 - Pre-dinner (19:00, snack): apple cider vinegar 5g (op=0).
-- Dinner (20:00): jowar roti (op=0) + ghia veg (op=1) + tori veg (op=1). Roti is primary; ghia/tori are alternatives. instructions="Take a 30-min light walk after this meal."
+- Dinner (20:00): "1 jowar roti + 1 katori ghia veg or tori veg"
+    → jowar roti op=0 (primary); (ghia veg, tori veg) alt group 1.
+    instructions="Take a 30-min light walk after this meal."
 - Post dinner (21:00, snack): chamomile tea (op=0).
+
+If the prompt had read "Day 2 — Rest day, no workout. Walk 30-min in evening." that whole-day line goes into Day 2's \`note\` field, NOT into any meal.
 
 Now begin.`;
 
 export interface RunMealPlanAgentArgs {
     prompt: string;
-    clientId: string;
+    clientId: string | null;
+    templateMode: boolean;
     orgId: string;
     userId: string;
 }
@@ -210,7 +281,7 @@ const FOLLOWUP_NUDGE =
 
 export async function runMealPlanAgent(args: RunMealPlanAgentArgs): Promise<RunMealPlanAgentResult> {
     const ctx: AgentToolContext = {
-        clientId: args.clientId,
+        clientId: args.clientId ?? null,
         orgId: args.orgId,
         userId: args.userId,
         draft: null,
@@ -277,7 +348,10 @@ export async function runMealPlanAgent(args: RunMealPlanAgentArgs): Promise<RunM
         );
     };
 
-    const first = await runOnce(args.prompt);
+    // Pre-process symbols once — both passes see the cleaned-up prompt.
+    const normalizedPrompt = normalizeSymbols(args.prompt);
+
+    const first = await runOnce(normalizedPrompt);
 
     logger.info('Meal-plan agent pass 1 done', {
         clientId: args.clientId,
@@ -295,7 +369,7 @@ export async function runMealPlanAgent(args: RunMealPlanAgentArgs): Promise<RunM
     const submittedMealCount = ctx.draft
         ? ctx.draft.days.reduce((acc, d) => acc + d.meals.length, 0)
         : 0;
-    const promptMealHints = (args.prompt.match(/breakfast|lunch|dinner|snack|empty stomach|mid-|evening|pre[- ]?dinner|post[- ]?dinner/gi) ?? []).length;
+    const promptMealHints = (normalizedPrompt.match(/breakfast|lunch|dinner|snack|empty stomach|mid-|evening|pre[- ]?dinner|post[- ]?dinner/gi) ?? []).length;
     const looksTooShort = ctx.draft && submittedMealCount > 0 && promptMealHints >= 6 && submittedMealCount < promptMealHints / 2;
 
     // Retry once if: no draft, OR draft is suspiciously sparse vs prompt.
@@ -306,7 +380,7 @@ export async function runMealPlanAgent(args: RunMealPlanAgentArgs): Promise<RunM
 
         // Wipe partial draft so the retry has a clean slate.
         ctx.draft = null;
-        const followupPrompt = args.prompt + '\n\n' + reason +
+        const followupPrompt = normalizedPrompt + '\n\n' + reason +
             (first.text ? `\n\nYour previous notes: ${first.text.slice(0, 500)}` : '');
         const second = await runOnce(followupPrompt);
         logger.info('Meal-plan agent pass 2 done', {

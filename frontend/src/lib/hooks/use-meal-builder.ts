@@ -104,6 +104,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const [isDirty, setIsDirty] = useState(false);
     const [clipboardDay, setClipboardDay] = useState<LocalMeal[] | null>(null);
     const [clipboardMeal, setClipboardMeal] = useState<LocalMeal | null>(null);
+    // Per-day full-day notes, keyed by 0-indexed day. Cleared/grown alongside numDays.
+    const [dayNotes, setDayNotes] = useState<Record<number, string>>({});
     const [scalingPrompt, setScalingPrompt] = useState<{
         templateCal: number;
         clientCal: number;
@@ -278,9 +280,12 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
      * Bulk-replace all days from an external source (e.g. AI draft).
      * Resizes numDays to fit the largest provided dayIndex. Indices not in the
      * map become empty days. Clamps to the plan-type limit (7 for plans,
-     * 30 for templates).
+     * 30 for templates). Optionally replaces dayNotes too.
      */
-    const replaceAllDays = useCallback((daysByIndex: Record<number, LocalMeal[]>) => {
+    const replaceAllDays = useCallback((
+        daysByIndex: Record<number, LocalMeal[]>,
+        notesByIndex?: Record<number, string>,
+    ) => {
         const indices = Object.keys(daysByIndex).map((k) => parseInt(k, 10)).filter((n) => Number.isFinite(n));
         const maxIndex = indices.length > 0 ? Math.max(...indices) : 0;
         const cap = isTemplateMode ? 30 : 7;
@@ -293,8 +298,38 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             }
             return next;
         });
+        if (notesByIndex) {
+            const trimmedNotes: Record<number, string> = {};
+            for (let i = 0; i < nextNumDays; i += 1) {
+                const n = notesByIndex[i];
+                if (typeof n === 'string' && n.trim()) trimmedNotes[i] = n.trim();
+            }
+            setDayNotes(trimmedNotes);
+        } else {
+            setDayNotes({});
+        }
         setSelectedDayIndex(0);
     }, [isTemplateMode, setWeeklyMealsDirty]);
+
+    const updateDayNote = useCallback((dayIndex: number, value: string) => {
+        setDayNotes(prev => {
+            const next = { ...prev };
+            if (value.trim()) next[dayIndex] = value;
+            else delete next[dayIndex];
+            return next;
+        });
+        setIsDirty(true);
+    }, []);
+
+    const clearDayNote = useCallback((dayIndex: number) => {
+        setDayNotes(prev => {
+            if (!(dayIndex in prev)) return prev;
+            const next = { ...prev };
+            delete next[dayIndex];
+            return next;
+        });
+        setIsDirty(true);
+    }, []);
 
     // Handlers — all take explicit dayIndex so multiple panes can target different days.
     const addMeal = useCallback((dayIndex: number) => {
@@ -511,17 +546,27 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             delete next[lastIndex];
             return next;
         });
+        setDayNotes(prev => {
+            if (!(lastIndex in prev)) return prev;
+            const next = { ...prev };
+            delete next[lastIndex];
+            return next;
+        });
         if (selectedDayIndex >= lastIndex) {
             setSelectedDayIndex(lastIndex - 1);
         }
         setNumDays(prev => prev - 1);
     }, [numDays, selectedDayIndex]);
 
+    // Day clipboard carries both meals and the day note together.
+    const [clipboardDayNote, setClipboardDayNote] = useState<string | null>(null);
+
     const copyDay = useCallback((dayIndex: number) => {
         const meals = weeklyMeals[dayIndex] || [];
         setClipboardDay(JSON.parse(JSON.stringify(meals)));
+        setClipboardDayNote(dayNotes[dayIndex] ?? null);
         toast.success('Day copied');
-    }, [weeklyMeals]);
+    }, [weeklyMeals, dayNotes]);
 
     const pasteDay = useCallback((dayIndex: number) => {
         if (!clipboardDay) return;
@@ -532,11 +577,23 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             foods: m.foods.map(f => ({ ...f, tempId: Math.random().toString(36).substr(2, 9) })),
         }));
         setWeeklyMealsDirty(prev => ({ ...prev, [dayIndex]: pasted }));
+        setDayNotes(prev => {
+            const next = { ...prev };
+            if (clipboardDayNote && clipboardDayNote.trim()) next[dayIndex] = clipboardDayNote;
+            else delete next[dayIndex];
+            return next;
+        });
         toast.success('Day pasted');
-    }, [clipboardDay]);
+    }, [clipboardDay, clipboardDayNote]);
 
     const clearDay = useCallback((dayIndex: number) => {
         setWeeklyMealsDirty(prev => ({ ...prev, [dayIndex]: defaultMeals(client?.preferences) }));
+        setDayNotes(prev => {
+            if (!(dayIndex in prev)) return prev;
+            const next = { ...prev };
+            delete next[dayIndex];
+            return next;
+        });
         toast.success('Day cleared');
     }, [client]);
 
@@ -556,6 +613,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             toast.error('Nothing to copy — this day is empty');
             return;
         }
+        const sourceNote = dayNotes[fromDayIndex];
         setWeeklyMealsDirty(prev => {
             const next = { ...prev };
             for (let i = 0; i < numDays; i += 1) {
@@ -564,8 +622,17 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             }
             return next;
         });
+        setDayNotes(prev => {
+            const next = { ...prev };
+            for (let i = 0; i < numDays; i += 1) {
+                if (i === fromDayIndex) continue;
+                if (sourceNote && sourceNote.trim()) next[i] = sourceNote;
+                else delete next[i];
+            }
+            return next;
+        });
         toast.success(`Copied Day ${fromDayIndex + 1} to ${numDays - 1} day(s)`);
-    }, [weeklyMeals, numDays, setWeeklyMealsDirty]);
+    }, [weeklyMeals, dayNotes, numDays, setWeeklyMealsDirty]);
 
     /** Replace specified target days with a clone of `fromDayIndex`. */
     const copyDayToSelected = useCallback((fromDayIndex: number, targetIndices: number[]) => {
@@ -579,13 +646,22 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             toast.error('Pick at least one day to copy to');
             return;
         }
+        const sourceNote = dayNotes[fromDayIndex];
         setWeeklyMealsDirty(prev => {
             const next = { ...prev };
             for (const i of targets) next[i] = cloneDay(source);
             return next;
         });
+        setDayNotes(prev => {
+            const next = { ...prev };
+            for (const i of targets) {
+                if (sourceNote && sourceNote.trim()) next[i] = sourceNote;
+                else delete next[i];
+            }
+            return next;
+        });
         toast.success(`Copied Day ${fromDayIndex + 1} to ${targets.length} day(s)`);
-    }, [weeklyMeals, numDays, setWeeklyMealsDirty]);
+    }, [weeklyMeals, dayNotes, numDays, setWeeklyMealsDirty]);
 
     // Per-meal clipboard — independent of clipboardDay.
     const copyMeal = useCallback((dayIndex: number, mealId: string) => {
@@ -777,6 +853,16 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 if (plan.targetCarbsG) setTargets(t => ({ ...t, carbs: plan.targetCarbsG }));
                 if (plan.targetFatsG) setTargets(t => ({ ...t, fat: plan.targetFatsG }));
                 setHideCaloriesFromClient(plan.hideCaloriesFromClient ?? false);
+
+                // Hydrate day notes — stored as Record<string, string> on the server, keys are day-number strings.
+                if (plan.dayNotes && typeof plan.dayNotes === 'object') {
+                    const loaded: Record<number, string> = {};
+                    for (const [k, v] of Object.entries(plan.dayNotes as Record<string, string>)) {
+                        const idx = parseInt(k, 10);
+                        if (Number.isFinite(idx) && typeof v === 'string' && v.trim()) loaded[idx] = v;
+                    }
+                    setDayNotes(loaded);
+                }
             } catch {
                 toast.error('Failed to load plan for editing');
             } finally {
@@ -1076,6 +1162,15 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             const carbsPayload = targets.carbs > 0 ? targets.carbs : undefined;
             const fatPayload = targets.fat > 0 ? targets.fat : undefined;
 
+            // Drop notes for days outside the current plan length; serialise as Record<string, string>.
+            const dayNotesPayload: Record<string, string> = {};
+            for (const [k, v] of Object.entries(dayNotes)) {
+                const idx = parseInt(k, 10);
+                if (Number.isFinite(idx) && idx < numDays && typeof v === 'string' && v.trim()) {
+                    dayNotesPayload[String(idx)] = v.trim();
+                }
+            }
+
             if (isEditMode && editId) {
                 // Update existing plan/template
                 await updateMutation.mutateAsync({
@@ -1089,6 +1184,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetCarbsG: carbsPayload,
                     targetFatsG: fatPayload,
                     hideCaloriesFromClient,
+                    dayNotes: dayNotesPayload,
                     meals: apiMeals,
                 });
 
@@ -1108,6 +1204,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetCarbsG: carbsPayload,
                     targetFatsG: fatPayload,
                     hideCaloriesFromClient,
+                    dayNotes: dayNotesPayload,
                     meals: apiMeals,
                     options: isTemplateMode ? {
                         saveAsTemplate: true,
@@ -1141,7 +1238,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         } finally {
             setSaveLock(false);
         }
-    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient, saveLock]);
+    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient, dayNotes, saveLock]);
 
     const confirmScaling = useCallback((scale: boolean) => {
         if (!pendingApplyRef.current || !scalingPrompt) return;
@@ -1220,6 +1317,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         clipboardMeal,
         copyMeal,
         pasteMeal,
+        dayNotes,
+        updateDayNote,
+        clearDayNote,
         replaceAllDays,
         applyTemplate,
         applyPreset,

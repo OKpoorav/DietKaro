@@ -247,6 +247,10 @@ model DietPlan {
   targetFiberG     Decimal?           @db.Decimal(5, 1)
   notesForClient            String?
   internalNotes             String?
+  // Per-day full-day notes — keyed by 0-indexed day number as string ("0", "1", ...).
+  // Populated by dietitian or AI draft; shown above the day's meals in the builder,
+  // PDF, WhatsApp share, and client mobile app.
+  dayNotes                  Json?
   hideCaloriesFromClient    Boolean            @default(false)
   status                    DietPlanStatus     @default(draft)
   isTemplate       Boolean            @default(false)

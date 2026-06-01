@@ -11,6 +11,7 @@ interface WhatsAppShareModalProps {
     startDate: Date;
     numDays: number;
     weeklyMeals: Record<number, LocalMeal[]>;
+    dayNotes?: Record<number, string>;
     onClose: () => void;
 }
 
@@ -33,7 +34,8 @@ function buildMessage(
     clientName: string | undefined,
     startDate: Date,
     numDays: number,
-    weeklyMeals: Record<number, LocalMeal[]>
+    weeklyMeals: Record<number, LocalMeal[]>,
+    dayNotes?: Record<number, string>,
 ): string {
     const lines: string[] = [];
 
@@ -54,6 +56,11 @@ function buildMessage(
 
         if (numDays > 1) {
             lines.push(`*Day ${day + 1} – ${dayLabel}*`);
+        }
+
+        const note = dayNotes?.[day]?.trim();
+        if (note) {
+            lines.push(`📌 _${note}_`);
         }
 
         // Sort chronologically by time. Falls back to meal-type order when time
@@ -128,11 +135,12 @@ export function WhatsAppShareModal({
     startDate,
     numDays,
     weeklyMeals,
+    dayNotes,
     onClose,
 }: WhatsAppShareModalProps) {
     const [copied, setCopied] = useState(false);
 
-    const message = buildMessage(planName, clientName, startDate, numDays, weeklyMeals);
+    const message = buildMessage(planName, clientName, startDate, numDays, weeklyMeals, dayNotes);
     const normalized = normalizePhone(phone);
     const waUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 
