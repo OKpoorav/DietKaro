@@ -24,7 +24,7 @@
  */
 
 import { generateText, stepCountIs } from 'ai';
-import { agentModel } from './providers';
+import { miniModel } from './providers';
 import { buildFoodToolset, type AgentToolContext } from './tools/food-tools';
 import type { AgentDraftPayload } from '../../types/aiMealPlan.types';
 import logger from '../../utils/logger';
@@ -40,16 +40,19 @@ For every DAY in the prompt, emit every MEAL with every FOOD ITEM, resolved agai
 
 # AVAILABLE TOOLS
 - get_client_context() — call exactly ONCE at the start. Returns allergies, intolerances, dietPattern, dislikes, eggAvoidDays, avoidCategories.
-- search_food_items({ query, limit }) — case-insensitive ILIKE on name + brand. Call before any create.
-- create_food_item({ name, category, calories, proteinG, carbsG, fatsG, allergenFlags, ... }) — only when no good match exists. Best-estimate nutrition per 100g. Tag allergens accurately.
-- validate_food({ foodId }) — optional sanity check.
+- search_food_items({ queries: string[] }) — BATCH search. Pass ALL food names from the prompt in a single call. Returns top 3 matches per query. CALL ONCE total, not per food.
+- create_food_item({ name, category, calories, proteinG, carbsG, fatsG, allergenFlags, ... }) — only for foods with no good match in the batch search. Best-estimate nutrition per 100g.
+- validate_food({ foodId }) — optional sanity check (rarely needed; server re-validates).
 - submit_draft({ days }) — TERMINAL. Call EXACTLY ONCE at the end with the complete plan. Without this, your work is discarded.
 
-# WORKFLOW
-1. Call get_client_context.
-2. Walk the prompt linearly. For each food mentioned in any meal of any day, call search_food_items. Reuse foodIds across days — never create the same food twice.
-3. For unmatched foods, call create_food_item with conservative per-100g nutrition and correct allergen flags.
-4. Build the days array, then call submit_draft.
+# WORKFLOW (efficient — minimise tool calls)
+1. Call get_client_context (1 call).
+2. Read the entire prompt and extract the FULL list of distinct food names mentioned across every day. Don't dedupe variants you're unsure about — include both ("jowar roti", "wheat roti") if mentioned.
+3. Call search_food_items ONCE with that array of names (1 call). Use the per-query top-3 results to pick the best match for each.
+4. For any food with no good match, call create_food_item (one call per missing food). Reuse foodIds across days — never create a duplicate.
+5. Build the days array, then call submit_draft (1 call).
+
+Total tool calls: typically 3-15 (1 context + 1 batch search + 0-12 creates + 1 submit). NOT 50+. Round-trip count is the dominant cost driver.
 
 # PARSING — SYMBOL SEMANTICS (read precisely)
 Each meal can have any number of items. Each item has an optionGroup integer:
@@ -238,7 +241,7 @@ export async function runMealPlanAgent(args: RunMealPlanAgentArgs): Promise<RunM
         for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
             try {
                 return await generateText({
-                    model: agentModel,
+                    model: miniModel,
                     tools,
                     system: SYSTEM_PROMPT,
                     prompt,

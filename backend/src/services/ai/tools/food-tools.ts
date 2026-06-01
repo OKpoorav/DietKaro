@@ -111,54 +111,55 @@ export const makeGetClientContextTool = (ctx: AgentToolContext) =>
 export const makeSearchFoodItemsTool = (ctx: AgentToolContext) =>
     tool({
         description:
-            'Search the food database (case-insensitive substring on name + brand). ' +
-            'Returns up to `limit` candidate matches. Use this before deciding whether ' +
-            'to reuse an existing FoodItem or call create_food_item.',
+            'Batch-search the food database for ALL foods in your prompt at once. ' +
+            'Pass an array of names; returns one result group per query (top 3 matches each). ' +
+            'CALL THIS ONCE PER DRAFT — collect every food name first, then make a single call. ' +
+            'This is dramatically more efficient than calling once per food.',
         inputSchema: z.object({
-            query: z.string().min(1).max(80).describe('food name to search for'),
-            limit: z.number().int().min(1).max(10).default(5),
+            queries: z.array(z.string().min(1).max(80))
+                .min(1).max(80)
+                .describe('All food names to search for in this draft, e.g. ["jowar roti","chia seeds","papaya"]'),
         }),
-        execute: async ({ query, limit }) => {
-            const items = await prisma.foodItem.findMany({
-                where: {
-                    OR: [{ orgId: null }, { orgId: ctx.orgId }],
-                    AND: [
-                        {
-                            OR: [
-                                { name: { contains: query, mode: 'insensitive' } },
-                                { brand: { contains: query, mode: 'insensitive' } },
-                            ],
-                        },
-                    ],
-                },
-                take: limit,
-                orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
-                select: {
-                    id: true,
-                    name: true,
-                    brand: true,
-                    category: true,
-                    servingSizeG: true,
-                    servingUnit: true,
-                    calories: true,
-                    allergenFlags: true,
-                    dietaryCategory: true,
-                    dietaryTags: true,
-                    isVerified: true,
-                    isBaseIngredient: true,
-                },
+        execute: async ({ queries }) => {
+            const PER_QUERY_LIMIT = 3;
+            // Dedupe (case-insensitive) to avoid wasted lookups.
+            const seen = new Set<string>();
+            const uniqueQueries = queries.filter((q) => {
+                const k = q.toLowerCase().trim();
+                if (!k || seen.has(k)) return false;
+                seen.add(k);
+                return true;
             });
-            // Keep payload tight — the model only needs ID + name + a quick fitness signal.
-            return {
-                count: items.length,
-                items: items.map((i) => ({
-                    foodId: i.id,
-                    name: i.name,
-                    category: i.category,
-                    allergenFlags: i.allergenFlags,
-                    dietaryCategory: i.dietaryCategory,
-                })),
-            };
+
+            const results = await Promise.all(
+                uniqueQueries.map(async (q) => {
+                    const items = await prisma.foodItem.findMany({
+                        where: {
+                            OR: [{ orgId: null }, { orgId: ctx.orgId }],
+                            AND: [{
+                                OR: [
+                                    { name: { contains: q, mode: 'insensitive' } },
+                                    { brand: { contains: q, mode: 'insensitive' } },
+                                ],
+                            }],
+                        },
+                        take: PER_QUERY_LIMIT,
+                        orderBy: [{ isVerified: 'desc' }, { name: 'asc' }],
+                        // Minimal columns — only what the model needs to pick a match.
+                        select: { id: true, name: true, allergenFlags: true },
+                    });
+                    return {
+                        query: q,
+                        matches: items.map((i) => ({
+                            foodId: i.id,
+                            name: i.name,
+                            allergens: i.allergenFlags.length > 0 ? i.allergenFlags : undefined,
+                        })),
+                    };
+                }),
+            );
+
+            return { results };
         },
     });
 
