@@ -170,6 +170,9 @@ export async function setupScheduledJobs() {
         { pattern: '0 9 * * *' },
         { name: 'check-expiry' }
     );
+    // Also kick off one immediate run so stale 'active' plans get demoted
+    // on the very next deploy without waiting until 9 AM tomorrow.
+    await planExpiryQueue.add('check-expiry-startup', {});
 
     // Compliance alert daily at 10 AM
     await complianceAlertQueue.upsertJobScheduler('compliance-alert-scheduler',

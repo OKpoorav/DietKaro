@@ -134,6 +134,19 @@ export class DietPlanService {
         if (status) where.status = status as Prisma.EnumDietPlanStatusFilter;
         if (isTemplate !== undefined) where.isTemplate = isTemplate === 'true';
 
+        // Defensive filter: when callers ask for status='active' on real plans
+        // (not templates), drop rows whose endDate has already passed. The
+        // plan-expiry worker eventually demotes them to 'completed', but this
+        // closes the gap between the cutoff and the next worker run.
+        if (status === 'active' && isTemplate !== 'true') {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            where.OR = [
+                { endDate: { gte: todayStart } },
+                { endDate: null },
+            ];
+        }
+
         // Dietitians see: their assigned clients' plans + org templates they created OR that are published
         if (userRole === 'dietitian') {
             if (isTemplate === 'true') {

@@ -16,6 +16,27 @@ export function startPlanExpiryWorker(): Worker {
     worker = new Worker('plan-expiry', async (job) => {
         logger.info('Running plan expiry check');
 
+        // ── Step 1: Demote plans whose endDate has already passed ──────────────
+        //   status: 'active' → 'completed' for any plan with endDate < today.
+        //   Without this, plans linger as "active" in the UI long after they end.
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const expiredResult = await prisma.dietPlan.updateMany({
+            where: {
+                status: 'active',
+                isActive: true,
+                isTemplate: false,
+                endDate: { lt: todayStart, not: null },
+            },
+            data: { status: 'completed' },
+        });
+
+        if (expiredResult.count > 0) {
+            logger.info('Demoted expired plans to completed', { count: expiredResult.count });
+        }
+
+        // ── Step 2: Notify dietitians about plans expiring tomorrow ────────────
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         const tomorrowStart = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
