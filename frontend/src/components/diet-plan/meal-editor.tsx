@@ -4,23 +4,45 @@ import { useMemo, useState, useEffect } from 'react';
 import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch, FileText, ChevronDown, ChevronRight, Copy, ClipboardPaste } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 
-const HOUSEHOLD_UNITS: { label: string; gramsEach: number | null; tooltip: string }[] = [
-    { label: 'g',              gramsEach: 1,    tooltip: '1 gram' },
-    { label: 'ml',             gramsEach: 1,    tooltip: '1 millilitre (≈ 1 g water)' },
-    { label: 'tsp',            gramsEach: 5,    tooltip: '1 tsp = 5 ml' },
-    { label: 'tbsp',           gramsEach: 15,   tooltip: '1 tbsp = 15 ml / ~15 g' },
-    { label: 'katori (S)',     gramsEach: 100,  tooltip: 'Small katori = 100 ml' },
-    { label: 'katori (M)',     gramsEach: 150,  tooltip: 'Medium katori = 150 ml' },
-    { label: 'katori (L)',     gramsEach: 250,  tooltip: 'Large katori = 250 ml' },
-    { label: 'cup (Indian)',   gramsEach: 200,  tooltip: 'Indian cup = 200 ml' },
-    { label: 'glass (S)',      gramsEach: 150,  tooltip: 'Small glass = 150 ml' },
-    { label: 'glass',          gramsEach: 250,  tooltip: 'Standard glass = 250 ml' },
-    { label: 'mug',            gramsEach: 300,  tooltip: 'Coffee mug = 300 ml' },
-    { label: 'cup (tea)',      gramsEach: 135,  tooltip: 'Tea / coffee cup = 135 ml' },
-    { label: 'roti',           gramsEach: 25,   tooltip: '1 roti = 25 g flour' },
-    { label: 'piece',          gramsEach: null, tooltip: '1 whole piece / unit' },
-    { label: 'serving',        gramsEach: null, tooltip: '1 standard serving' },
+/**
+ * `kind`:
+ *   - 'mass'   → resolved quantity displayed in "g"
+ *   - 'volume' → resolved quantity displayed in "ml"
+ *   - 'count'  → no resolved pill (a piece / serving doesn't convert cleanly)
+ */
+const HOUSEHOLD_UNITS: { label: string; gramsEach: number | null; kind: 'mass' | 'volume' | 'count'; tooltip: string }[] = [
+    { label: 'g',              gramsEach: 1,    kind: 'mass',   tooltip: '1 gram' },
+    { label: 'ml',             gramsEach: 1,    kind: 'volume', tooltip: '1 millilitre (≈ 1 g water)' },
+    { label: 'tsp',            gramsEach: 5,    kind: 'volume', tooltip: '1 tsp = 5 ml' },
+    { label: 'tbsp',           gramsEach: 15,   kind: 'volume', tooltip: '1 tbsp = 15 ml / ~15 g' },
+    { label: 'katori (S)',     gramsEach: 100,  kind: 'volume', tooltip: 'Small katori = 100 ml' },
+    { label: 'katori (M)',     gramsEach: 150,  kind: 'volume', tooltip: 'Medium katori = 150 ml' },
+    { label: 'katori (L)',     gramsEach: 250,  kind: 'volume', tooltip: 'Large katori = 250 ml' },
+    { label: 'cup (Indian)',   gramsEach: 200,  kind: 'volume', tooltip: 'Indian cup = 200 ml' },
+    { label: 'glass (S)',      gramsEach: 150,  kind: 'volume', tooltip: 'Small glass = 150 ml' },
+    { label: 'glass',          gramsEach: 250,  kind: 'volume', tooltip: 'Standard glass = 250 ml' },
+    { label: 'mug',            gramsEach: 300,  kind: 'volume', tooltip: 'Coffee mug = 300 ml' },
+    { label: 'cup (tea)',      gramsEach: 135,  kind: 'volume', tooltip: 'Tea / coffee cup = 135 ml' },
+    { label: 'roti',           gramsEach: 25,   kind: 'mass',   tooltip: '1 roti = 25 g flour' },
+    { label: 'piece',          gramsEach: null, kind: 'count',  tooltip: '1 whole piece / unit' },
+    { label: 'serving',        gramsEach: null, kind: 'count',  tooltip: '1 standard serving' },
 ];
+
+/**
+ * Convert the row's stored quantity (in grams) into a short display pill.
+ * Returns null when the unit is countable (piece / serving) AND we have no
+ * meaningful gram backing — those don't have a sensible conversion to show.
+ */
+function formatResolvedQty(quantityValue: number, unit: string): string | null {
+    if (!Number.isFinite(quantityValue) || quantityValue <= 0) return null;
+    const def = HOUSEHOLD_UNITS.find(u => u.label === unit);
+    if (!def) return `${Math.round(quantityValue)}g`;
+    if (def.kind === 'count') {
+        // Show the gram backing when known — dietitians find "1 serving (= 100g)" useful.
+        return `${Math.round(quantityValue)}g`;
+    }
+    return def.kind === 'volume' ? `${Math.round(quantityValue)}ml` : `${Math.round(quantityValue)}g`;
+}
 
 function parseQty(qty: string): { num: number; unit: string } {
     const m = qty.trim().match(/^(\d+(?:\.\d+)?)\s*(.+)?$/);
@@ -101,6 +123,7 @@ function FoodItemRow({
     };
 
     const selectedDef = HOUSEHOLD_UNITS.find(u => u.label === unit);
+    const resolvedQty = formatResolvedQty(food.quantityValue, unit);
 
     return (
         <div>
@@ -126,6 +149,14 @@ function FoodItemRow({
                             <option key={u.label} value={u.label} title={u.tooltip}>{u.label}</option>
                         ))}
                     </select>
+                    {resolvedQty && (
+                        <span
+                            className="text-[11px] font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md tabular-nums whitespace-nowrap"
+                            title="Equivalent quantity in the food's natural unit"
+                        >
+                            {resolvedQty}
+                        </span>
+                    )}
                 </div>
                 <button
                     onClick={() => onRemoveFood(mealId, food.tempId)}
