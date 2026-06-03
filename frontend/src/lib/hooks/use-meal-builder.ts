@@ -848,12 +848,10 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     setNumDays(Math.max(...dayKeys) + 1);
                 }
 
-                // Prisma Decimal columns (proteinG/carbsG/fatsG) deserialize as
-                // strings — coerce here so the save payload stays z.number()-clean.
-                if (plan.targetCalories) setTargets(t => ({ ...t, calories: Number(plan.targetCalories) || t.calories }));
-                if (plan.targetProteinG) setTargets(t => ({ ...t, protein:  Number(plan.targetProteinG) || t.protein }));
-                if (plan.targetCarbsG)   setTargets(t => ({ ...t, carbs:    Number(plan.targetCarbsG)   || t.carbs }));
-                if (plan.targetFatsG)    setTargets(t => ({ ...t, fat:      Number(plan.targetFatsG)    || t.fat }));
+                if (plan.targetCalories) setTargets(t => ({ ...t, calories: plan.targetCalories }));
+                if (plan.targetProteinG) setTargets(t => ({ ...t, protein: plan.targetProteinG }));
+                if (plan.targetCarbsG) setTargets(t => ({ ...t, carbs: plan.targetCarbsG }));
+                if (plan.targetFatsG) setTargets(t => ({ ...t, fat: plan.targetFatsG }));
                 setHideCaloriesFromClient(plan.hideCaloriesFromClient ?? false);
 
                 // Hydrate day notes — stored as Record<string, string> on the server, keys are day-number strings.
@@ -1096,22 +1094,13 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             dayMeals.forEach(m => {
                 const mealType = inferMealType(m.name);
                 // Meal structure saves: strip all food items, keep only slots
-                const foodItems = slotOnly ? [] : m.foods.map(f => {
-                    // Coerce defensively: quantityValue can become a string if the
-                    // value originated from a Prisma Decimal (loaded plan/template)
-                    // and was never re-set via the qty input. The backend schema
-                    // is strict z.number() so any stringy value crashes publish.
-                    const qty = typeof f.quantityValue === 'number'
-                        ? f.quantityValue
-                        : Number(f.quantityValue);
-                    return {
-                        foodId: f.id,
-                        quantityG: Number.isFinite(qty) && qty > 0 ? qty : 100,
-                        notes: f.quantity,
-                        optionGroup: f.optionGroup,
-                        optionLabel: f.optionLabel,
-                    };
-                });
+                const foodItems = slotOnly ? [] : m.foods.map(f => ({
+                    foodId: f.id,
+                    quantityG: f.quantityValue > 0 ? f.quantityValue : 100,
+                    notes: f.quantity,
+                    optionGroup: f.optionGroup,
+                    optionLabel: f.optionLabel,
+                }));
                 if (isTemplateMode) {
                     apiMeals.push({
                         dayOfWeek: parseInt(dayIdx),
@@ -1159,20 +1148,10 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         endDate.setDate(endDate.getDate() + numDays - 1);
 
         try {
-            // Coerce every macro defensively — older plans hydrated as strings
-            // (Prisma Decimal serialization) would crash backend z.number() otherwise.
-            const toNum = (v: unknown): number => {
-                const n = typeof v === 'number' ? v : Number(v);
-                return Number.isFinite(n) ? n : 0;
-            };
-            const caloriesNum = toNum(targets.calories);
-            const proteinNum = toNum(targets.protein);
-            const carbsNum = toNum(targets.carbs);
-            const fatNum = toNum(targets.fat);
-            const caloriesPayload = caloriesNum > 0 ? caloriesNum : undefined;
-            const proteinPayload = proteinNum > 0 ? proteinNum : undefined;
-            const carbsPayload = carbsNum > 0 ? carbsNum : undefined;
-            const fatPayload = fatNum > 0 ? fatNum : undefined;
+            const caloriesPayload = targets.calories > 0 ? targets.calories : undefined;
+            const proteinPayload = targets.protein > 0 ? targets.protein : undefined;
+            const carbsPayload = targets.carbs > 0 ? targets.carbs : undefined;
+            const fatPayload = targets.fat > 0 ? targets.fat : undefined;
 
             // Drop notes for days outside the current plan length; serialise as Record<string, string>.
             const dayNotesPayload: Record<string, string> = {};

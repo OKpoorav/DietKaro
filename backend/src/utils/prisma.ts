@@ -1,6 +1,50 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
+ * Walk a Prisma result tree and convert every `Prisma.Decimal` instance to a
+ * plain JS number. Decimals serialize as strings over JSON, which silently
+ * breaks any frontend code doing arithmetic or expecting `z.number()` — see
+ * the targetProteinG/CarbsG/FatsG bug that motivated this.
+ *
+ * Conservative — only touches Decimal instances; leaves Date, Buffer, plain
+ * primitives, and Prisma's special structures (e.g. _count) alone.
+ *
+ * Trade-off: any caller doing `decimal.plus(other)` style arithmetic on a
+ * READ value will break. We rely instead on `new Prisma.Decimal(...)` on the
+ * WRITE side (payment.service.ts) and `Number()`/`scaleNutrition` helpers on
+ * the READ side, which already handle both shapes.
+ */
+function convertDecimalsDeep<T>(value: T): T {
+    if (value === null || value === undefined) return value;
+
+    if (Prisma.Decimal.isDecimal(value as unknown as object)) {
+        return (value as unknown as Prisma.Decimal).toNumber() as unknown as T;
+    }
+
+    // Leave non-object primitives, Date, and Buffer untouched.
+    if (typeof value !== 'object') return value;
+    if (value instanceof Date) return value;
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) return value;
+
+    if (Array.isArray(value)) {
+        const out = new Array(value.length);
+        for (let i = 0; i < value.length; i += 1) {
+            out[i] = convertDecimalsDeep(value[i]);
+        }
+        return out as unknown as T;
+    }
+
+    const src = value as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const k in src) {
+        if (Object.prototype.hasOwnProperty.call(src, k)) {
+            out[k] = convertDecimalsDeep(src[k]);
+        }
+    }
+    return out as unknown as T;
+}
+
+/**
  * Soft-delete vs isActive semantics:
  *
  * - `deletedAt != null` → Record is soft-deleted. This extension automatically
@@ -48,7 +92,8 @@ function createExtendedClient() {
         },
     });
 
-    return base.$extends({
+    // ── Layer 1: soft-delete pre-/post-processing ────────────────────────────
+    const withSoftDelete = base.$extends({
         query: {
             $allModels: {
                 async findMany({ model, args, query }) {
@@ -108,6 +153,19 @@ function createExtendedClient() {
                     }
                     return query(args);
                 },
+            },
+        },
+    });
+
+    // ── Layer 2: Decimal → number on every result ────────────────────────────
+    //   This wraps Layer 1 so soft-delete filtering still runs first; then the
+    //   raw result bubbles up here and Decimals get unwrapped to plain numbers.
+    //   Applies to all operations including $queryRaw, aggregate, groupBy, etc.
+    return withSoftDelete.$extends({
+        query: {
+            async $allOperations({ args, query }) {
+                const result = await query(args);
+                return convertDecimalsDeep(result);
             },
         },
     });
