@@ -10,16 +10,7 @@ import { useApiClient } from '@/lib/api/use-api-client';
 import { toast } from 'sonner';
 import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
-
-// Default column ordering — meals whose name matches get this priority, rest sorted by time
-const KNOWN_MEAL_ORDER: Record<string, number> = {
-    'breakfast': 0, 'early morning': 0,
-    'mid-morning': 1, 'mid morning': 1,
-    'lunch': 2,
-    'snack': 3, 'evening snack': 3,
-    'dinner': 4,
-    'post dinner': 5, 'post-dinner': 5,
-};
+import { timeToMin } from '@/lib/utils/meal-order';
 
 function getMealDate(meal: any, startDate: string): Date {
     if (meal.mealDate) return new Date(meal.mealDate);
@@ -95,18 +86,21 @@ function MealsSpreadsheet({ meals, startDate, dayNotes }: { meals: any[]; startD
     };
     // Build date → mealName → meal[] map, using meal name as the column key
     const dateMap = new Map<string, Map<string, any[]>>();
-    const columnSet = new Map<string, { time: string }>(); // track earliest time per column
+    const columnSet = new Map<string, { time: string; seq: number }>(); // earliest time + min sequence per column
 
     for (const meal of meals) {
         const d = getMealDate(meal, startDate);
         const key = formatDateKey(d);
         const colName = (meal.name || meal.mealType || 'Other').trim();
         const colKey = colName.toLowerCase();
+        const seq = meal.sequenceNumber ?? Number.MAX_SAFE_INTEGER;
 
         if (!columnSet.has(colKey)) {
-            columnSet.set(colKey, { time: meal.timeOfDay || '99:99' });
-        } else if (meal.timeOfDay && meal.timeOfDay < columnSet.get(colKey)!.time) {
-            columnSet.get(colKey)!.time = meal.timeOfDay;
+            columnSet.set(colKey, { time: meal.timeOfDay || '99:99', seq });
+        } else {
+            const info = columnSet.get(colKey)!;
+            if (meal.timeOfDay && meal.timeOfDay < info.time) info.time = meal.timeOfDay;
+            if (seq < info.seq) info.seq = seq;
         }
 
         if (!dateMap.has(key)) dateMap.set(key, new Map());
@@ -117,13 +111,12 @@ function MealsSpreadsheet({ meals, startDate, dayNotes }: { meals: any[]; startD
 
     const sortedDates = Array.from(dateMap.keys()).sort();
 
-    // Sort columns: known meals first by priority, then by earliest time
+    // Chronological column order: earliest time-of-day per column, then authored sequence.
     const columns = Array.from(columnSet.entries())
-        .sort(([aKey, aInfo], [bKey, bInfo]) => {
-            const aOrder = KNOWN_MEAL_ORDER[aKey] ?? 50;
-            const bOrder = KNOWN_MEAL_ORDER[bKey] ?? 50;
-            if (aOrder !== bOrder) return aOrder - bOrder;
-            return (aInfo.time || '99:99').localeCompare(bInfo.time || '99:99');
+        .sort(([, aInfo], [, bInfo]) => {
+            const t = timeToMin(aInfo.time) - timeToMin(bInfo.time);
+            if (t !== 0) return t;
+            return aInfo.seq - bInfo.seq;
         })
         .map(([colKey]) => colKey);
 

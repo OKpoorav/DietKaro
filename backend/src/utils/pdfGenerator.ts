@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import { DietPlan, Meal, MealFoodItem, FoodItem, Client } from '@prisma/client';
 import { escapeHtml } from './htmlEscape';
+import { compareByTime, timeToMin } from './mealOrder';
 
 type MealWithFoodItems = Meal & {
     foodItems: (MealFoodItem & { foodItem: FoodItem })[];
@@ -74,22 +75,27 @@ function groupMealsByDate(meals: MealWithFoodItems[], startDate: Date): {
         typeMap.get(type)!.push(meal);
     }
 
-    // Sort meals within each type group by time-of-day. A snack at 07:00 must
-    // not appear after a snack at 21:00 just because they share `type=snack`.
-    const timeKey = (t: string | null | undefined): number => {
-        if (!t) return Infinity;
-        const [h, m] = t.split(':').map(Number);
-        if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
-        return Infinity;
-    };
+    // Sort meals within each type group chronologically (shared comparator), and
+    // track the earliest time seen per type so columns can be ordered by time too.
+    const earliestByType = new Map<string, number>();
     for (const typeMap of byDate.values()) {
-        for (const list of typeMap.values()) {
-            list.sort((a, b) => timeKey(a.timeOfDay) - timeKey(b.timeOfDay));
+        for (const [type, list] of typeMap.entries()) {
+            list.sort((a, b) => compareByTime(a.timeOfDay, b.timeOfDay, a.sequenceNumber, b.sequenceNumber));
+            const minT = timeToMin(list[0]?.timeOfDay);
+            if (!earliestByType.has(type) || minT < earliestByType.get(type)!) {
+                earliestByType.set(type, minT);
+            }
         }
     }
 
     const sortedDateKeys = Array.from(byDate.keys()).sort();
-    const mealTypes = MEAL_TYPE_ORDER.filter(t => mealTypesFound.has(t));
+    // Order type columns by their earliest time-of-day; MEAL_TYPE_ORDER breaks ties.
+    const mealTypes = Array.from(mealTypesFound).sort((a, b) => {
+        const ta = earliestByType.get(a) ?? Infinity;
+        const tb = earliestByType.get(b) ?? Infinity;
+        if (ta !== tb) return ta - tb;
+        return MEAL_TYPE_ORDER.indexOf(a) - MEAL_TYPE_ORDER.indexOf(b);
+    });
     return { sortedDateKeys, byDate, mealTypes };
 }
 

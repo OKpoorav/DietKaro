@@ -91,7 +91,7 @@ export class ClientDashboardService {
                             include: { foodItem: true },
                         },
                     },
-                    orderBy: { mealType: 'asc' },
+                    orderBy: [{ timeOfDay: 'asc' }, { sequenceNumber: 'asc' }],
                 },
             },
         });
@@ -186,7 +186,7 @@ export class ClientDashboardService {
                             include: { foodItem: true },
                         },
                     },
-                    orderBy: { mealType: 'asc' },
+                    orderBy: [{ timeOfDay: 'asc' }, { sequenceNumber: 'asc' }],
                 },
             },
         });

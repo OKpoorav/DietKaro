@@ -115,7 +115,7 @@ export class DietPlanService {
                 client: { select: { id: true, fullName: true, phone: true, currentWeightKg: true, targetWeightKg: true } },
                 creator: { select: { id: true, fullName: true } },
                 meals: {
-                    orderBy: [{ dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
+                    orderBy: [{ dayOfWeek: 'asc' }, { timeOfDay: 'asc' }, { sequenceNumber: 'asc' }],
                     include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } },
                 },
             },

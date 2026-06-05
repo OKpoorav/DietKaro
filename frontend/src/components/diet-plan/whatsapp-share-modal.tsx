@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MessageCircle, Copy, Check, X } from 'lucide-react';
 import type { LocalMeal } from '@/lib/types/diet-plan.types';
+import { compareByTime } from '@/lib/utils/meal-order';
 
 interface WhatsAppShareModalProps {
     phone: string;
@@ -63,21 +64,8 @@ function buildMessage(
             lines.push(`📌 _${note}_`);
         }
 
-        // Sort chronologically by time. Falls back to meal-type order when time
-        // is missing (defensive — every meal should have a time set).
-        const typeOrder = ['breakfast', 'lunch', 'dinner', 'snack'];
-        const timeKey = (t: string | undefined): number => {
-            if (!t) return Infinity;
-            const [h, m] = t.split(':').map(Number);
-            if (Number.isFinite(h) && Number.isFinite(m)) return h * 60 + m;
-            return Infinity;
-        };
-        const meals = (weeklyMeals[day] || []).slice().sort((a, b) => {
-            const ta = timeKey(a.time);
-            const tb = timeKey(b.time);
-            if (ta !== tb) return ta - tb;
-            return typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type);
-        });
+        // Canonical chronological order — same comparator as every other view.
+        const meals = (weeklyMeals[day] || []).slice().sort((a, b) => compareByTime(a.time, b.time));
 
         if (meals.length === 0) {
             lines.push('_No meals_');

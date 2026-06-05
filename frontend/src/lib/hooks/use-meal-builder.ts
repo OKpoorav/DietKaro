@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { LocalMeal, LocalFoodItem, DayNutrition, FoodItemData } from '../types/diet-plan.types';
 import type { Client } from './use-clients';
 import { MEAL_SLOT_PRESETS, type MealSlotPreset } from '@/components/diet-plan/template-sidebar';
+import { compareByTime } from '../utils/meal-order';
 
 // Re-export types used by components
 export type { LocalMeal, LocalFoodItem, DayNutrition };
@@ -243,10 +244,17 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     }, [isDirty]);
 
     const planDates = getDates(startDate, numDays);
-    const currentMeals = useMemo(() => weeklyMeals[selectedDayIndex] || [], [weeklyMeals, selectedDayIndex]);
+    // Display meals in canonical chronological order (state stays in author order).
+    const currentMeals = useMemo(
+        () => [...(weeklyMeals[selectedDayIndex] || [])].sort((a, b) => compareByTime(a.time, b.time)),
+        [weeklyMeals, selectedDayIndex],
+    );
 
     // Pane-friendly selectors — callers pass the day they want to read.
-    const getDayMeals = useCallback((dayIndex: number): LocalMeal[] => weeklyMeals[dayIndex] || [], [weeklyMeals]);
+    const getDayMeals = useCallback(
+        (dayIndex: number): LocalMeal[] => [...(weeklyMeals[dayIndex] || [])].sort((a, b) => compareByTime(a.time, b.time)),
+        [weeklyMeals],
+    );
 
     const getDayNutrition = useCallback((dayIndex: number): DayNutrition => {
         const meals = weeklyMeals[dayIndex] || [];
@@ -1091,7 +1099,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         const apiMeals: CreateDietPlanInput['meals'] = [];
 
         Object.entries(weeklyMeals).forEach(([dayIdx, dayMeals]) => {
-            dayMeals.forEach(m => {
+            // Persist in canonical chronological order so sequenceNumber stays aligned with time.
+            const orderedMeals = [...dayMeals].sort((a, b) => compareByTime(a.time, b.time));
+            orderedMeals.forEach(m => {
                 const mealType = inferMealType(m.name);
                 // Meal structure saves: strip all food items, keep only slots
                 const foodItems = slotOnly ? [] : m.foods.map(f => ({

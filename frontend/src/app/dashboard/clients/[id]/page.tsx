@@ -52,6 +52,7 @@ import { ConsultationsCard } from '@/components/clients/consultations-card';
 import { ConsultationsTab } from '@/components/clients/consultations-tab';
 import { CreateConsultationModal } from '@/components/modals/create-consultation-modal';
 import { useOrganization } from '@/lib/hooks/use-organization';
+import { compareByTime } from '@/lib/utils/meal-order';
 import { toast } from 'sonner';
 
 // ============ TYPES ============
@@ -119,8 +120,6 @@ function GoalRing({ percent }: { percent: number }) {
 function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: string; startDate: string; endDate?: string; description?: string; status?: string; targetCalories?: number; targetProteinG?: number; targetCarbsG?: number; targetFatsG?: number }; client: any; isFirst: boolean }) {
     const { data: fullPlan, isLoading } = useDietPlan(plan.id);
     const [collapsed, setCollapsed] = useState(!isFirst);
-
-    const typeOrder: Record<string, number> = { breakfast: 0, lunch: 1, snack: 2, dinner: 3 };
 
     const mealsByDate = new Map<string, any[]>();
     if (fullPlan?.meals?.length) {
@@ -205,7 +204,7 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
                                     </h4>
                                     <div className="space-y-2">
                                         {dayMeals
-                                            .sort((a: any, b: any) => (typeOrder[a.mealType] ?? 9) - (typeOrder[b.mealType] ?? 9))
+                                            .sort((a: any, b: any) => compareByTime(a.timeOfDay, b.timeOfDay, a.sequenceNumber, b.sequenceNumber))
                                             .map((meal: any) => (
                                             <div key={meal.id} className="p-3 bg-gray-50 rounded-xl">
                                                 <div className="flex items-center justify-between mb-1">
