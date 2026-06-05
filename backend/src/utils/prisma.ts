@@ -1,20 +1,29 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
 /**
- * Walk a Prisma result tree and convert every `Prisma.Decimal` instance to a
- * plain JS number. Decimals serialize as strings over JSON, which silently
- * breaks any frontend code doing arithmetic or expecting `z.number()` — see
- * the targetProteinG/CarbsG/FatsG bug that motivated this.
+ * Walk a Prisma result tree and (1) convert every `Prisma.Decimal` instance to
+ * a plain JS number, and (2) drop soft-deleted rows (`deletedAt != null`) from
+ * any result array.
  *
- * Conservative — only touches Decimal instances; leaves Date, Buffer, plain
- * primitives, and Prisma's special structures (e.g. _count) alone.
+ * (1) Decimal → number: Decimals serialize as strings over JSON, which silently
+ * breaks any frontend code doing arithmetic or expecting `z.number()` — see the
+ * targetProteinG/CarbsG/FatsG bug that motivated this. Trade-off: any caller
+ * doing `decimal.plus(other)` style arithmetic on a READ value will break. We
+ * rely instead on `new Prisma.Decimal(...)` on the WRITE side and
+ * `Number()`/`scaleNutrition` helpers on the READ side, which handle both shapes.
  *
- * Trade-off: any caller doing `decimal.plus(other)` style arithmetic on a
- * READ value will break. We rely instead on `new Prisma.Decimal(...)` on the
- * WRITE side (payment.service.ts) and `Number()`/`scaleNutrition` helpers on
- * the READ side, which already handle both shapes.
+ * (2) Strip soft-deleted rows: the soft-delete extension below only adds
+ * `deletedAt: null` to TOP-LEVEL where clauses — Prisma client extensions cannot
+ * filter relation `include`s. So soft-deleted children (e.g. replaced meals and
+ * their food items) leaked into nested reads and piled up on every plan edit.
+ * Since nothing in the app ever intentionally fetches soft-deleted rows, we
+ * enforce the "soft-deleted = invisible" invariant here, on the result, for
+ * every read including nested includes. Only ARRAY elements are dropped — a
+ * single nested object is never nulled, so `obj.relation.deletedAt` checks still
+ * work. NOTE: a `select` that omits `deletedAt` can't be filtered here (the flag
+ * isn't present); those few call sites use an explicit relation `where` instead.
  */
-function convertDecimalsDeep<T>(value: T): T {
+function sanitizeReadResult<T>(value: T): T {
     if (value === null || value === undefined) return value;
 
     if (Prisma.Decimal.isDecimal(value as unknown as object)) {
@@ -27,9 +36,19 @@ function convertDecimalsDeep<T>(value: T): T {
     if (typeof Buffer !== 'undefined' && Buffer.isBuffer(value)) return value;
 
     if (Array.isArray(value)) {
-        const out = new Array(value.length);
+        const out: unknown[] = [];
         for (let i = 0; i < value.length; i += 1) {
-            out[i] = convertDecimalsDeep(value[i]);
+            const el = value[i] as unknown;
+            // Drop soft-deleted rows that leaked through a relation include.
+            if (
+                el !== null &&
+                typeof el === 'object' &&
+                !Array.isArray(el) &&
+                (el as { deletedAt?: unknown }).deletedAt != null
+            ) {
+                continue;
+            }
+            out.push(sanitizeReadResult(el));
         }
         return out as unknown as T;
     }
@@ -38,7 +57,7 @@ function convertDecimalsDeep<T>(value: T): T {
     const out: Record<string, unknown> = {};
     for (const k in src) {
         if (Object.prototype.hasOwnProperty.call(src, k)) {
-            out[k] = convertDecimalsDeep(src[k]);
+            out[k] = sanitizeReadResult(src[k]);
         }
     }
     return out as unknown as T;
@@ -157,15 +176,16 @@ function createExtendedClient() {
         },
     });
 
-    // ── Layer 2: Decimal → number on every result ────────────────────────────
-    //   This wraps Layer 1 so soft-delete filtering still runs first; then the
-    //   raw result bubbles up here and Decimals get unwrapped to plain numbers.
-    //   Applies to all operations including $queryRaw, aggregate, groupBy, etc.
+    // ── Layer 2: sanitize every result ───────────────────────────────────────
+    //   Wraps Layer 1 so the top-level soft-delete where-filtering runs first;
+    //   then the raw result bubbles up here where we (a) unwrap Decimals to plain
+    //   numbers and (b) drop soft-deleted rows that leaked through relation
+    //   includes. Applies to all operations including $queryRaw, aggregate, etc.
     return withSoftDelete.$extends({
         query: {
             async $allOperations({ args, query }) {
                 const result = await query(args);
-                return convertDecimalsDeep(result);
+                return sanitizeReadResult(result);
             },
         },
     });

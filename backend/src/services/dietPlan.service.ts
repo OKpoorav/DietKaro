@@ -170,9 +170,9 @@ export class DietPlanService {
                 include: {
                     client: { select: { id: true, fullName: true } },
                     creator: { select: { id: true, fullName: true } },
-                    _count: { select: { meals: true } },
+                    _count: { select: { meals: { where: { deletedAt: null } } } },
                     ...(isTemplate === 'true' && {
-                        meals: { select: { name: true, dayOfWeek: true }, orderBy: [{ dayOfWeek: 'asc' }, { createdAt: 'asc' }] },
+                        meals: { where: { deletedAt: null }, select: { name: true, dayOfWeek: true }, orderBy: [{ dayOfWeek: 'asc' }, { createdAt: 'asc' }] },
                     }),
                 },
             }),
