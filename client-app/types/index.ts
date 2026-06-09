@@ -25,6 +25,9 @@ export interface Client {
     dietaryPreferences: string[];
     allergies: string[];
     onboardingCompleted?: boolean;
+    beforePhotoFrontUrl?: string | null;
+    beforePhotoSideUrl?: string | null;
+    beforePhotoBackUrl?: string | null;
 }
 
 export interface MealOption {
@@ -106,7 +109,8 @@ export interface ProgressSummary {
     startWeight: number | null;
     progressPercent: number;
     weightTrend: 'up' | 'down' | 'stable';
-    totalLost: number;
+    totalChange: number;
+    goalDirection: 'loss' | 'gain' | 'maintain' | null;
     remaining: number | null;
     chartEntries: { date: string; weight: number }[];
     history: {
@@ -116,6 +120,16 @@ export interface ProgressSummary {
         notes: string | null;
         delta: number | null;
     }[];
+}
+
+export interface UpcomingConsultation {
+    id: string;
+    title: string | null;
+    scheduledAt: string;
+    durationMin: number;
+    mode: 'online' | 'in_person';
+    meetLink: string | null;
+    location: string | null;
 }
 
 export interface AuthResponse {

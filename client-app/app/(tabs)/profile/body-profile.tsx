@@ -25,9 +25,13 @@ export default function BodyProfileScreen() {
     // Body measurements (step 6)
     const [chest, setChest] = useState('');
     const [waist, setWaist] = useState('');
+    const [stomach, setStomach] = useState('');
+    const [bellyAboveNavel, setBellyAboveNavel] = useState('');
+    const [bellyBelowNavel, setBellyBelowNavel] = useState('');
     const [hips, setHips] = useState('');
     const [thighs, setThighs] = useState('');
     const [arms, setArms] = useState('');
+    const [calf, setCalf] = useState('');
     const [bodyFat, setBodyFat] = useState('');
 
     useEffect(() => {
@@ -52,9 +56,13 @@ export default function BodyProfileScreen() {
             if (stepsData.step6) {
                 setChest(stepsData.step6.chestCm ? String(stepsData.step6.chestCm) : '');
                 setWaist(stepsData.step6.waistCm ? String(stepsData.step6.waistCm) : '');
+                setStomach(stepsData.step6.stomachCm ? String(stepsData.step6.stomachCm) : '');
+                setBellyAboveNavel(stepsData.step6.bellyAboveNavelCm ? String(stepsData.step6.bellyAboveNavelCm) : '');
+                setBellyBelowNavel(stepsData.step6.bellyBelowNavelCm ? String(stepsData.step6.bellyBelowNavelCm) : '');
                 setHips(stepsData.step6.hipsCm ? String(stepsData.step6.hipsCm) : '');
                 setThighs(stepsData.step6.thighsCm ? String(stepsData.step6.thighsCm) : '');
                 setArms(stepsData.step6.armsCm ? String(stepsData.step6.armsCm) : '');
+                setCalf(stepsData.step6.calfCm ? String(stepsData.step6.calfCm) : '');
                 setBodyFat(stepsData.step6.bodyFatPercentage ? String(stepsData.step6.bodyFatPercentage) : '');
             }
         } catch (error) {
@@ -83,9 +91,13 @@ export default function BodyProfileScreen() {
         // Validate measurements
         if (!validateMeasurement(chest, 'Chest')) return;
         if (!validateMeasurement(waist, 'Waist')) return;
+        if (!validateMeasurement(stomach, 'Stomach')) return;
+        if (!validateMeasurement(bellyAboveNavel, 'Belly (above navel)')) return;
+        if (!validateMeasurement(bellyBelowNavel, 'Belly (below navel)')) return;
         if (!validateMeasurement(hips, 'Hips')) return;
         if (!validateMeasurement(thighs, 'Thighs')) return;
         if (!validateMeasurement(arms, 'Arms')) return;
+        if (!validateMeasurement(calf, 'Calf')) return;
         if (bodyFat) {
             const bf = parseFloat(bodyFat);
             if (isNaN(bf) || bf < 3 || bf > 60) {
@@ -106,14 +118,18 @@ export default function BodyProfileScreen() {
             });
 
             // Save measurements only if any provided
-            const hasMeasurements = chest || waist || hips || thighs || arms || bodyFat;
+            const hasMeasurements = chest || waist || stomach || bellyAboveNavel || bellyBelowNavel || hips || thighs || arms || calf || bodyFat;
             if (hasMeasurements) {
                 await onboardingApi.saveStep(6, {
                     chestCm: chest ? parseFloat(chest) : undefined,
                     waistCm: waist ? parseFloat(waist) : undefined,
+                    stomachCm: stomach ? parseFloat(stomach) : undefined,
+                    bellyAboveNavelCm: bellyAboveNavel ? parseFloat(bellyAboveNavel) : undefined,
+                    bellyBelowNavelCm: bellyBelowNavel ? parseFloat(bellyBelowNavel) : undefined,
                     hipsCm: hips ? parseFloat(hips) : undefined,
                     thighsCm: thighs ? parseFloat(thighs) : undefined,
                     armsCm: arms ? parseFloat(arms) : undefined,
+                    calfCm: calf ? parseFloat(calf) : undefined,
                     bodyFatPercentage: bodyFat ? parseFloat(bodyFat) : undefined,
                 });
             }
@@ -257,6 +273,42 @@ export default function BodyProfileScreen() {
 
                     <View style={styles.row}>
                         <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                            <Text style={styles.label}>Stomach</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={stomach}
+                                onChangeText={setStomach}
+                                keyboardType="numeric"
+                                placeholder="around navel"
+                                placeholderTextColor={Colors.textMuted}
+                            />
+                        </View>
+                        <View style={[styles.formGroup, { flex: 1 }]}>
+                            <Text style={styles.label}>Belly +2&quot; above navel</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={bellyAboveNavel}
+                                onChangeText={setBellyAboveNavel}
+                                keyboardType="numeric"
+                                placeholder="e.g. 88"
+                                placeholderTextColor={Colors.textMuted}
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.row}>
+                        <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                            <Text style={styles.label}>Belly +2&quot; below navel</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={bellyBelowNavel}
+                                onChangeText={setBellyBelowNavel}
+                                keyboardType="numeric"
+                                placeholder="e.g. 92"
+                                placeholderTextColor={Colors.textMuted}
+                            />
+                        </View>
+                        <View style={[styles.formGroup, { flex: 1 }]}>
                             <Text style={styles.label}>Hips</Text>
                             <TextInput
                                 style={styles.input}
@@ -267,7 +319,10 @@ export default function BodyProfileScreen() {
                                 placeholderTextColor={Colors.textMuted}
                             />
                         </View>
-                        <View style={[styles.formGroup, { flex: 1 }]}>
+                    </View>
+
+                    <View style={styles.row}>
+                        <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
                             <Text style={styles.label}>Thighs</Text>
                             <TextInput
                                 style={styles.input}
@@ -278,10 +333,7 @@ export default function BodyProfileScreen() {
                                 placeholderTextColor={Colors.textMuted}
                             />
                         </View>
-                    </View>
-
-                    <View style={styles.row}>
-                        <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                        <View style={[styles.formGroup, { flex: 1 }]}>
                             <Text style={styles.label}>Arms</Text>
                             <TextInput
                                 style={styles.input}
@@ -289,6 +341,20 @@ export default function BodyProfileScreen() {
                                 onChangeText={setArms}
                                 keyboardType="numeric"
                                 placeholder="e.g. 32"
+                                placeholderTextColor={Colors.textMuted}
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.row}>
+                        <View style={[styles.formGroup, { flex: 1, marginRight: 10 }]}>
+                            <Text style={styles.label}>Calf</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={calf}
+                                onChangeText={setCalf}
+                                keyboardType="numeric"
+                                placeholder="e.g. 36"
                                 placeholderTextColor={Colors.textMuted}
                             />
                         </View>

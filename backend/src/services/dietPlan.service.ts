@@ -643,7 +643,8 @@ export class DietPlanService {
                             select: {
                                 id: true,
                                 quantityG: true,
-                                foodItem: { select: { name: true, calories: true, proteinG: true, carbsG: true, fatsG: true } },
+                                notes: true,
+                                foodItem: { select: { id: true, name: true, calories: true, proteinG: true, carbsG: true, fatsG: true } },
                             },
                         },
                     },

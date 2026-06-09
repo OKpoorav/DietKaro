@@ -78,7 +78,7 @@ export function ClientSubscriptionCard({ clientId, clientName }: Props) {
     };
 
     const cost = sub ? Number(sub.plan.costInr) : 0;
-    const isPaid = sub?.paymentStatus === 'paid' || sub?.paymentStatus === 'completed';
+    const isPaid = sub?.paymentStatus === 'paid';
 
     return (
         <>

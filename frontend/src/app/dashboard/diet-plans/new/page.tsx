@@ -12,7 +12,7 @@ import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { DayNavigator } from '@/components/diet-plan/day-navigator';
 import { MealEditor } from '@/components/diet-plan/meal-editor';
 import { TemplateSidebar, type MealSlotPreset } from '@/components/diet-plan/template-sidebar';
-import { PreviousPlanPanel } from '@/components/diet-plan/previous-plan-panel';
+import { PreviousPlanPanel, type PreviousPlanCopyCallbacks } from '@/components/diet-plan/previous-plan-panel';
 import { PlanSetupModal, PlanSetupResult } from '@/components/diet-plan/plan-setup-modal';
 import { BulkPortionModal } from '@/components/diet-plan/bulk-portion-modal';
 import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
@@ -388,6 +388,9 @@ function BuilderContent() {
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [showPrevPlan, setShowPrevPlan] = useState(false);
     const [showPublishWarning, setShowPublishWarning] = useState(false);
+    const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+    const [templateNameInput, setTemplateNameInput] = useState('');
+    const [copyPlanConfirm, setCopyPlanConfirm] = useState<{ daysByIndex: Record<number, LocalMeal[]>; planName: string } | null>(null);
     const [whatsAppNav, setWhatsAppNav] = useState<string | null>(null);
     const [showAiDraft, setShowAiDraft] = useState(false);
     const [aiReplaceConfirmDraft, setAiReplaceConfirmDraft] = useState<MealPlanDraftResult | null>(null);
@@ -761,6 +764,15 @@ function BuilderContent() {
                                 <span className="hidden sm:inline">Portions</span>
                             </button>
                             <button
+                                onClick={() => { setTemplateNameInput(''); setShowSaveAsTemplate(true); }}
+                                disabled={builder.isSaving}
+                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                title="Save this plan as a reusable template"
+                            >
+                                <LayoutTemplate className="w-4 h-4" />
+                                <span className="hidden sm:inline">Save as Template</span>
+                            </button>
+                            <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
                                 className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
@@ -833,7 +845,23 @@ function BuilderContent() {
                     {/* Previous plan panel */}
                     {showPrevPlan && !isTemplateMode && clientId && (
                         <div className="flex-1 min-h-0 bg-white rounded-lg border border-gray-200 overflow-hidden flex flex-col">
-                            <PreviousPlanPanel clientId={clientId} excludePlanId={editId || undefined} />
+                            <PreviousPlanPanel
+                                clientId={clientId}
+                                excludePlanId={editId || undefined}
+                                copyCallbacks={{
+                                    onCopyMeal: (meal) => {
+                                        builder.setClipboardMeal(meal);
+                                        toast.success('Meal copied — click paste (clipboard icon) on any meal slot');
+                                    },
+                                    onCopyDay: (meals) => {
+                                        builder.setClipboardDay(meals);
+                                        toast.success('Day copied — click paste on any day in the navigator');
+                                    },
+                                    onCopyEntirePlan: (daysByIndex, planName) => {
+                                        setCopyPlanConfirm({ daysByIndex, planName });
+                                    },
+                                } satisfies PreviousPlanCopyCallbacks}
+                            />
                         </div>
                     )}
 
@@ -918,6 +946,92 @@ function BuilderContent() {
                 currentDay={builder.planDates[builder.activeDayIndex]?.day.toLowerCase()}
                 onAddFood={builder.addFood}
             />
+
+            {/* Copy entire plan — confirmation modal */}
+            {copyPlanConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900">Replace current plan?</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    This will replace <span className="font-medium text-gray-700">all current meals</span> with the content from:
+                                </p>
+                                <p className="text-sm font-semibold text-brand mt-1 truncate">&ldquo;{copyPlanConfirm.planName}&rdquo;</p>
+                                <p className="text-xs text-gray-400 mt-1">Any unsaved changes to the current plan will be overwritten.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <button
+                                onClick={() => setCopyPlanConfirm(null)}
+                                className="flex-1 px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    builder.replaceAllDays(copyPlanConfirm.daysByIndex);
+                                    setCopyPlanConfirm(null);
+                                    toast.success(`Plan replaced with "${copyPlanConfirm.planName}"`);
+                                }}
+                                className="flex-1 px-4 py-2 text-sm font-bold bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
+                            >
+                                Replace Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Save as Template modal */}
+            {showSaveAsTemplate && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                                <LayoutTemplate className="w-5 h-5 text-brand" />
+                                <h3 className="text-base font-bold text-gray-900">Save as Template</h3>
+                            </div>
+                            <button onClick={() => setShowSaveAsTemplate(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                                <XIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-500">
+                            The template name can be different from the plan name. All meal structures and food items are saved; client-specific data (allergies, targets) is not included.
+                        </p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Template Name <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                value={templateNameInput}
+                                onChange={e => setTemplateNameInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter' && templateNameInput.trim()) { setShowSaveAsTemplate(false); builder.saveAsTemplate(templateNameInput.trim()); } }}
+                                placeholder="e.g. Weight Loss 1500 kcal"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-brand/20 focus:border-brand outline-none"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <button
+                                onClick={() => setShowSaveAsTemplate(false)}
+                                className="flex-1 px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => { if (!templateNameInput.trim()) return; setShowSaveAsTemplate(false); builder.saveAsTemplate(templateNameInput.trim()); }}
+                                disabled={!templateNameInput.trim() || builder.isSaving}
+                                className="flex-1 px-4 py-2 text-sm font-bold bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors disabled:opacity-50"
+                            >
+                                Save Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Publish warning — empty meal slots detected */}
             {showPublishWarning && (() => {

@@ -297,6 +297,33 @@ router.post('/before-photos', writeOperationLimiter, uploadSinglePhoto, asyncHan
     res.status(200).json({ success: true, data: { url } });
 }));
 
+// ============ CONSULTATIONS ============
+
+router.get('/consultations/upcoming', asyncHandler(async (req: ClientAuthRequest, res: Response) => {
+    if (!req.client) throw AppError.unauthorized();
+    const now = new Date();
+    const sevenDaysOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const consultations = await prisma.consultation.findMany({
+        where: {
+            clientId: req.client.id,
+            status: 'scheduled',
+            scheduledAt: { gte: now, lte: sevenDaysOut },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        take: 3,
+        select: {
+            id: true,
+            title: true,
+            scheduledAt: true,
+            durationMin: true,
+            mode: true,
+            meetLink: true,
+            location: true,
+        },
+    });
+    res.status(200).json({ success: true, data: consultations });
+}));
+
 router.post('/chat/conversations/initiate', writeOperationLimiter, initiateClientConversation);
 router.get('/chat/conversations', listClientConversations);
 router.get('/chat/conversations/:conversationId/messages', getClientMessages);

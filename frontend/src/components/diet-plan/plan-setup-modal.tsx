@@ -33,6 +33,8 @@ const BUILT_IN_OPTIONS = [
     { label: '6 Meals', count: 6, description: 'Breakfast, Mid-morning, Lunch, Snack, Dinner, Post-dinner' },
 ];
 
+const BLANK_OPTION = { label: 'Blank', count: 0, description: 'Start from scratch — add meals manually or use AI Draft' };
+
 export interface PlanSetupResult {
     planName: string;
     startDate: Date;
@@ -216,6 +218,10 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                     {/* All options — flat list, tagged; scrollable after ~5 items */}
                     {(filteredFullTemplates.length > 0 || filteredBuiltIn.length > 0 || filteredSlotTemplates.length > 0) && (
                         <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+                            {/* Blank / Start-from-scratch — always shown unless search hides it */}
+                            {(!q || BLANK_OPTION.label.toLowerCase().includes(q) || BLANK_OPTION.description.toLowerCase().includes(q)) && (
+                                <BlankCard onSelect={() => selectOption(0)} />
+                            )}
                             {filteredFullTemplates.map(t => {
                                 const isPinned = pins.has(t.id);
                                 return (
@@ -286,7 +292,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
                             ? fullTemplates.find(t => t.id === selectedApplyTemplateId)?.name || 'Full Template'
                             : selectedSlotTemplateId
                                 ? slotTemplates.find(t => t.id === selectedSlotTemplateId)?.name || 'Saved'
-                                : `${mealCount} meals/day`}
+                                : mealCount === 0 ? 'Blank' : `${mealCount} meals/day`}
                     </button>
                 </div>
 
@@ -496,6 +502,22 @@ function SavedStructureCard({ template, isPinned, onSelect, onTogglePin }: {
                 </button>
             )}
         </div>
+    );
+}
+
+function BlankCard({ onSelect }: { onSelect: () => void }) {
+    return (
+        <button
+            onClick={onSelect}
+            className="w-full text-left p-3 rounded-xl border-2 border-dashed border-gray-300 hover:border-brand hover:bg-brand/5 transition-all"
+        >
+            <div className="flex items-center gap-2">
+                <Utensils className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                <span className="text-sm font-semibold text-gray-700">Blank</span>
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 flex-shrink-0">Fresh Start</span>
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5 ml-6">{BLANK_OPTION.description}</p>
+        </button>
     );
 }
 

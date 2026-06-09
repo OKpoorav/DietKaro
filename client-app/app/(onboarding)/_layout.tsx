@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { Colors, Spacing, FontSizes, FontWeights } from '../../constants/theme';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 function ProgressHeader({ step }: { step: number }) {
     return (
@@ -65,6 +65,13 @@ export default function OnboardingLayout() {
                 options={{
                     title: 'Measurements',
                     headerTitle: () => <ProgressHeader step={6} />,
+                }}
+            />
+            <Stack.Screen
+                name="step7"
+                options={{
+                    title: 'Before Photos',
+                    headerTitle: () => <ProgressHeader step={7} />,
                 }}
             />
             <Stack.Screen

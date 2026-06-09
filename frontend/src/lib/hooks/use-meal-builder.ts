@@ -82,15 +82,18 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const [planDescription, setPlanDescription] = useState('');
     const [weeklyMeals, setWeeklyMeals] = useState<Record<number, LocalMeal[]>>(() => {
         const days = initialNumDays || (isTemplateMode ? 7 : 1);
-        const preset = initialMealCount
+        const isBlank = initialMealCount === 0;
+        const preset = (!isBlank && initialMealCount)
             ? MEAL_SLOT_PRESETS.find(p => p.slots.length === initialMealCount)
             : null;
-        const baseMeals = preset
-            ? preset.slots.map(s => ({ id: makeId(), name: s.name, type: s.type, time: s.time, foods: [] as LocalMeal['foods'] }))
-            : defaultMeals(client?.preferences);
+        const baseMeals = isBlank
+            ? []
+            : preset
+                ? preset.slots.map(s => ({ id: makeId(), name: s.name, type: s.type, time: s.time, foods: [] as LocalMeal['foods'] }))
+                : defaultMeals(client?.preferences);
         const meals: Record<number, LocalMeal[]> = {};
         for (let i = 0; i < days; i++) {
-            meals[i] = baseMeals.map(m => ({ ...m, id: makeId() }));
+            meals[i] = isBlank ? [] : baseMeals.map(m => ({ ...m, id: makeId() }));
         }
         return meals;
     });
@@ -137,15 +140,18 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         if (initialPlanName) setPlanName(initialPlanName);
         if (initialNumDays && initialNumDays >= 1) {
             setNumDays(initialNumDays);
-            const preset = initialMealCount
+            const isBlank = initialMealCount === 0;
+            const preset = (!isBlank && initialMealCount)
                 ? MEAL_SLOT_PRESETS.find(p => p.slots.length === initialMealCount)
                 : null;
             setWeeklyMeals(() => {
                 const meals: Record<number, LocalMeal[]> = {};
                 for (let i = 0; i < initialNumDays; i++) {
-                    meals[i] = preset
-                        ? preset.slots.map(s => ({ id: makeId(), name: s.name, type: s.type, time: s.time, foods: [] as LocalMeal['foods'] }))
-                        : defaultMeals(client?.preferences);
+                    meals[i] = isBlank
+                        ? []
+                        : preset
+                            ? preset.slots.map(s => ({ id: makeId(), name: s.name, type: s.type, time: s.time, foods: [] as LocalMeal['foods'] }))
+                            : defaultMeals(client?.preferences);
                 }
                 return meals;
             });
@@ -1241,6 +1247,53 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }
     }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient, dayNotes, saveLock]);
 
+    const saveAsTemplate = useCallback(async (templateName: string) => {
+        if (saveLock) return;
+        setSaveLock(true);
+        try {
+            const apiMeals: CreateDietPlanInput['meals'] = [];
+            Object.entries(weeklyMeals).forEach(([dayIdx, dayMeals]) => {
+                const orderedMeals = [...dayMeals].sort((a, b) => compareByTime(a.time, b.time));
+                orderedMeals.forEach(m => {
+                    const mealType = inferMealType(m.name);
+                    apiMeals.push({
+                        dayOfWeek: parseInt(dayIdx),
+                        mealType,
+                        timeOfDay: m.time,
+                        name: m.name,
+                        description: m.description,
+                        instructions: m.instructions,
+                        foodItems: m.foods.map(f => ({
+                            foodId: f.id,
+                            quantityG: f.quantityValue > 0 ? f.quantityValue : 100,
+                            notes: f.quantity,
+                            optionGroup: f.optionGroup,
+                            optionLabel: f.optionLabel,
+                        })),
+                    });
+                });
+            });
+            if (apiMeals.length === 0) {
+                toast.error('Add at least one meal before saving as template');
+                return;
+            }
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + numDays - 1);
+            await createMutation.mutateAsync({
+                name: templateName,
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                meals: apiMeals,
+                options: { saveAsTemplate: true },
+            });
+            toast.success(`Template "${templateName}" saved! Available in your template library.`);
+        } catch {
+            toast.error('Failed to save template');
+        } finally {
+            setSaveLock(false);
+        }
+    }, [weeklyMeals, startDate, numDays, createMutation, saveLock]);
+
     const confirmScaling = useCallback((scale: boolean) => {
         if (!pendingApplyRef.current || !scalingPrompt) return;
         const factor = scale ? scalingPrompt.ratio : 1;
@@ -1310,12 +1363,14 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         addDay,
         removeDay,
         clipboardDay,
+        setClipboardDay,
         copyDay,
         pasteDay,
         copyDayToAll,
         copyDayToSelected,
         clearDay,
         clipboardMeal,
+        setClipboardMeal,
         copyMeal,
         pasteMeal,
         dayNotes,
@@ -1337,6 +1392,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         showBulkPortionModal,
         setShowBulkPortionModal,
         save,
+        saveAsTemplate,
 
         // Mutation states
         isSaving: createMutation.isPending || updateMutation.isPending || saveLock,

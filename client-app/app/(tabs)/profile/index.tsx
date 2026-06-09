@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../hooks/useAuth';
-import { ChevronRight, Bell, Shield, HelpCircle, LogOut, Users, FileText, CreditCard, Gift, Settings, UtensilsCrossed } from 'lucide-react-native';
+import { ChevronRight, Bell, Shield, HelpCircle, LogOut, Users, FileText, CreditCard, Gift, Settings, UtensilsCrossed, Ruler } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../../constants/theme';
 import { useToast } from '../../../components/Toast';
 
@@ -140,6 +140,12 @@ export default function ProfileScreen() {
                         title="Dietary Info"
                         subtitle="Diet pattern, allergies & food preferences"
                         onPress={() => router.push('/(tabs)/profile/dietary-info')}
+                    />
+                    <MenuItem
+                        icon={Ruler}
+                        title="Body Profile"
+                        subtitle="Height, weight, measurements & body fat"
+                        onPress={() => router.push('/(tabs)/profile/body-profile' as never)}
                     />
                     <MenuItem
                         icon={Settings}

@@ -3,7 +3,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMealsByDateRange, useClientStats, usePlanSocket } from '../../../hooks/useMeals';
 import { useDailyAdherence } from '../../../hooks/useAdherence';
-import { Clock, Camera, AlertCircle, MessageSquare, CalendarOff, ChevronLeft, ChevronRight, Share2 } from 'lucide-react-native';
+import { useUpcomingConsultations } from '../../../hooks/useConsultations';
+import { Clock, Camera, AlertCircle, MessageSquare, CalendarOff, ChevronLeft, ChevronRight, Share2, CalendarDays, Video, MapPin, ExternalLink } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useState, useMemo } from 'react';
 import { MealLog } from '../../../types';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, StatusColors } from '../../../constants/theme';
@@ -416,6 +418,7 @@ export default function HomeScreen() {
     const { data: stats } = useClientStats();
     const selectedDateStr = formatLocalDate(selectedDate);
     const { data: dailyAdherence } = useDailyAdherence(selectedDateStr);
+    const { consultations, refresh: refreshConsultations } = useUpcomingConsultations();
     const [refreshing, setRefreshing] = useState(false);
     const [sharing, setSharing] = useState(false);
 
@@ -468,7 +471,7 @@ export default function HomeScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await refetch();
+        await Promise.all([refetch(), refreshConsultations()]);
         setRefreshing(false);
     };
 
@@ -549,6 +552,44 @@ export default function HomeScreen() {
                     </View>
                 </View>
 
+                {/* Upcoming Consultations */}
+                {consultations.length > 0 && (
+                    <View style={styles.consultationSection}>
+                        <Text style={styles.sectionTitle}>Upcoming Appointment{consultations.length > 1 ? 's' : ''}</Text>
+                        {consultations.map((c) => {
+                            const date = new Date(c.scheduledAt);
+                            const dateStr = date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+                            const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                            return (
+                                <View key={c.id} style={styles.consultationCard}>
+                                    <View style={styles.consultationIconWrap}>
+                                        <CalendarDays size={20} color={Colors.primary} />
+                                    </View>
+                                    <View style={styles.consultationInfo}>
+                                        <Text style={styles.consultationTitle}>{c.title || 'Consultation'}</Text>
+                                        <Text style={styles.consultationMeta}>{dateStr} at {timeStr} · {c.durationMin} min</Text>
+                                        {c.mode === 'online' && c.meetLink ? (
+                                            <TouchableOpacity
+                                                style={styles.joinButton}
+                                                onPress={() => WebBrowser.openBrowserAsync(c.meetLink!)}
+                                            >
+                                                <Video size={14} color={Colors.primary} />
+                                                <Text style={styles.joinButtonText}>Join online</Text>
+                                                <ExternalLink size={12} color={Colors.primary} />
+                                            </TouchableOpacity>
+                                        ) : c.mode === 'in_person' && c.location ? (
+                                            <View style={styles.locationRow}>
+                                                <MapPin size={13} color={Colors.textSecondary} />
+                                                <Text style={styles.locationText}>{c.location}</Text>
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
                 {/* Selected Day's Meals */}
                 <Text style={styles.sectionTitle}>Meals</Text>
 
@@ -571,11 +612,18 @@ export default function HomeScreen() {
                             />
                         ))}
                     </View>
+                ) : (allMeals?.length ?? 0) === 0 ? (
+                    <EmptyState
+                        icon={<CalendarOff size={48} color={Colors.textSecondary} />}
+                        title="No active diet plan"
+                        subtitle="Your dietitian hasn't assigned a plan yet. Tap the chat tab to send them a message."
+                        action={{ label: 'Message Dietitian', onPress: () => router.push('/(tabs)/chat' as never) }}
+                    />
                 ) : (
                     <EmptyState
                         icon={<CalendarOff size={48} color={Colors.textSecondary} />}
-                        title="No meals scheduled"
-                        subtitle="No meals for this day"
+                        title="No meals for this day"
+                        subtitle="No meals are scheduled on this date."
                     />
                 )}
             </ScrollView>
@@ -861,5 +909,70 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: Colors.primary,
+    },
+    consultationSection: {
+        paddingBottom: Spacing.sm,
+    },
+    consultationCard: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: Colors.surface,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        padding: Spacing.md,
+        marginHorizontal: Spacing.lg,
+        marginBottom: Spacing.sm,
+        gap: Spacing.md,
+    },
+    consultationIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: Colors.surfaceSecondary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    consultationInfo: {
+        flex: 1,
+    },
+    consultationTitle: {
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.semibold,
+        color: Colors.text,
+    },
+    consultationMeta: {
+        fontSize: FontSizes.sm,
+        color: Colors.textSecondary,
+        marginTop: 2,
+    },
+    joinButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: Spacing.sm,
+        alignSelf: 'flex-start',
+        backgroundColor: Colors.surfaceSecondary,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: BorderRadius.sm,
+        borderWidth: 1,
+        borderColor: Colors.border,
+    },
+    joinButtonText: {
+        fontSize: FontSizes.sm,
+        fontWeight: FontWeights.semibold,
+        color: Colors.primary,
+    },
+    locationRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: Spacing.xs,
+    },
+    locationText: {
+        fontSize: FontSizes.sm,
+        color: Colors.textSecondary,
+        flex: 1,
     },
 });
