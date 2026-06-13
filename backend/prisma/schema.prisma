@@ -272,6 +272,7 @@ model DietPlan {
   @@index([isTemplate])
   @@index([orgId, status, createdAt])
   @@index([clientId, status])
+  @@index([orgId, isActive, status])
 }
 
 model Meal {
@@ -300,6 +301,7 @@ model Meal {
   mealLogs         MealLog[]
 
   @@index([planId])
+  @@index([planId, deletedAt])
   @@index([mealDate])
   @@index([createdByUserId])
 }
@@ -407,6 +409,7 @@ model MealLog {
   substituteDescription String?
   substituteCaloriesEst Int?
   loggedAt              DateTime?
+  reminderSentAt        DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
   complianceColor       String?

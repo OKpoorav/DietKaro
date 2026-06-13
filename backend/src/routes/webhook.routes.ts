@@ -30,8 +30,9 @@ interface RazorpayWebhookPayload {
 /**
  * Razorpay webhook endpoint.
  *
- * Always returns 200 unless the signature is invalid (401). Razorpay retries
- * non-2xx responses; our handlers are idempotent so redelivery is safe.
+ * Returns 200 on success, 401 on bad signature, 500 on handler failure.
+ * Razorpay retries non-2xx responses; our handlers are idempotent so
+ * redelivery is safe.
  */
 router.post(
     '/razorpay',
@@ -79,9 +80,12 @@ router.post(
                     logger.info('Razorpay webhook: unhandled event', { event });
             }
         } catch (err: unknown) {
-            // Log but still return 200 — bug-fixing later via reconciliation.
+            // Handler failed (e.g. transient DB error). Return 500 so Razorpay
+            // redelivers — handlers are idempotent, so retry is safe. Returning
+            // 200 here would leave the payment stuck pending with no retry.
             const message = err instanceof Error ? err.message : 'unknown';
             logger.error('Razorpay webhook handler error', { event, error: message });
+            return res.status(500).json({ success: false, error: 'Handler error' });
         }
 
         return res.status(200).json({ success: true });

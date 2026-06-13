@@ -46,7 +46,7 @@ export default function LoginScreen() {
                 if (status === 404) {
                     showToast({
                         title: 'Account Not Found',
-                        message: 'No account found with this email. Please contact your dietitian.',
+                        message: 'No account found with this email, or app access is not enabled. Please contact your dietitian.',
                         variant: 'error',
                     });
                     return;

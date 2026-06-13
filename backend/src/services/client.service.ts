@@ -150,15 +150,25 @@ export class ClientService {
             const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
             const normalizedEmail = data.email.toLowerCase().trim();
             const nameParts = data.fullName.trim().split(/\s+/);
-            clerk.users.createUser({
-                emailAddress: [normalizedEmail],
-                firstName: nameParts[0] || 'User',
-                lastName: nameParts.slice(1).join(' ') || '.',
-                skipPasswordRequirement: true,
-            }).then(() => {
+            // Race against a timeout so a hung Clerk API call can't hold the
+            // promise (and its captured request context) open indefinitely.
+            const clerkTimeout = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Clerk createUser timed out after 10s')), 10_000).unref()
+            );
+            Promise.race([
+                clerk.users.createUser({
+                    emailAddress: [normalizedEmail],
+                    firstName: nameParts[0] || 'User',
+                    lastName: nameParts.slice(1).join(' ') || '.',
+                    skipPasswordRequirement: true,
+                }),
+                clerkTimeout,
+            ]).then(() => {
                 logger.info('Pre-created Clerk user for client', { clientId: client.id, email: normalizedEmail });
             }).catch((err) => {
-                logger.warn('Failed to pre-create Clerk user', { clientId: client.id, error: (err as Error).message });
+                // Mobile login falls back to the signUp flow if no Clerk user exists,
+                // so this is degraded UX rather than a hard failure — but log loudly.
+                logger.error('Failed to pre-create Clerk user', { clientId: client.id, error: (err as Error).message });
             });
         }
 

@@ -3,6 +3,7 @@ import IORedis from 'ioredis';
 import prisma from '../../utils/prisma';
 import { notificationService } from '../../services/notification.service';
 import { env } from '../../config/env';
+import { moveToDeadLetter } from '../queue';
 import logger from '../../utils/logger';
 
 let worker: Worker | null = null;
@@ -12,6 +13,8 @@ export function startPlanExpiryWorker(): Worker {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
     });
+    // Unhandled ioredis 'error' events crash the whole process.
+    connection.on('error', (err) => logger.error('Plan expiry worker Redis error', { error: err.message }));
 
     worker = new Worker('plan-expiry', async (job) => {
         logger.info('Running plan expiry check');
@@ -85,6 +88,11 @@ export function startPlanExpiryWorker(): Worker {
 
     worker.on('failed', (job, err) => {
         logger.error('Plan expiry job failed', { jobId: job?.id, error: err.message });
+        // Retries exhausted — park in the dead-letter queue for inspection/replay
+        if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+            moveToDeadLetter('plan-expiry', String(job.id), job.data, err.message)
+                .catch((dlqErr) => logger.error('Failed to move job to DLQ', { error: (dlqErr as Error).message }));
+        }
     });
 
     logger.info('Plan expiry worker started');

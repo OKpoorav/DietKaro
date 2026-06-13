@@ -3,8 +3,13 @@ import { Server as SocketServer } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
 import logger from '../utils/logger';
+import prisma from '../utils/prisma';
 import { socketAuthMiddleware } from './auth.middleware';
 import { registerChatHandlers } from './chat.handlers';
+
+// Auth is verified only at handshake; long-lived sockets must be re-checked so
+// a deactivated dietitian/client doesn't keep receiving real-time data.
+const SOCKET_REVERIFY_INTERVAL_MS = 10 * 60 * 1000;
 
 let io: SocketServer;
 
@@ -18,9 +23,14 @@ export function initializeSocket(httpServer: HttpServer): SocketServer {
     pubClient.on('error', (err) => logger.error('Socket.io Redis pub error', { error: err.message }));
     subClient.on('error', (err) => logger.error('Socket.io Redis sub error', { error: err.message }));
 
-    // Validate pub/sub connections before proceeding
+    // Validate pub/sub connections before proceeding. In production a missing
+    // adapter silently breaks cross-instance broadcasts (chat/notifications
+    // only reach users on the same replica) — fail fast instead.
     Promise.all([pubClient.ping(), subClient.ping()]).catch((err) => {
         logger.error('Socket.io Redis adapter unavailable at startup', { error: (err as Error).message });
+        if (process.env.NODE_ENV === 'production') {
+            process.exit(1);
+        }
     });
 
     const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
@@ -64,7 +74,23 @@ export function initializeSocket(httpServer: HttpServer): SocketServer {
 
         registerChatHandlers(io, socket);
 
+        const reverifyTimer = setInterval(async () => {
+            try {
+                const stillActive = userType === 'client'
+                    ? await prisma.client.findFirst({ where: { id: userId, isActive: true, loginEnabled: true }, select: { id: true } })
+                    : await prisma.user.findFirst({ where: { id: userId, isActive: true }, select: { id: true } });
+                if (!stillActive) {
+                    logger.info('Disconnecting socket — principal no longer active', { socketId: socket.id, userId, userType });
+                    socket.disconnect(true);
+                }
+            } catch (err) {
+                // Transient DB error — keep the socket, retry next interval
+                logger.warn('Socket re-verification check failed', { socketId: socket.id, error: (err as Error).message });
+            }
+        }, SOCKET_REVERIFY_INTERVAL_MS);
+
         socket.on('disconnect', (reason) => {
+            clearInterval(reverifyTimer);
             logger.info('Socket disconnected', { socketId: socket.id, reason, userId, userType });
             // Socket.io auto-cleans room memberships on disconnect
             // Personal room and conversation rooms are handled automatically

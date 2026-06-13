@@ -20,6 +20,8 @@ export const redisConnection = new IORedis(env.REDIS_URL, {
     maxRetriesPerRequest: null, // required by BullMQ
     enableReadyCheck: false,
 });
+// Without a listener, an ioredis 'error' event is unhandled and crashes the process.
+redisConnection.on('error', (err) => logger.error('BullMQ Redis connection error', { error: err.message }));
 
 // ── Dead Letter Queue ────────────────────────────────────────────────
 // Failed jobs that exhaust retries are moved here for auditing/replay
@@ -172,7 +174,10 @@ export async function setupScheduledJobs() {
     );
     // Also kick off one immediate run so stale 'active' plans get demoted
     // on the very next deploy without waiting until 9 AM tomorrow.
-    await planExpiryQueue.add('check-expiry-startup', {});
+    // Deterministic per-day jobId so multi-instance deploys / rolling restarts
+    // enqueue this once per day instead of once per replica.
+    const today = new Date().toISOString().slice(0, 10);
+    await planExpiryQueue.add('check-expiry-startup', {}, { jobId: `check-expiry-startup-${today}` });
 
     // Compliance alert daily at 10 AM
     await complianceAlertQueue.upsertJobScheduler('compliance-alert-scheduler',

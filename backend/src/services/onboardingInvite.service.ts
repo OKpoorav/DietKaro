@@ -104,6 +104,16 @@ export async function submitInvite(
     const clientId = invite.clientId;
 
     await prisma.$transaction(async (tx) => {
+        // Consume the token FIRST, atomically — two concurrent submits both pass
+        // validateToken (read usedAt=null), so the conditional write is the arbiter.
+        const consumed = await tx.onboardingInvite.updateMany({
+            where: { token, usedAt: null },
+            data: { usedAt: new Date() },
+        });
+        if (consumed.count === 0) {
+            throw AppError.badRequest('This onboarding link has already been used', 'INVITE_USED');
+        }
+
         await tx.client.update({
             where: { id: clientId },
             data: {
@@ -127,11 +137,6 @@ export async function submitInvite(
                 ...(data.beforePhotoBackUrl !== undefined && { beforePhotoBackUrl: data.beforePhotoBackUrl }),
                 onboardingCompleted: true,
             },
-        });
-
-        await tx.onboardingInvite.update({
-            where: { token },
-            data: { usedAt: new Date() },
         });
     });
 

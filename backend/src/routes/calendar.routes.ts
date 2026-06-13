@@ -27,6 +27,7 @@ router.get('/events', asyncHandler(async (req: AuthenticatedRequest, res: Respon
                 client: { select: { id: true, fullName: true, phone: true } },
             },
             orderBy: { scheduledAt: 'asc' },
+            take: 500,
         }),
         prisma.leadFollowup.findMany({
             where: {
@@ -47,6 +48,7 @@ router.get('/events', asyncHandler(async (req: AuthenticatedRequest, res: Respon
                 },
             },
             orderBy: { dueAt: 'asc' },
+            take: 500,
         }),
     ]);
 

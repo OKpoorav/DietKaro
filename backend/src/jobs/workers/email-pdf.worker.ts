@@ -1,7 +1,7 @@
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { env } from '../../config/env';
-import { EmailPdfJobData } from '../queue';
+import { EmailPdfJobData, moveToDeadLetter } from '../queue';
 import prisma from '../../utils/prisma';
 import { generateDietPlanPDF } from '../../utils/pdfGenerator';
 import { sendEmail, generateDietPlanEmailHtml } from '../../utils/emailService';
@@ -16,6 +16,8 @@ export function startEmailPdfWorker(): Worker {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
     });
+    // Unhandled ioredis 'error' events crash the whole process.
+    workerConnection.on('error', (err) => logger.error('Email PDF worker Redis error', { error: err.message }));
 
     worker = new Worker<EmailPdfJobData>(
         'email-pdf',
@@ -124,6 +126,11 @@ export function startEmailPdfWorker(): Worker {
             error: err.message,
             attempts: job?.attemptsMade,
         });
+        // Retries exhausted — park in the dead-letter queue for inspection/replay
+        if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+            moveToDeadLetter('email-pdf', String(job.id), job.data, err.message)
+                .catch((dlqErr) => logger.error('Failed to move job to DLQ', { error: (dlqErr as Error).message }));
+        }
     });
 
     logger.info('Email PDF worker started (concurrency=2)');

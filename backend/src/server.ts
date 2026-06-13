@@ -101,3 +101,16 @@ async function gracefulShutdown(signal: string) {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+// ── Last-resort error handlers ───────────────────────────────────────
+// A missed .catch() should be loud but not fatal; an uncaught exception
+// leaves the process in an unknown state, so shut down cleanly and let
+// the orchestrator restart us.
+process.on('unhandledRejection', (reason) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    logger.error('Unhandled promise rejection', { error: err.message, stack: err.stack });
+});
+process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception — shutting down', { error: err.message, stack: err.stack });
+    gracefulShutdown('uncaughtException').catch(() => process.exit(1));
+});
+

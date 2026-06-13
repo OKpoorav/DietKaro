@@ -2,7 +2,7 @@ import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { env } from '../../config/env';
 import { processReportDocument } from '../../services/document-summarizer.service';
-import { DocumentProcessingJobData } from '../queue';
+import { DocumentProcessingJobData, moveToDeadLetter } from '../queue';
 import logger from '../../utils/logger';
 
 let worker: Worker | null = null;
@@ -13,6 +13,8 @@ export function startDocumentProcessorWorker(): Worker {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
     });
+    // Unhandled ioredis 'error' events crash the whole process.
+    workerConnection.on('error', (err) => logger.error('Document processor worker Redis error', { error: err.message }));
 
     worker = new Worker<DocumentProcessingJobData>(
         'document-processing',
@@ -37,6 +39,11 @@ export function startDocumentProcessorWorker(): Worker {
             error: err.message,
             attempts: job?.attemptsMade,
         });
+        // Retries exhausted — park in the dead-letter queue for inspection/replay
+        if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+            moveToDeadLetter('document-processing', String(job.id), job.data, err.message)
+                .catch((dlqErr) => logger.error('Failed to move job to DLQ', { error: (dlqErr as Error).message }));
+        }
     });
 
     logger.info('Document processor worker started (concurrency=3)');

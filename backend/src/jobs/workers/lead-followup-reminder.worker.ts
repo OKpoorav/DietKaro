@@ -3,6 +3,7 @@ import IORedis from 'ioredis';
 import prisma from '../../utils/prisma';
 import { emailService } from '../../services/email.service';
 import { env } from '../../config/env';
+import { moveToDeadLetter } from '../queue';
 import logger from '../../utils/logger';
 
 let worker: Worker | null = null;
@@ -12,6 +13,8 @@ export function startLeadFollowupReminderWorker(): Worker {
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
     });
+    // Unhandled ioredis 'error' events crash the whole process.
+    connection.on('error', (err) => logger.error('Lead followup reminder worker Redis error', { error: err.message }));
 
     worker = new Worker('lead-followup-reminder', async () => {
         logger.info('Running lead followup reminder check');
@@ -96,6 +99,11 @@ export function startLeadFollowupReminderWorker(): Worker {
 
     worker.on('failed', (job, err) => {
         logger.error('Lead followup reminder job failed', { jobId: job?.id, error: err.message });
+        // Retries exhausted — park in the dead-letter queue for inspection/replay
+        if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+            moveToDeadLetter('lead-followup-reminder', String(job.id), job.data, err.message)
+                .catch((dlqErr) => logger.error('Failed to move job to DLQ', { error: (dlqErr as Error).message }));
+        }
     });
 
     logger.info('Lead followup reminder worker started');

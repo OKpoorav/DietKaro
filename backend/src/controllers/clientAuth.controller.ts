@@ -120,17 +120,12 @@ export const checkClientEmail = asyncHandler(async (req: Request, res: Response)
         select: { id: true, fullName: true, loginEnabled: true },
     });
 
-    if (!client) {
+    // One generic response for both "no such account" and "login disabled" —
+    // distinct errors would let anyone enumerate which emails are registered.
+    if (!client || !client.loginEnabled) {
         throw AppError.notFound(
-            'No account found with this email. Please contact your dietitian.',
+            'No account found with this email, or app access is not enabled. Please contact your dietitian.',
             'CLIENT_NOT_FOUND',
-        );
-    }
-
-    if (!client.loginEnabled) {
-        throw AppError.forbidden(
-            'App access is not enabled for this account. Please contact your dietitian.',
-            'LOGIN_DISABLED',
         );
     }
 

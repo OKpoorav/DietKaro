@@ -20,6 +20,13 @@ import {
 } from '../types';
 
 function getApiBaseUrl(): string {
+    // EXPO_PUBLIC_* env vars win over app.json so builds don't bake in a
+    // hardcoded dev IP — set EXPO_PUBLIC_API_URL in EAS/CI for real builds.
+    const envUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (envUrl) {
+        return envUrl;
+    }
+
     const configuredUrl = Constants.expoConfig?.extra?.apiUrl;
 
     if (configuredUrl) {
@@ -78,7 +85,7 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 let isRefreshing = false;
-let pendingRequests: Array<(token: string) => void> = [];
+let pendingRequests: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
 
 api.interceptors.response.use(
     (response) => response,
@@ -90,10 +97,13 @@ api.interceptors.response.use(
 
             if (isRefreshing) {
                 // Queue request until refresh completes
-                return new Promise((resolve) => {
-                    pendingRequests.push((token) => {
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
-                        resolve(api(originalRequest));
+                return new Promise((resolve, reject) => {
+                    pendingRequests.push({
+                        resolve: (token) => {
+                            originalRequest.headers.Authorization = `Bearer ${token}`;
+                            resolve(api(originalRequest));
+                        },
+                        reject,
                     });
                 });
             }
@@ -104,19 +114,21 @@ api.interceptors.response.use(
                 const refreshToken = await authStore.getRefreshToken();
                 if (!refreshToken) throw new Error('No refresh token');
 
-                const res = await axios.post(`${API_BASE_URL}/client-auth/refresh`, { refreshToken });
+                const res = await axios.post(`${API_BASE_URL}/client-auth/refresh`, { refreshToken }, { timeout: 10000 });
                 const { accessToken, refreshToken: newRefreshToken } = res.data.data;
 
                 await authStore.setToken(accessToken);
                 await authStore.setRefreshToken(newRefreshToken);
 
                 // Flush queued requests
-                pendingRequests.forEach((cb) => cb(accessToken));
+                pendingRequests.forEach((p) => p.resolve(accessToken));
                 pendingRequests = [];
 
                 originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 return api(originalRequest);
-            } catch {
+            } catch (refreshErr) {
+                // Settle queued requests — leaving their promises pending hangs callers forever
+                pendingRequests.forEach((p) => p.reject(refreshErr));
                 pendingRequests = [];
                 await authStore.removeToken();
                 onForceLogout?.();

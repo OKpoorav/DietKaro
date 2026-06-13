@@ -5,9 +5,15 @@ import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.middleware';
 import { requireClientAuth, ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { AuthenticatedRequest } from '../types/auth.types';
+import { apiLimiter } from '../middleware/rateLimiter';
+import { env } from '../config/env';
+import prisma from '../utils/prisma';
 import logger from '../utils/logger';
 
 const router = Router();
+
+// Media is mounted outside /api/v1, so the global limiter doesn't cover it.
+router.use(apiLimiter);
 
 // S3/Garage Configuration (reuse from storage service)
 const s3Client = new S3Client({
@@ -32,7 +38,9 @@ const ALLOWED_NAMESPACES = new Set([...ALLOWED_PREFIXES, 'clients']);
 // ─── Signed download tokens ────────────────────────────────────────
 // Short-lived HMAC tokens so authenticated users can open media in a
 // new browser tab (where Clerk/JWT headers aren't available).
-const DOWNLOAD_TOKEN_SECRET = process.env.CLIENT_JWT_SECRET || 'dev-secret';
+// env.ts crashes startup if CLIENT_JWT_SECRET is missing — never fall back to a
+// guessable default here: anyone reading the source could forge download tokens.
+const DOWNLOAD_TOKEN_SECRET = env.CLIENT_JWT_SECRET;
 const DOWNLOAD_TOKEN_TTL = 3600; // 1 hour
 
 /**
@@ -84,6 +92,31 @@ function verifyDownloadToken(token: string): { key: string; orgId: string } | nu
         return { key, orgId };
     } catch {
         return null;
+    }
+}
+
+/**
+ * Patients may only fetch their OWN media. Org scoping alone is not enough —
+ * every client in an org shares one orgId, so without this check any logged-in
+ * patient could read another patient's lab reports and photos.
+ * Maps each prefix's entityId to the owning client and compares.
+ */
+async function clientOwnsMedia(clientId: string, prefix: string, entityId: string): Promise<boolean> {
+    switch (prefix) {
+        case 'reports':
+        case 'profile-photos':
+            // entityId IS the clientId for these prefixes
+            return entityId === clientId;
+        case 'meal-photos': {
+            const log = await prisma.mealLog.findFirst({ where: { id: entityId, clientId }, select: { id: true } });
+            return !!log;
+        }
+        case 'weight-photos': {
+            const log = await prisma.weightLog.findFirst({ where: { id: entityId, clientId }, select: { id: true } });
+            return !!log;
+        }
+        default:
+            return false;
     }
 }
 
@@ -165,6 +198,10 @@ router.get('/client/:prefix/:orgId/:entityId/:filename',
                 return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
             }
 
+            if (!(await clientOwnsMedia(req.client.id, prefix, entityId))) {
+                return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+            }
+
             const key = `${prefix}/${orgId}/${entityId}/${filename}`;
             await serveFromS3(key, res);
         } catch (error: any) {
@@ -230,6 +267,11 @@ router.get('/:prefix/:orgId/:entityId/:filename',
                 if (userOrgId !== orgId) {
                     return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
                 }
+                // Patients additionally must own the media — org match alone
+                // would let any patient read another patient's files.
+                if (!req.user && req.client && !(await clientOwnsMedia(req.client.id, prefix, entityId))) {
+                    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+                }
             }
 
             await serveFromS3(key, res);
@@ -253,8 +295,6 @@ router.get('/:prefix/:orgId/:entityId/:filename',
  *
  * Mounted last so it never shadows the explicit 4-segment routes.
  */
-import prisma from '../utils/prisma';
-
 router.get('/{*splat}',
     async (req: any, res: Response, next: any) => {
         const token = req.query.token as string | undefined;
@@ -306,13 +346,21 @@ router.get('/{*splat}',
                 if (firstSegment === 'clients') {
                     // shape: clients/{clientId}/...  → resolve org via DB lookup.
                     const clientId = segments[1];
+                    // Patients can only fetch their own clients/{clientId}/... keys.
+                    if (req.client && !req.user && clientId !== req.client.id) {
+                        return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+                    }
                     if (clientId) {
                         const c = await prisma.client.findFirst({ where: { id: clientId }, select: { orgId: true } });
                         keyOrgId = c?.orgId ?? null;
                     }
                 } else {
-                    // legacy shape: {prefix}/{orgId}/...
+                    // legacy shape: {prefix}/{orgId}/{entityId}/...
                     keyOrgId = segments[1] ?? null;
+                    // Patients additionally must own the media (org match alone is not enough).
+                    if (req.client && !req.user && !(await clientOwnsMedia(req.client.id, firstSegment, segments[2] ?? ''))) {
+                        return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Forbidden' } });
+                    }
                 }
 
                 if (!keyOrgId || keyOrgId !== userOrgId) {
