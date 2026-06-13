@@ -40,7 +40,7 @@ interface ClientFormData {
     likedFoods: string[];
     goal: string;
     goalDeadline: string;
-    healthNotes: string;
+    remarks: string;
     primaryDietitianId?: string;
     beforePhotoFiles?: { front?: File; side?: File; back?: File };
 }
@@ -63,7 +63,7 @@ const INITIAL_FORM: ClientFormData = {
     likedFoods: [],
     goal: '',
     goalDeadline: '',
-    healthNotes: '',
+    remarks: '',
     primaryDietitianId: '',
 };
 
@@ -426,7 +426,7 @@ export function AddClientModal({ isOpen, onClose, onSubmit, postCreateBehavior =
                 {/* Notes */}
                 <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Additional Notes</label>
-                    <textarea name="healthNotes" value={formData.healthNotes} onChange={handleChange} rows={2}
+                    <textarea name="remarks" value={formData.remarks} onChange={handleChange} rows={2}
                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-brand focus:border-brand text-gray-900 resize-none"
                         placeholder="Any extra information about the client…" />
                 </div>

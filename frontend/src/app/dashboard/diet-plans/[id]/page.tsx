@@ -551,6 +551,18 @@ export default function DietPlanDetailPage() {
                 )}
             </div>
 
+            {/* General Guidelines — plan-level, shown under the date range before Day 1 */}
+            {plan.notesForClient && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-amber-800 mb-1">
+                        📅 {new Date(plan.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        {plan.endDate ? ` – ${new Date(plan.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
+                    </p>
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">General Guidelines</p>
+                    <p className="text-sm text-amber-900 whitespace-pre-wrap">{plan.notesForClient}</p>
+                </div>
+            )}
+
             {/* Meals Spreadsheet */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100">
@@ -701,6 +713,7 @@ export default function DietPlanDetailPage() {
                     dayNotes={plan.dayNotes
                         ? Object.fromEntries(Object.entries(plan.dayNotes).map(([k, v]) => [Number(k), v]))
                         : undefined}
+                    generalGuidelines={plan.notesForClient ?? undefined}
                     onClose={() => setShowWhatsApp(false)}
                 />
             )}

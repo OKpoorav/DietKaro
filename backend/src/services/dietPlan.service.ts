@@ -126,7 +126,7 @@ export class DietPlanService {
     }
 
     async listPlans(orgId: string, query: DietPlanListQuery, userRole: string = 'owner', userId: string = '') {
-        const { clientId, status, isTemplate } = query;
+        const { clientId, status, isTemplate, include } = query;
         const pagination = buildPaginationParams(query.page, query.pageSize);
 
         const where: Prisma.DietPlanWhereInput = { orgId, isActive: true };
@@ -174,6 +174,15 @@ export class DietPlanService {
                     ...(isTemplate === 'true' && {
                         meals: { where: { deletedAt: null }, select: { name: true, dayOfWeek: true }, orderBy: [{ dayOfWeek: 'asc' }, { createdAt: 'asc' }] },
                     }),
+                    // include=meals: full nested payload so callers (e.g. client profile
+                    // plan history) render every plan from one request instead of N.
+                    ...(include === 'meals' && isTemplate !== 'true' && {
+                        meals: {
+                            where: { deletedAt: null },
+                            orderBy: [{ dayOfWeek: 'asc' }, { timeOfDay: 'asc' }, { sequenceNumber: 'asc' }],
+                            include: { foodItems: { orderBy: [{ optionGroup: 'asc' }, { sortOrder: 'asc' }], include: { foodItem: true } } },
+                        },
+                    }),
                 },
             }),
             prisma.dietPlan.count({ where }),
@@ -181,6 +190,9 @@ export class DietPlanService {
 
         return {
             plans: plans.map((p) => {
+                // Template summaries derive numDays/day0MealNames from the slim meals
+                // select; skip for client plans (include=meals returns full meal objects).
+                if (isTemplate !== 'true') return { ...p, mealCount: p._count.meals };
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const meals = (p as any).meals as { name: string; dayOfWeek: number | null }[] | undefined;
                 const uniqueDays = meals ? new Set(meals.map(m => m.dayOfWeek ?? 0)).size : 0;
@@ -628,12 +640,14 @@ export class DietPlanService {
                 startDate: true,
                 endDate: true,
                 status: true,
+                notesForClient: true,
                 meals: {
                     orderBy: [{ mealDate: 'asc' }, { dayOfWeek: 'asc' }, { sequenceNumber: 'asc' }],
                     select: {
                         id: true,
                         name: true,
                         mealType: true,
+                        timeOfDay: true,
                         dayOfWeek: true,
                         mealDate: true,
                         sequenceNumber: true,

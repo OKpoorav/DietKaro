@@ -32,7 +32,7 @@ import {
 import { useClient, useClientProgress, useUpdateClient } from '@/lib/hooks/use-clients';
 import { useTeam } from '@/lib/hooks/use-team';
 import { usePermissions } from '@/lib/hooks/use-permissions';
-import { useDietPlans, useDietPlan } from '@/lib/hooks/use-diet-plans';
+import { useDietPlans } from '@/lib/hooks/use-diet-plans';
 import { useWeeklyAdherence, useComplianceHistory } from '@/lib/hooks/use-compliance';
 import { useMealLogs } from '@/lib/hooks/use-meal-logs';
 import { getInitials, calculateAge } from '@/lib/utils/formatters';
@@ -115,16 +115,16 @@ function GoalRing({ percent }: { percent: number }) {
     );
 }
 
-// ============ PLAN SECTION (fetches its own full plan data) ============
+// ============ PLAN SECTION (renders full plan data from the list payload) ============
 
-function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: string; startDate: string; endDate?: string; description?: string; status?: string; targetCalories?: number; targetProteinG?: number; targetCarbsG?: number; targetFatsG?: number }; client: any; isFirst: boolean }) {
-    const { data: fullPlan, isLoading } = useDietPlan(plan.id);
-    const [collapsed, setCollapsed] = useState(!isFirst);
+function PlanSection({ plan, client }: { plan: { id: string; name: string; startDate: string; endDate?: string; description?: string; status?: string; targetCalories?: number; targetProteinG?: number; targetCarbsG?: number; targetFatsG?: number; notesForClient?: string | null; meals?: any[] }; client: any }) {
+    // All plans render expanded so the full history reads top-to-bottom without clicks
+    const [collapsed, setCollapsed] = useState(false);
 
     const mealsByDate = new Map<string, any[]>();
-    if (fullPlan?.meals?.length) {
-        const planStart = new Date(fullPlan.startDate);
-        for (const meal of fullPlan.meals) {
+    if (plan.meals?.length) {
+        const planStart = new Date(plan.startDate);
+        for (const meal of plan.meals) {
             let dateKey: string;
             if (meal.mealDate) {
                 const d = new Date(meal.mealDate);
@@ -151,7 +151,7 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
             >
                 <div>
                     <div className="flex items-center gap-2">
-                        <h3 className="text-base font-semibold text-gray-900">{fullPlan?.name || plan.name}</h3>
+                        <h3 className="text-base font-semibold text-gray-900">{plan.name}</h3>
                         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isCurrent ? 'bg-green-50 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                             {plan.status}
                         </span>
@@ -193,9 +193,15 @@ function PlanSection({ plan, client, isFirst }: { plan: { id: string; name: stri
                         </div>
                     </div>
 
-                    {isLoading ? (
-                        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
-                    ) : mealsByDate.size > 0 ? (
+                    {/* Plan-level General Guidelines — shown before Day 1 */}
+                    {plan.notesForClient && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                            <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">General Guidelines</p>
+                            <p className="text-sm text-amber-900 whitespace-pre-wrap">{plan.notesForClient}</p>
+                        </div>
+                    )}
+
+                    {mealsByDate.size > 0 ? (
                         <div className="space-y-4">
                             {Array.from(mealsByDate.entries()).map(([dateLabel, dayMeals]) => (
                                 <div key={dateLabel}>
@@ -426,13 +432,13 @@ export default function ClientProfilePage() {
 
     const { data: client, isLoading: clientLoading, error: clientError } = useClient(clientId);
     const { data: progress, isLoading: progressLoading } = useClientProgress(clientId);
-    const { data: plansData } = useDietPlans({ clientId, isPublished: true });
+    const { data: plansData } = useDietPlans({ clientId, isPublished: true, include: 'meals' });
     const { data: weeklyAdherence } = useWeeklyAdherence(clientId);
 
-    const allPlans = (plansData?.data || []).slice().sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    // Newest first — most recent plan tops the history and is the "current" one
+    const allPlans = (plansData?.data || []).slice().sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     const activePlan = allPlans[0];
 
-    const { data: fullPlan } = useDietPlan(activePlan?.id || '');
     const { data: mealLogsData, isLoading: mealLogsLoading } = useMealLogs({ clientId, pageSize: 20 });
     const { data: complianceHistory } = useComplianceHistory(clientId, 30);
     const updateClient = useUpdateClient();
@@ -1036,8 +1042,8 @@ export default function ClientProfilePage() {
                             </div>
                         ) : (
                             <>
-                                {allPlans.map((plan, idx) => (
-                                    <PlanSection key={plan.id} plan={plan} client={client} isFirst={idx === 0} />
+                                {allPlans.map((plan) => (
+                                    <PlanSection key={plan.id} plan={plan} client={client} />
                                 ))}
                                 <div className="text-center pt-2">
                                     <Link

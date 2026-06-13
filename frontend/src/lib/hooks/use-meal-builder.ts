@@ -110,6 +110,9 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
     const [clipboardMeal, setClipboardMeal] = useState<LocalMeal | null>(null);
     // Per-day full-day notes, keyed by 0-indexed day. Cleared/grown alongside numDays.
     const [dayNotes, setDayNotes] = useState<Record<number, string>>({});
+    // Plan-level "General Guidelines" — persisted as notesForClient; shown under the
+    // plan date range in the builder, PDF, WhatsApp share, and client app.
+    const [generalGuidelines, setGeneralGuidelines] = useState('');
     const [scalingPrompt, setScalingPrompt] = useState<{
         templateCal: number;
         clientCal: number;
@@ -324,6 +327,11 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         }
         setSelectedDayIndex(0);
     }, [isTemplateMode, setWeeklyMealsDirty]);
+
+    const updateGeneralGuidelines = useCallback((value: string) => {
+        setGeneralGuidelines(value);
+        setIsDirty(true);
+    }, []);
 
     const updateDayNote = useCallback((dayIndex: number, value: string) => {
         setDayNotes(prev => {
@@ -867,6 +875,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 if (plan.targetCarbsG) setTargets(t => ({ ...t, carbs: plan.targetCarbsG }));
                 if (plan.targetFatsG) setTargets(t => ({ ...t, fat: plan.targetFatsG }));
                 setHideCaloriesFromClient(plan.hideCaloriesFromClient ?? false);
+                if (typeof plan.notesForClient === 'string') setGeneralGuidelines(plan.notesForClient);
 
                 // Hydrate day notes — stored as Record<string, string> on the server, keys are day-number strings.
                 if (plan.dayNotes && typeof plan.dayNotes === 'object') {
@@ -900,6 +909,11 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 toast.error('Template has no meals');
                 setApplyingTemplateId(null);
                 return;
+            }
+
+            // Carry template-level guidelines into the plan if none written yet
+            if (typeof template.notesForClient === 'string' && template.notesForClient.trim() && !generalGuidelines.trim()) {
+                setGeneralGuidelines(template.notesForClient);
             }
 
             // ── Slot template: apply meal structure to every existing day, don't touch numDays ──
@@ -1046,7 +1060,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
             toast.error('Failed to apply template');
             setApplyingTemplateId(null);
         }
-    }, [api, client, numDays, targets]);
+    }, [api, client, numDays, targets, generalGuidelines]);
 
     const confirmTemplateApply = useCallback(() => {
         pendingTemplateRef.current?.();
@@ -1191,6 +1205,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetCarbsG: carbsPayload,
                     targetFatsG: fatPayload,
                     hideCaloriesFromClient,
+                    notesForClient: generalGuidelines.trim(),
                     dayNotes: dayNotesPayload,
                     meals: apiMeals,
                 });
@@ -1211,6 +1226,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                     targetCarbsG: carbsPayload,
                     targetFatsG: fatPayload,
                     hideCaloriesFromClient,
+                    notesForClient: generalGuidelines.trim() || undefined,
                     dayNotes: dayNotesPayload,
                     meals: apiMeals,
                     options: isTemplateMode ? {
@@ -1245,7 +1261,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         } finally {
             setSaveLock(false);
         }
-    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient, dayNotes, saveLock]);
+    }, [weeklyMeals, clientId, planName, planDescription, startDate, numDays, isTemplateMode, createMutation, publishMutation, onSaved, targets, hideCaloriesFromClient, dayNotes, generalGuidelines, saveLock]);
 
     const saveAsTemplate = useCallback(async (templateName: string) => {
         if (saveLock) return;
@@ -1283,6 +1299,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                 name: templateName,
                 startDate: startDate.toISOString(),
                 endDate: endDate.toISOString(),
+                notesForClient: generalGuidelines.trim() || undefined,
                 meals: apiMeals,
                 options: { saveAsTemplate: true },
             });
@@ -1292,7 +1309,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         } finally {
             setSaveLock(false);
         }
-    }, [weeklyMeals, startDate, numDays, createMutation, saveLock]);
+    }, [weeklyMeals, startDate, numDays, createMutation, generalGuidelines, saveLock]);
 
     const confirmScaling = useCallback((scale: boolean) => {
         if (!pendingApplyRef.current || !scalingPrompt) return;
@@ -1376,6 +1393,8 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
         dayNotes,
         updateDayNote,
         clearDayNote,
+        generalGuidelines,
+        updateGeneralGuidelines,
         replaceAllDays,
         applyTemplate,
         applyPreset,

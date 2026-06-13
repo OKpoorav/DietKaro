@@ -64,39 +64,23 @@ function ClientPreferencesCard({ client }: { client: NonNullable<ReturnType<type
 }
 
 /**
- * Per-day note card shown above the meal editor. Collapses to a single line
- * "Add a note for the day" until the dietitian or AI writes something. Visible
- * to the client after publish (PDF, WhatsApp, mobile app).
+ * Per-day note card shown above the meal editor. Only rendered when the day
+ * already has a note (AI drafts and plans created before plan-level General
+ * Guidelines existed) — new notes go through GeneralGuidelinesCard instead.
+ * Visible to the client after publish (PDF, WhatsApp, mobile app).
  */
 function DayNoteCard({ value, onChange, onClear }: {
     value: string;
     onChange: (v: string) => void;
     onClear: () => void;
 }) {
-    const [expanded, setExpanded] = useState(false);
     const hasValue = value.trim().length > 0;
-    const showEditor = expanded || hasValue;
-
-    if (!showEditor) {
-        return (
-            <button
-                type="button"
-                onClick={() => setExpanded(true)}
-                className="flex-shrink-0 w-full flex items-center gap-2 px-3 py-2 bg-amber-50/60 hover:bg-amber-50 border border-dashed border-amber-300 text-amber-700 text-xs font-medium rounded-lg transition-colors"
-                title="Add a note that applies to the entire day"
-            >
-                <StickyNote className="w-3.5 h-3.5" />
-                Add a note for this day
-                <span className="ml-auto text-[10px] text-amber-500 hidden md:inline">visible to client</span>
-            </button>
-        );
-    }
 
     return (
         <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2.5">
             <div className="flex items-center gap-1.5 mb-1.5">
                 <StickyNote className="w-3.5 h-3.5 text-amber-700" />
-                <span className="text-[11px] font-semibold text-amber-800">Day note</span>
+                <span className="text-[11px] font-semibold text-amber-800">Day-specific note</span>
                 <span className="text-[10px] text-amber-600">visible to client</span>
                 {hasValue && (
                     <button
@@ -115,11 +99,75 @@ function DayNoteCard({ value, onChange, onClear }: {
                 placeholder="e.g. Hydration day — drink 3L water. 30-min walk after dinner."
                 rows={2}
                 maxLength={500}
+                className="w-full text-sm text-amber-900 bg-white/60 placeholder:text-amber-400 border border-amber-200 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400 resize-y"
+            />
+        </div>
+    );
+}
+
+/**
+ * Plan-level "General Guidelines" card shown under the plan date range, above
+ * the day navigator. Persisted as notesForClient. Visible to the client after
+ * publish (PDF, WhatsApp, mobile app) ahead of Day 1.
+ */
+function GeneralGuidelinesCard({ value, onChange }: {
+    value: string;
+    onChange: (v: string) => void;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const hasValue = value.trim().length > 0;
+    const showEditor = expanded || hasValue;
+
+    if (!showEditor) {
+        return (
+            <button
+                type="button"
+                onClick={() => setExpanded(true)}
+                className="flex-shrink-0 w-full flex items-center gap-2 px-3 py-2 bg-amber-50/60 hover:bg-amber-50 border border-dashed border-amber-300 text-amber-700 text-xs font-medium rounded-lg transition-colors"
+                title="Add guidelines that apply to the entire plan"
+            >
+                <StickyNote className="w-3.5 h-3.5" />
+                Add general guidelines for this plan
+                <span className="ml-auto text-[10px] text-amber-500 hidden md:inline">visible to client</span>
+            </button>
+        );
+    }
+
+    return (
+        <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2.5">
+            <div className="flex items-center gap-1.5 mb-1.5">
+                <StickyNote className="w-3.5 h-3.5 text-amber-700" />
+                <span className="text-[11px] font-semibold text-amber-800">General Guidelines</span>
+                <span className="text-[10px] text-amber-600">visible to client</span>
+                {hasValue && (
+                    <button
+                        type="button"
+                        onClick={() => onChange('')}
+                        className="ml-auto text-amber-500 hover:text-amber-700 p-0.5"
+                        title="Clear guidelines"
+                    >
+                        <XIcon className="w-3 h-3" />
+                    </button>
+                )}
+            </div>
+            <textarea
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="e.g. Drink 3–4L water daily. 30-min walk after dinner. Early dinner before 8pm."
+                rows={2}
+                maxLength={2000}
                 onBlur={() => { if (!hasValue) setExpanded(false); }}
                 className="w-full text-sm text-amber-900 bg-white/60 placeholder:text-amber-400 border border-amber-200 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400 resize-y"
             />
         </div>
     );
+}
+
+function formatPlanRange(start: Date, numDays: number): string {
+    const end = new Date(start);
+    end.setDate(end.getDate() + numDays - 1);
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return numDays > 1 ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
 interface BuilderPaneProps {
@@ -239,11 +287,13 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
                 onRemoveDay={builder.removeDay}
             />
 
-            <DayNoteCard
-                value={builder.dayNotes[dayIndex] ?? ''}
-                onChange={(v) => builder.updateDayNote(dayIndex, v)}
-                onClear={() => builder.clearDayNote(dayIndex)}
-            />
+            {(builder.dayNotes[dayIndex] ?? '').trim().length > 0 && (
+                <DayNoteCard
+                    value={builder.dayNotes[dayIndex] ?? ''}
+                    onChange={(v) => builder.updateDayNote(dayIndex, v)}
+                    onClear={() => builder.clearDayNote(dayIndex)}
+                />
+            )}
 
             <ErrorBoundary
                 fallback={
@@ -390,7 +440,7 @@ function BuilderContent() {
     const [showPublishWarning, setShowPublishWarning] = useState(false);
     const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
     const [templateNameInput, setTemplateNameInput] = useState('');
-    const [copyPlanConfirm, setCopyPlanConfirm] = useState<{ daysByIndex: Record<number, LocalMeal[]>; planName: string } | null>(null);
+    const [copyPlanConfirm, setCopyPlanConfirm] = useState<{ daysByIndex: Record<number, LocalMeal[]>; planName: string; generalGuidelines?: string } | null>(null);
     const [whatsAppNav, setWhatsAppNav] = useState<string | null>(null);
     const [showAiDraft, setShowAiDraft] = useState(false);
     const [aiReplaceConfirmDraft, setAiReplaceConfirmDraft] = useState<MealPlanDraftResult | null>(null);
@@ -529,9 +579,23 @@ function BuilderContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [applyTemplateId, builder.editLoading, setupResult]);
 
+    // Cancelling setup must leave the page — the builder can't render without a setup
+    // result. router.back() is a no-op in a fresh tab (most entry points use
+    // window.open), so fall back to an explicit destination.
+    const setupCancelledRef = useRef(false);
+    const handleSetupCancel = useCallback(() => {
+        setupCancelledRef.current = true;
+        setShowSetupModal(false);
+        if (window.history.length > 1) {
+            router.back();
+        } else {
+            router.replace(clientId ? `/dashboard/clients/${clientId}` : '/dashboard/diet-plans');
+        }
+    }, [router, clientId]);
+
     // Auto-show plan setup modal once client is ready — must be before early returns (Rules of Hooks)
     useEffect(() => {
-        if (!isTemplateMode && !editId && !setupResult && client && !showSetupModal) {
+        if (!isTemplateMode && !editId && !setupResult && client && !showSetupModal && !setupCancelledRef.current) {
             setShowSetupModal(true);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -657,7 +721,7 @@ function BuilderContent() {
                 </div>
                 <PlanSetupModal
                     isOpen={showSetupModal}
-                    onClose={() => router.back()}
+                    onClose={handleSetupCancel}
                     clientId={clientId!}
                     clientName={client?.fullName || ''}
                     slotTemplates={templates.filter(t => t.templateCategory === 'slot_template')}
@@ -857,8 +921,8 @@ function BuilderContent() {
                                         builder.setClipboardDay(meals);
                                         toast.success('Day copied — click paste on any day in the navigator');
                                     },
-                                    onCopyEntirePlan: (daysByIndex, planName) => {
-                                        setCopyPlanConfirm({ daysByIndex, planName });
+                                    onCopyEntirePlan: (daysByIndex, planName, generalGuidelines) => {
+                                        setCopyPlanConfirm({ daysByIndex, planName, generalGuidelines });
                                     },
                                 } satisfies PreviousPlanCopyCallbacks}
                             />
@@ -903,28 +967,42 @@ function BuilderContent() {
                 </aside>
 
                 {/* Center — Meal Editor, expanded to fill full remaining width */}
-                <section className="col-span-9 flex overflow-hidden gap-3">
-                    <BuilderPane
-                        dayIndex={selectedDayA}
-                        setDayIndex={setSelectedDayA}
-                        paneLabel={splitMode ? 'A' : undefined}
-                        otherPaneDay={splitMode ? selectedDayB : undefined}
-                        builder={builder}
-                        isTemplateMode={isTemplateMode}
-                    />
-                    {splitMode && (
-                        <>
-                            <div className="w-px bg-gray-200 flex-shrink-0" />
-                            <BuilderPane
-                                dayIndex={selectedDayB}
-                                setDayIndex={setSelectedDayB}
-                                paneLabel="B"
-                                otherPaneDay={selectedDayA}
-                                builder={builder}
-                                isTemplateMode={isTemplateMode}
-                            />
-                        </>
-                    )}
+                <section className="col-span-9 flex flex-col overflow-hidden gap-3">
+                    {/* Plan-level header: date range + General Guidelines, shown before Day 1 */}
+                    <div className="flex-shrink-0 space-y-2">
+                        {!isTemplateMode && (
+                            <p className="text-sm font-semibold text-gray-700">
+                                📅 {formatPlanRange(builder.startDate, builder.numDays)}
+                            </p>
+                        )}
+                        <GeneralGuidelinesCard
+                            value={builder.generalGuidelines}
+                            onChange={builder.updateGeneralGuidelines}
+                        />
+                    </div>
+                    <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
+                        <BuilderPane
+                            dayIndex={selectedDayA}
+                            setDayIndex={setSelectedDayA}
+                            paneLabel={splitMode ? 'A' : undefined}
+                            otherPaneDay={splitMode ? selectedDayB : undefined}
+                            builder={builder}
+                            isTemplateMode={isTemplateMode}
+                        />
+                        {splitMode && (
+                            <>
+                                <div className="w-px bg-gray-200 flex-shrink-0" />
+                                <BuilderPane
+                                    dayIndex={selectedDayB}
+                                    setDayIndex={setSelectedDayB}
+                                    paneLabel="B"
+                                    otherPaneDay={selectedDayA}
+                                    builder={builder}
+                                    isTemplateMode={isTemplateMode}
+                                />
+                            </>
+                        )}
+                    </div>
                 </section>
 
             </main>
@@ -974,6 +1052,9 @@ function BuilderContent() {
                             <button
                                 onClick={() => {
                                     builder.replaceAllDays(copyPlanConfirm.daysByIndex);
+                                    if (copyPlanConfirm.generalGuidelines?.trim()) {
+                                        builder.updateGeneralGuidelines(copyPlanConfirm.generalGuidelines);
+                                    }
                                     setCopyPlanConfirm(null);
                                     toast.success(`Plan replaced with "${copyPlanConfirm.planName}"`);
                                 }}
@@ -1093,6 +1174,7 @@ function BuilderContent() {
                     numDays={builder.numDays}
                     weeklyMeals={builder.weeklyMeals}
                     dayNotes={builder.dayNotes}
+                    generalGuidelines={builder.generalGuidelines}
                     onClose={() => {
                         // Navigate FIRST, then clear state. Doing it in the
                         // opposite order caused the modal-close click to be

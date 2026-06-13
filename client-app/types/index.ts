@@ -83,6 +83,8 @@ export interface MealLog {
     loggedAt?: string;
     /** Full-day note set by the dietitian — same across every meal of that day. */
     dayNote?: string | null;
+    /** Plan-level General Guidelines — same across every meal of the plan. */
+    generalGuidelines?: string | null;
     meal: Meal;
 }
 

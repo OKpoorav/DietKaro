@@ -180,7 +180,7 @@ export default function DashboardPage() {
     );
 
     const handleAddClient = async (
-        clientData: { name: string; email?: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; allergies?: string[]; medicalConditions?: string[]; dislikes?: string[]; likedFoods?: string[]; goal?: string; goalDeadline?: string; healthNotes?: string },
+        clientData: { name: string; email?: string; phone?: string; dateOfBirth?: string; gender?: string; height?: string; weight?: string; targetWeight?: string; allergies?: string[]; medicalConditions?: string[]; dislikes?: string[]; likedFoods?: string[]; goal?: string; goalDeadline?: string; remarks?: string },
         reactivate?: boolean,
     ): Promise<{ id: string } | void> => {
         try {
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                 likedFoods: clientData.likedFoods ?? [],
                 goal: clientData.goal || undefined,
                 goalDeadline: clientData.goalDeadline || undefined,
-                healthNotes: clientData.healthNotes || undefined,
+                remarks: clientData.remarks || undefined,
                 ...(reactivate ? { reactivate: true } : {}),
             } as Parameters<typeof createClient.mutateAsync>[0]);
             toast.success(reactivate ? 'Client reactivated successfully' : 'Client added successfully');

@@ -133,7 +133,7 @@ export function PlanSetupModal({ isOpen, onClose, clientId, clientName, slotTemp
     const [planNameError, setPlanNameError] = useState('');
     const nameManuallyEdited = useRef(false);
     const [startDateStr, setStartDateStr] = useState('');
-    const [numDays, setNumDays] = useState(7);
+    const [numDays, setNumDays] = useState(3);
     const [overlapStrategy, setOverlapStrategy] = useState<'overwrite' | 'end_previous' | 'update'>('end_previous');
 
     const startDate = startDateStr ? new Date(startDateStr + 'T00:00:00') : smartStartDate;

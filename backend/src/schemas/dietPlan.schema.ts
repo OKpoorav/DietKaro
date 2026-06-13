@@ -44,6 +44,8 @@ export const dietPlanListQuerySchema = z.object({
     clientId: z.string().optional(),
     status: z.string().optional(),
     isTemplate: z.string().optional(),
+    /** include=meals returns full nested meals → foodItems per plan (client plans only). */
+    include: z.enum(['meals']).optional(),
     page: z.string().optional(),
     pageSize: z.string().optional(),
 });

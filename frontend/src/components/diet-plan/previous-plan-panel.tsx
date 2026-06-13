@@ -25,6 +25,7 @@ interface PlanMeal {
     id: string;
     name: string;
     mealType: string;
+    timeOfDay: string | null;
     dayOfWeek: number | null;
     mealDate: string | null;
     sequenceNumber: number | null;
@@ -37,6 +38,7 @@ interface PreviousPlanData {
     startDate: string;
     endDate: string | null;
     status: string;
+    notesForClient: string | null;
     meals: PlanMeal[];
 }
 
@@ -49,7 +51,7 @@ function planMealToLocalMeal(meal: PlanMeal): LocalMeal {
         id: makeId(),
         name: meal.name || (meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)),
         type: meal.mealType as LocalMeal['type'],
-        time: '',
+        time: meal.timeOfDay || '',
         foods: meal.foodItems.map((fi): LocalFoodItem => ({
             id: fi.foodItem.id,
             tempId: makeId(),
@@ -78,7 +80,7 @@ function dayKcal(meals: PlanMeal[]): number {
 export interface PreviousPlanCopyCallbacks {
     onCopyMeal: (meal: LocalMeal) => void;
     onCopyDay: (meals: LocalMeal[]) => void;
-    onCopyEntirePlan: (daysByIndex: Record<number, LocalMeal[]>, planName: string) => void;
+    onCopyEntirePlan: (daysByIndex: Record<number, LocalMeal[]>, planName: string, generalGuidelines?: string) => void;
 }
 
 interface PreviousPlanPanelProps {
@@ -139,7 +141,7 @@ export function PreviousPlanPanel({ clientId, excludePlanId, copyCallbacks }: Pr
                 .sort((a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0))
                 .map(planMealToLocalMeal);
         });
-        copyCallbacks.onCopyEntirePlan(daysByIndex, plan.name);
+        copyCallbacks.onCopyEntirePlan(daysByIndex, plan.name, plan.notesForClient ?? undefined);
     };
 
     return (

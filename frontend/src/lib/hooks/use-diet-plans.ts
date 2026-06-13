@@ -64,6 +64,8 @@ export interface DietPlan {
     day0MealNames?: string[];
     /** Per-day full-day notes keyed by 0-indexed day-number string. */
     dayNotes?: Record<string, string> | null;
+    /** Plan-level "General Guidelines" shown to the client under the date range. */
+    notesForClient?: string | null;
 }
 
 interface PaginatedResponse<T> {
@@ -83,6 +85,8 @@ interface DietPlansParams {
     clientId?: string;
     isPublished?: boolean;
     isTemplate?: boolean;
+    /** 'meals' returns full nested meals → foodItems per plan in one request. */
+    include?: 'meals';
 }
 
 export interface CreateDietPlanInput {
@@ -150,13 +154,13 @@ export function useClientActiveRange(clientId: string | null) {
 // Hooks
 export function useDietPlans(params: DietPlansParams = {}) {
     const api = useApiClient();
-    const { page = 1, pageSize = 20, clientId, isPublished, isTemplate } = params;
+    const { page = 1, pageSize = 20, clientId, isPublished, isTemplate, include } = params;
 
     return useQuery({
-        queryKey: ['diet-plans', page, pageSize, clientId, isPublished, isTemplate],
+        queryKey: ['diet-plans', page, pageSize, clientId, isPublished, isTemplate, include],
         queryFn: async () => {
             const { data } = await api.get<PaginatedResponse<DietPlan>>('/diet-plans', {
-                params: { page, pageSize, clientId, isTemplate },
+                params: { page, pageSize, clientId, isTemplate, include },
             });
             return data;
         },
@@ -243,6 +247,9 @@ export function useExtendDietPlan() {
         },
         onSuccess: (_, { id }) => {
             queryClient.invalidateQueries({ queryKey: ['diet-plans', id] });
+            // Plan lists (client profile history, plans page) show the extended
+            // end date — refresh them too, not just the single-plan cache.
+            queryClient.invalidateQueries({ queryKey: ['diet-plans'], exact: false });
         },
     });
 }

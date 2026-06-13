@@ -114,6 +114,7 @@ export class ClientDashboardService {
             : null;
         const rawTodayNote = dayNotesMap?.[String(dayIdxFromPlanStart)];
         const todayDayNote = typeof rawTodayNote === 'string' && rawTodayNote.trim() ? rawTodayNote.trim() : null;
+        const generalGuidelines = activePlan.notesForClient?.trim() || null;
 
         return activePlan.meals.map((meal) => {
             const log = mealLogs.find((l) => l.mealId === meal.id);
@@ -133,6 +134,7 @@ export class ClientDashboardService {
                 dietitianFeedbackAt: log?.dietitianFeedbackAt,
                 loggedAt: log?.loggedAt,
                 dayNote: todayDayNote,
+                generalGuidelines,
                 meal: {
                     id: meal.id,
                     planId: meal.planId,
@@ -212,6 +214,7 @@ export class ClientDashboardService {
         const dayNotesMap = (activePlan.dayNotes && typeof activePlan.dayNotes === 'object')
             ? activePlan.dayNotes as Record<string, unknown>
             : null;
+        const generalGuidelines = activePlan.notesForClient?.trim() || null;
 
         while (currentDate <= end) {
             const dayStart = new Date(currentDate);
@@ -263,6 +266,7 @@ export class ClientDashboardService {
                     dietitianFeedbackAt: log?.dietitianFeedbackAt,
                     loggedAt: log?.loggedAt,
                     dayNote,
+                    generalGuidelines,
                     meal: {
                         id: meal.id,
                         planId: meal.planId,

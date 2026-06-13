@@ -13,6 +13,7 @@ interface WhatsAppShareModalProps {
     numDays: number;
     weeklyMeals: Record<number, LocalMeal[]>;
     dayNotes?: Record<number, string>;
+    generalGuidelines?: string;
     onClose: () => void;
 }
 
@@ -37,6 +38,7 @@ function buildMessage(
     numDays: number,
     weeklyMeals: Record<number, LocalMeal[]>,
     dayNotes?: Record<number, string>,
+    generalGuidelines?: string,
 ): string {
     const lines: string[] = [];
 
@@ -48,6 +50,11 @@ function buildMessage(
     lines.push(`🥗 *${planName}*`);
     if (clientName) lines.push(`👤 ${clientName}`);
     lines.push(`📅 ${fmtDate(startDate)}${numDays > 1 ? ` – ${fmtDate(endDate)}` : ''}`);
+    if (generalGuidelines?.trim()) {
+        lines.push('');
+        lines.push('📋 *General Guidelines*');
+        lines.push(`_${generalGuidelines.trim()}_`);
+    }
     lines.push('');
 
     for (let day = 0; day < numDays; day++) {
@@ -124,11 +131,12 @@ export function WhatsAppShareModal({
     numDays,
     weeklyMeals,
     dayNotes,
+    generalGuidelines,
     onClose,
 }: WhatsAppShareModalProps) {
     const [copied, setCopied] = useState(false);
 
-    const message = buildMessage(planName, clientName, startDate, numDays, weeklyMeals, dayNotes);
+    const message = buildMessage(planName, clientName, startDate, numDays, weeklyMeals, dayNotes, generalGuidelines);
     const normalized = normalizePhone(phone);
     const waUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 
