@@ -10,6 +10,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { useMealLogs, useReviewMealLog, MealLog } from '@/lib/hooks/use-meal-logs';
+import { formatTime12h } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 
 type FilterType = 'all' | 'pending' | 'reviewed';
@@ -140,7 +141,7 @@ export default function MealReviewPage() {
                             <div className="flex-1 min-w-0">
                                 <p className="font-medium text-gray-900 truncate">{meal.client?.fullName || 'Unknown'}</p>
                                 <p className="text-sm text-[#4e9767] truncate">
-                                    {meal.meal?.mealType || 'Meal'} - {formatDate(meal.scheduledDate)}, {meal.scheduledTime}
+                                    {meal.meal?.mealType || 'Meal'} - {formatDate(meal.scheduledDate)}, {formatTime12h(meal.scheduledTime)}
                                 </p>
                             </div>
                             <div className="flex-shrink-0">

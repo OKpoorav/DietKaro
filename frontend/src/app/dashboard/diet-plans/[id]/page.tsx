@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 import { timeToMin } from '@/lib/utils/meal-order';
+import { formatTime12h } from '@/lib/utils/formatters';
 
 function getMealDate(meal: any, startDate: string): Date {
     if (meal.mealDate) return new Date(meal.mealDate);
@@ -37,7 +38,7 @@ function MealCell({ meal }: { meal: any }) {
         <div className="min-w-0">
             {meal.timeOfDay && (
                 <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                    <Clock className="w-3 h-3 inline" /> {meal.timeOfDay}
+                    <Clock className="w-3 h-3 inline" /> {formatTime12h(meal.timeOfDay)}
                 </p>
             )}
             {meal.description && (

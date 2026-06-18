@@ -35,7 +35,7 @@ import { usePermissions } from '@/lib/hooks/use-permissions';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
 import { useWeeklyAdherence, useComplianceHistory } from '@/lib/hooks/use-compliance';
 import { useMealLogs } from '@/lib/hooks/use-meal-logs';
-import { getInitials, calculateAge } from '@/lib/utils/formatters';
+import { getInitials, calculateAge, formatTime12h } from '@/lib/utils/formatters';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { EditClientModal, type EditClientFormData } from '@/components/modals/edit-client-modal';
 import { NotesViewModal } from '@/components/clients/notes-view-modal';
@@ -161,14 +161,7 @@ function PlanSection({ plan, client }: { plan: { id: string; name: string; start
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Link
-                        href={`/dashboard/diet-plans/${plan.id}`}
-                        onClick={e => e.stopPropagation()}
-                        className="text-xs text-brand font-medium hover:underline"
-                    >
-                        View Full Plan
-                    </Link>
-                    <span className="text-gray-400 text-xs">{collapsed ? '▸' : '▾'}</span>
+                    <span className="text-gray-400 text-xs">{collapsed ? '▸ expand' : '▾ collapse'}</span>
                 </div>
             </button>
 
@@ -221,7 +214,7 @@ function PlanSection({ plan, client }: { plan: { id: string; name: string; start
                                                     {meal.timeOfDay && (
                                                         <span className="text-xs text-gray-500 flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />
-                                                            {meal.timeOfDay}
+                                                            {formatTime12h(meal.timeOfDay)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -1095,7 +1088,7 @@ export default function ClientProfilePage() {
                                                     <td className="px-6 py-3 text-gray-900">
                                                         {new Date(log.scheduledDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                         {log.scheduledTime && (
-                                                            <span className="text-gray-400 ml-1 text-xs">{log.scheduledTime}</span>
+                                                            <span className="text-gray-400 ml-1 text-xs">{formatTime12h(log.scheduledTime)}</span>
                                                         )}
                                                     </td>
                                                     <td className="px-6 py-3 text-gray-900 font-medium">

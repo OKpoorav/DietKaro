@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MealLog } from '../types';
+import { formatTime12h } from '../utils/formatTime';
 import { Clock, Check, X, MessageCircle, Camera } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows, StatusColors } from '../constants/theme';
 
@@ -47,7 +48,7 @@ export function MealCard({ mealLog }: MealCardProps) {
                     <Text style={styles.emoji}>{getMealEmoji(meal)}</Text>
                     <View>
                         <Text style={styles.mealType}>{meal.name || meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}</Text>
-                        <Text style={styles.time}>{scheduledTime || meal.timeOfDay || '--:--'}</Text>
+                        <Text style={styles.time}>{formatTime12h(scheduledTime || meal.timeOfDay) || '--:--'}</Text>
                     </View>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>

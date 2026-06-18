@@ -8,6 +8,7 @@ import { Clock, Camera, AlertCircle, MessageSquare, CalendarOff, ChevronLeft, Ch
 import * as WebBrowser from 'expo-web-browser';
 import { useState, useMemo } from 'react';
 import { MealLog } from '../../../types';
+import { formatTime12h } from '../../../utils/formatTime';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, StatusColors } from '../../../constants/theme';
 import { LoadingScreen } from '../../../components/LoadingScreen';
 import { EmptyState } from '../../../components/EmptyState';
@@ -33,7 +34,7 @@ function buildDayPlanHtml(dateLabel: string, meals: MealLog[]): string {
         <div class="meal-block">
             <div class="meal-header">
                 <span class="meal-type">${mealLabel}</span>
-                ${ml.scheduledTime ? `<span class="meal-time">${ml.scheduledTime}</span>` : ''}
+                ${ml.scheduledTime ? `<span class="meal-time">${formatTime12h(ml.scheduledTime)}</span>` : ''}
             </div>
             <ul class="ingredients">${ingredients}</ul>
             <div class="macros">
@@ -117,7 +118,7 @@ function buildWeekPlanHtml(weekLabel: string, weekDates: Date[], allMeals: MealL
             <div class="meal-block">
                 <div class="meal-header">
                     <span class="meal-type">${mealLabel}</span>
-                    ${ml.scheduledTime ? `<span class="meal-time">${ml.scheduledTime}</span>` : ''}
+                    ${ml.scheduledTime ? `<span class="meal-time">${formatTime12h(ml.scheduledTime)}</span>` : ''}
                 </div>
                 <ul class="ingredients">${ingredients}</ul>
                 <div class="macros">
@@ -259,7 +260,7 @@ function MealCardV2({ mealLog, onPress }: MealCardProps) {
                 {scheduledTime && (
                     <View style={styles.timeRow}>
                         <Clock size={14} color={Colors.textSecondary} />
-                        <Text style={styles.timeText}>{scheduledTime}</Text>
+                        <Text style={styles.timeText}>{formatTime12h(scheduledTime)}</Text>
                     </View>
                 )}
 

@@ -861,7 +861,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                                     optionLabel: f.optionLabel ?? undefined,
                                 };
                             }) || [];
-                            return { id: makeId(), name: tm.name || tm.mealType, type: tm.mealType, time: tm.timeOfDay, description: tm.description || '', instructions: tm.instructions || '', foods: localFoods };
+                            return { id: makeId(), name: tm.name || tm.mealType, type: tm.mealType, time: tm.timeOfDay || '', description: tm.description || '', instructions: tm.instructions || '', foods: localFoods };
                         });
                     });
 
@@ -1004,7 +1004,7 @@ export function useMealBuilder({ clientId, isTemplateMode, editId, client, onSav
                                 id: makeId(),
                                 name: tm.name || tm.mealType,
                                 type: tm.mealType,
-                                time: tm.timeOfDay,
+                                time: tm.timeOfDay || '',
                                 description: tm.description || '',
                                 instructions: tm.instructions || '',
                                 foods: localFoods,

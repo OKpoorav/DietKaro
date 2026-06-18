@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MessageCircle, Copy, Check, X } from 'lucide-react';
 import type { LocalMeal } from '@/lib/types/diet-plan.types';
 import { compareByTime } from '@/lib/utils/meal-order';
+import { formatTime12h } from '@/lib/utils/formatters';
 
 interface WhatsAppShareModalProps {
     phone: string;
@@ -79,7 +80,7 @@ function buildMessage(
         } else {
             for (const meal of meals) {
                 const emoji = MEAL_EMOJI[meal.type] || '🍴';
-                const timePart = meal.time ? ` (${meal.time})` : '';
+                const timePart = meal.time ? ` (${formatTime12h(meal.time)})` : '';
                 lines.push('');
                 lines.push(`${emoji} *${meal.name}*${timePart}`);
                 if (meal.description) lines.push(`  _${meal.description}_`);

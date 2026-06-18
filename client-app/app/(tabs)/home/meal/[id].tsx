@@ -17,6 +17,7 @@ import { useMealLog, useLogMeal } from '../../../../hooks/useMealLog';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, CommonStyles } from '../../../../constants/theme';
 import { useToast } from '../../../../components/Toast';
 import { normalizeError } from '../../../../utils/errorHandler';
+import { formatTime12h } from '../../../../utils/formatTime';
 import { LoadingScreen } from '../../../../components/LoadingScreen';
 import { MealOption } from '../../../../types';
 
@@ -140,7 +141,7 @@ export default function MealDetailScreen() {
     const mealPhoto = currentMealLog?.mealPhotoUrl;
     const clientNotes = currentMealLog?.clientNotes;
     const displayMealName = currentMealLog?.meal?.name || mealName || 'Meal';
-    const displayTime = currentMealLog?.scheduledTime || scheduledTime;
+    const displayTime = formatTime12h(currentMealLog?.scheduledTime || scheduledTime);
 
     if (!isPendingMeal && (currentMealLog?.status === 'eaten' || currentMealLog?.status === 'skipped' || isLoggedMeal)) {
         return (
@@ -423,7 +424,7 @@ export default function MealDetailScreen() {
                         <Text style={styles.inputLabel}>Scheduled Time</Text>
                         <View style={styles.timeDisplay}>
                             <Clock size={18} color={Colors.textSecondary} />
-                            <Text style={styles.scheduledTimeText}>{scheduledTime}</Text>
+                            <Text style={styles.scheduledTimeText}>{formatTime12h(scheduledTime)}</Text>
                         </View>
                     </View>
                 )}

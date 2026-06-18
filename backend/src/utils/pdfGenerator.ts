@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import { DietPlan, Meal, MealFoodItem, FoodItem, Client } from '@prisma/client';
 import { escapeHtml } from './htmlEscape';
 import { compareByTime, timeToMin } from './mealOrder';
+import { formatTime12h } from './formatTime';
 
 type MealWithFoodItems = Meal & {
     foodItems: (MealFoodItem & { foodItem: FoodItem })[];
@@ -274,7 +275,7 @@ export function generateDietPlanPDF(plan: DietPlanWithRelations): PDFKit.PDFDocu
             meals.forEach(meal => {
                 if (meal.timeOfDay) {
                     doc.fontSize(7).fillColor(COLORS.gray)
-                        .text(meal.timeOfDay, cellX, cellY, { width: cellW });
+                        .text(formatTime12h(meal.timeOfDay), cellX, cellY, { width: cellW });
                     cellY += LINE_H;
                 }
 
@@ -367,7 +368,7 @@ export function generateMealPlanPrintHtml(plan: DietPlanWithRelations): string {
             if (meals.length === 0) return `<td class="empty">—</td>`;
 
             const inner = meals.map(meal => {
-                const timeHtml = meal.timeOfDay ? `<div class="time">${escapeHtml(meal.timeOfDay)}</div>` : '';
+                const timeHtml = meal.timeOfDay ? `<div class="time">${escapeHtml(formatTime12h(meal.timeOfDay))}</div>` : '';
 
                 const optionGroups = new Map<number, typeof meal.foodItems>();
                 meal.foodItems.forEach(item => {

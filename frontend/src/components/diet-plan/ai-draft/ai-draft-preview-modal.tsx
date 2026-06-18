@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { AiDraftItemRow } from './ai-draft-item-row';
 import type { MealPlanDraftResult, DraftFoodItem } from '@/lib/hooks/use-ai-meal-plan-draft';
+import { formatTime12h } from '@/lib/utils/formatters';
 
 interface AiDraftPreviewModalProps {
     isOpen: boolean;
@@ -130,7 +131,7 @@ export function AiDraftPreviewModal({ isOpen, onClose, draft, onApply }: AiDraft
                                                 {meal.name || meal.mealType}
                                             </span>
                                             {meal.timeOfDay && (
-                                                <span className="text-[11px] text-gray-400">{meal.timeOfDay}</span>
+                                                <span className="text-[11px] text-gray-400">{formatTime12h(meal.timeOfDay)}</span>
                                             )}
                                         </div>
                                         <ul className="space-y-1">

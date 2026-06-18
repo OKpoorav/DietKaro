@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Trash2, Plus, AlertTriangle, AlertCircle, CheckCircle, GitBranch, FileText, ChevronDown, ChevronRight, Copy, ClipboardPaste } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
+import { TimeInput12h } from './time-input-12h';
 
 /**
  * `kind`:
@@ -246,11 +247,9 @@ function MealCard({
                         onChange={(e) => onUpdateMealField(meal.id, 'name', e.target.value)}
                         className="font-semibold text-gray-900 border-none p-0 focus:ring-0 w-32"
                     />
-                    <input
-                        type="time"
+                    <TimeInput12h
                         value={meal.time}
-                        onChange={(e) => onUpdateMealField(meal.id, 'time', e.target.value)}
-                        className="text-sm p-1 border border-gray-200 rounded-md text-gray-700 w-24"
+                        onChange={(v) => onUpdateMealField(meal.id, 'time', v)}
                     />
                 </div>
                 <div className="flex items-center gap-2">
