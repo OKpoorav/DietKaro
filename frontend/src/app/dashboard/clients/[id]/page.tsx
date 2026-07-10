@@ -49,6 +49,8 @@ import { useOnboardingInviteStatus, useGenerateInvite } from '@/lib/hooks/use-on
 import { OnboardingLinkModal } from '@/components/modals/onboarding-link-modal';
 import { OnboardingResponseModal } from '@/components/modals/onboarding-response-modal';
 import { ConsultationsCard } from '@/components/clients/consultations-card';
+import { CallNotesCard } from '@/components/clients/call-notes-card';
+import { MealsSpreadsheet } from '@/components/diet-plan/meals-spreadsheet';
 import { ConsultationsTab } from '@/components/clients/consultations-tab';
 import { CreateConsultationModal } from '@/components/modals/create-consultation-modal';
 import { useOrganization } from '@/lib/hooks/use-organization';
@@ -118,26 +120,8 @@ function GoalRing({ percent }: { percent: number }) {
 // ============ PLAN SECTION (renders full plan data from the list payload) ============
 
 function PlanSection({ plan, client }: { plan: { id: string; name: string; startDate: string; endDate?: string; description?: string; status?: string; targetCalories?: number; targetProteinG?: number; targetCarbsG?: number; targetFatsG?: number; notesForClient?: string | null; meals?: any[] }; client: any }) {
-    // All plans render expanded so the full history reads top-to-bottom without clicks
-    const [collapsed, setCollapsed] = useState(false);
-
-    const mealsByDate = new Map<string, any[]>();
-    if (plan.meals?.length) {
-        const planStart = new Date(plan.startDate);
-        for (const meal of plan.meals) {
-            let dateKey: string;
-            if (meal.mealDate) {
-                const d = new Date(meal.mealDate);
-                dateKey = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            } else {
-                const d = new Date(planStart);
-                d.setDate(d.getDate() + (meal.dayOfWeek ?? 0));
-                dateKey = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-            }
-            if (!mealsByDate.has(dateKey)) mealsByDate.set(dateKey, []);
-            mealsByDate.get(dateKey)!.push(meal);
-        }
-    }
+    // Collapsed by default — expand to reveal the meals schedule table.
+    const [collapsed, setCollapsed] = useState(true);
 
     const startStr = new Date(plan.startDate).toLocaleDateString();
     const endStr = plan.endDate ? new Date(plan.endDate).toLocaleDateString() : '';
@@ -194,51 +178,9 @@ function PlanSection({ plan, client }: { plan: { id: string; name: string; start
                         </div>
                     )}
 
-                    {mealsByDate.size > 0 ? (
-                        <div className="space-y-4">
-                            {Array.from(mealsByDate.entries()).map(([dateLabel, dayMeals]) => (
-                                <div key={dateLabel}>
-                                    <h4 className="text-xs font-semibold text-brand uppercase tracking-wide mb-2 pb-1 border-b border-gray-100">
-                                        {dateLabel}
-                                    </h4>
-                                    <div className="space-y-2">
-                                        {dayMeals
-                                            .sort((a: any, b: any) => compareByTime(a.timeOfDay, b.timeOfDay, a.sequenceNumber, b.sequenceNumber))
-                                            .map((meal: any) => (
-                                            <div key={meal.id} className="p-3 bg-gray-50 rounded-xl">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-medium text-gray-400 uppercase">{meal.mealType}</span>
-                                                        <p className="font-medium text-gray-900 text-sm">{meal.name}</p>
-                                                    </div>
-                                                    {meal.timeOfDay && (
-                                                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            {formatTime12h(meal.timeOfDay)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {meal.description && (
-                                                    <p className="text-xs text-gray-500 italic mt-1">{meal.description}</p>
-                                                )}
-                                                {meal.instructions && (
-                                                    <p className="text-xs text-gray-400 mt-1 border-l-2 border-gray-200 pl-2">{meal.instructions}</p>
-                                                )}
-                                                {meal.foodItems?.length > 0 && (
-                                                    <div className="mt-1.5 space-y-0.5">
-                                                        {meal.foodItems.map((food: any, fi: number) => (
-                                                            <div key={fi} className="text-xs text-gray-600 flex justify-between">
-                                                                <span>{food.foodItem?.name || 'Unknown'}</span>
-                                                                <span className="text-gray-400">{food.notes || `${food.quantityG}g`}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
+                    {plan.meals && plan.meals.length > 0 ? (
+                        <div className="rounded-xl border border-gray-200 overflow-hidden">
+                            <MealsSpreadsheet meals={plan.meals} startDate={plan.startDate} dayNotes={(plan as { dayNotes?: Record<string, string> | null }).dayNotes} />
                         </div>
                     ) : (
                         <p className="text-sm text-gray-400 text-center py-4">No meals in this plan</p>
@@ -934,6 +876,9 @@ export default function ClientProfilePage() {
 
                             {/* Consultations */}
                             <ConsultationsCard clientId={clientId} clientName={client.fullName} clientPhone={client.phone} />
+
+                            {/* Call Notes */}
+                            <CallNotesCard clientId={clientId} clientPhone={client.phone} />
 
                             {/* Onboarding Link */}
                             <OnboardingInviteCard clientId={clientId} clientName={client.fullName} orgName={org?.name ?? ''} client={client} />

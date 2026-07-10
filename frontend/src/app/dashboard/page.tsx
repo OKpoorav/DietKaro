@@ -20,6 +20,7 @@ import {
     Phone,
     Video,
     ChartLine,
+    NotebookPen,
 } from 'lucide-react';
 import {
     ResponsiveContainer,
@@ -35,6 +36,7 @@ import { useDashboardStats } from '@/lib/hooks/use-dashboard';
 import { useCalendarEvents, type CalendarConsultation } from '@/lib/hooks/use-calendar';
 import { useCreateClient, Client } from '@/lib/hooks/use-clients';
 import { AddClientModal } from '@/components/modals/add-client-modal';
+import { CallNotesQuickModal } from '@/components/call-notes/call-notes-quick-modal';
 import { formatTimeAgo } from '@/lib/utils/formatters';
 
 // ─── Greeting helpers ────────────────────────────────────────────────────────
@@ -166,6 +168,7 @@ export default function DashboardPage() {
     const createClient = useCreateClient();
     const queryClient = useQueryClient();
     const [showAddClientModal, setShowAddClientModal] = useState(false);
+    const [showCallNotes, setShowCallNotes] = useState(false);
 
     // Today's calendar window
     const { start: todayStart, end: todayEnd } = useMemo(() => {
@@ -259,6 +262,14 @@ export default function DashboardPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        onClick={() => setShowCallNotes(true)}
+                        className="inline-flex items-center gap-1.5 h-9 px-3 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <NotebookPen className="w-3.5 h-3.5" />
+                        Call Notes
+                    </button>
                     <Link
                         href="/dashboard/clients?action=schedule"
                         className="inline-flex items-center gap-1.5 h-9 px-3 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
@@ -440,6 +451,7 @@ export default function DashboardPage() {
                 onClose={handleModalClose}
                 onSubmit={handleAddClient}
             />
+            <CallNotesQuickModal isOpen={showCallNotes} onClose={() => setShowCallNotes(false)} />
         </div>
     );
 }

@@ -130,11 +130,19 @@ export function PreviousPlanPanel({ clientId, excludePlanId, copyCallbacks }: Pr
         if (!dayMap.has(key)) dayMap.set(key, []);
         dayMap.get(key)!.push(m);
     });
-    const days = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).slice(0, 3);
+    const allDaysSorted = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    // Preview the most RECENT days (up to 7), not the first — a 7-day plan shows
+    // its last 7 days; a Jan 1–20 plan shows ~Jan 14–20. "Copy Plan" still copies all.
+    const MAX_PREVIEW_DAYS = 7;
+    const previewStartIdx = Math.max(0, allDaysSorted.length - MAX_PREVIEW_DAYS);
+    const days = allDaysSorted.slice(previewStartIdx);
+    const previewLabel = allDaysSorted.length > days.length
+        ? `last ${days.length} of ${allDaysSorted.length} days`
+        : `${allDaysSorted.length} day${allDaysSorted.length === 1 ? '' : 's'}`;
 
     const handleCopyEntirePlan = () => {
         if (!copyCallbacks) return;
-        const allDays = Array.from(dayMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        const allDays = allDaysSorted;
         const daysByIndex: Record<number, LocalMeal[]> = {};
         allDays.forEach(([, meals], i) => {
             daysByIndex[i] = meals
@@ -152,7 +160,7 @@ export function PreviousPlanPanel({ clientId, excludePlanId, copyCallbacks }: Pr
                     <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold text-gray-800 truncate">{plan.name}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">
-                            {fmtDate(plan.startDate)}{plan.endDate ? ` → ${fmtDate(plan.endDate)}` : ''} · first 3 days
+                            {fmtDate(plan.startDate)}{plan.endDate ? ` → ${fmtDate(plan.endDate)}` : ''} · {previewLabel}
                         </p>
                     </div>
                     {copyCallbacks && (
@@ -176,7 +184,7 @@ export function PreviousPlanPanel({ clientId, excludePlanId, copyCallbacks }: Pr
                         <DayCard
                             key={dayKey}
                             dayKey={dayKey}
-                            dayNumber={i + 1}
+                            dayNumber={previewStartIdx + i + 1}
                             meals={meals}
                             copyCallbacks={copyCallbacks}
                         />

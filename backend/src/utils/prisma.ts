@@ -83,6 +83,7 @@ const SOFT_DELETE_MODELS: Prisma.ModelName[] = [
     'Client',
     'DietPlan',
     'SessionNote',
+    'CallNote',
     'Meal',
     'MealLog',
     'WeightLog',

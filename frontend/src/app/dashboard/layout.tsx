@@ -60,9 +60,19 @@ export default function DashboardLayout({
     });
     const permissions = usePermissions();
 
+    // The diet-plan builder is a wide, focused workspace — collapse the nav by
+    // default while it's open, then restore the user's own preference on leave.
+    const isMealBuilder = pathname === '/dashboard/diet-plans/new';
+
+    // Persist only the user's real preference — never the builder's forced collapse.
     useEffect(() => {
-        localStorage.setItem('sidebar-collapsed', String(sidebarCollapsed));
-    }, [sidebarCollapsed]);
+        if (!isMealBuilder) localStorage.setItem('sidebar-collapsed', String(sidebarCollapsed));
+    }, [sidebarCollapsed, isMealBuilder]);
+
+    // Collapse on entering the builder; restore the saved preference when leaving.
+    useEffect(() => {
+        setSidebarCollapsed(isMealBuilder ? true : localStorage.getItem('sidebar-collapsed') === 'true');
+    }, [isMealBuilder]);
     const { error: profileError, isLoading: profileLoading } = useProfile();
 
     const filteredNavigation = useMemo(

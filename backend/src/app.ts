@@ -170,6 +170,7 @@ import medicalConditionsRoutes from './routes/medicalConditions.routes';
 import proposalTemplateRoutes from './routes/proposalTemplate.routes';
 import onboardingInviteRoutes from './routes/onboardingInvite.routes';
 import consultationsRoutes from './routes/consultations.routes';
+import callNotesRoutes from './routes/callNotes.routes';
 import calendarRoutes from './routes/calendar.routes';
 import aiMealPlanDraftRoutes from './routes/aiMealPlanDraft.routes';
 
@@ -202,6 +203,7 @@ app.use('/api/v1/clients/:clientId/payments', clientPaymentRoutes); // Per-clien
 app.use('/api/v1/webhooks', webhookRoutes); // External webhooks (Razorpay) — signature-verified
 app.use('/api/v1/clients/:clientId/document-summary', clientDocumentSummaryRoutes); // Unified client summary
 app.use('/api/v1/clients/:clientId/consultations', consultationsRoutes); // Consultations
+app.use('/api/v1/clients/:clientId/call-notes', callNotesRoutes); // Quick call notes
 app.use('/api/v1/calendar', calendarRoutes); // Calendar events (org-wide)
 app.use('/api/v1/leads', leadsRoutes);                          // CRM leads
 app.use('/api/v1/lead-sources', leadSourcesRoutes);             // Lead source master

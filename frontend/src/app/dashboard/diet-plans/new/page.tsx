@@ -15,6 +15,7 @@ import { TemplateSidebar, type MealSlotPreset } from '@/components/diet-plan/tem
 import { PreviousPlanPanel, type PreviousPlanCopyCallbacks } from '@/components/diet-plan/previous-plan-panel';
 import { PlanSetupModal, PlanSetupResult } from '@/components/diet-plan/plan-setup-modal';
 import { BulkPortionModal } from '@/components/diet-plan/bulk-portion-modal';
+import { CallNotesDock } from '@/components/diet-plan/call-notes-dock';
 import { WhatsAppShareModal } from '@/components/diet-plan/whatsapp-share-modal';
 import { useClient } from '@/lib/hooks/use-clients';
 import { useDietPlans } from '@/lib/hooks/use-diet-plans';
@@ -878,7 +879,8 @@ function BuilderContent() {
 
             {/* Main Content */}
             <div className="flex-grow overflow-x-auto bg-gray-50">
-            <main className="grid grid-cols-12 gap-4 p-4 h-full min-w-[900px] overflow-hidden bg-gray-50">
+            <div className="flex-1 flex min-h-0 h-full">
+            <main className="flex-1 min-w-0 grid grid-cols-12 gap-4 p-4 h-full overflow-hidden bg-gray-50">
                 {/* Left Sidebar */}
                 <aside className="col-span-3 flex flex-col overflow-y-auto overflow-x-hidden pr-2 gap-3 pb-4">
 
@@ -1006,6 +1008,10 @@ function BuilderContent() {
                 </section>
 
             </main>
+            {clientId && client && !isTemplateMode && (
+                <CallNotesDock clientId={clientId} clientName={client.fullName} clientPhone={client.phone} />
+            )}
+            </div>
             </div>
 
             {/* Add Food Modal — targets whichever pane/day triggered it */}
@@ -1026,46 +1032,89 @@ function BuilderContent() {
             />
 
             {/* Copy entire plan — confirmation modal */}
-            {copyPlanConfirm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-                        <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                            </div>
+            {copyPlanConfirm && (() => {
+                const src = copyPlanConfirm.daysByIndex;
+                const prevDayCount = Object.keys(src).reduce((m, k) => Math.max(m, Number(k) + 1), 0) || 1;
+                const currentDays = builder.numDays;
+                const extendTo = Math.min(prevDayCount, 7); // client plans cap at 7 days
+                const sameLength = prevDayCount === currentDays;
+                const canExtend = extendTo > currentDays;
+
+                const finish = () => {
+                    if (copyPlanConfirm.generalGuidelines?.trim()) {
+                        builder.updateGeneralGuidelines(copyPlanConfirm.generalGuidelines);
+                    }
+                    setCopyPlanConfirm(null);
+                    toast.success(`Plan replaced with "${copyPlanConfirm.planName}"`);
+                };
+                // Fit: keep the current plan's length, take the previous plan's first X days.
+                const copyFirstX = () => {
+                    const map: Record<number, LocalMeal[]> = {};
+                    for (let i = 0; i < currentDays; i += 1) map[i] = src[i] ?? [];
+                    builder.replaceAllDays(map);
+                    finish();
+                };
+                // All: replaceAllDays resizes the plan to fit every day of the previous plan.
+                const copyAll = () => {
+                    builder.replaceAllDays(src);
+                    finish();
+                };
+                const plural = (n: number) => (n === 1 ? 'day' : 'days');
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
                             <div>
-                                <h3 className="text-base font-bold text-gray-900">Replace current plan?</h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    This will replace <span className="font-medium text-gray-700">all current meals</span> with the content from:
-                                </p>
+                                <h3 className="text-base font-bold text-gray-900">Copy from this plan</h3>
                                 <p className="text-sm font-semibold text-brand mt-1 truncate">&ldquo;{copyPlanConfirm.planName}&rdquo;</p>
-                                <p className="text-xs text-gray-400 mt-1">Any unsaved changes to the current plan will be overwritten.</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    It has <span className="font-medium text-gray-700">{prevDayCount} {plural(prevDayCount)}</span>. This replaces your current plan&rsquo;s meals.
+                                </p>
                             </div>
-                        </div>
-                        <div className="flex gap-3 pt-1">
-                            <button
-                                onClick={() => setCopyPlanConfirm(null)}
-                                className="flex-1 px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    builder.replaceAllDays(copyPlanConfirm.daysByIndex);
-                                    if (copyPlanConfirm.generalGuidelines?.trim()) {
-                                        builder.updateGeneralGuidelines(copyPlanConfirm.generalGuidelines);
-                                    }
-                                    setCopyPlanConfirm(null);
-                                    toast.success(`Plan replaced with "${copyPlanConfirm.planName}"`);
-                                }}
-                                className="flex-1 px-4 py-2 text-sm font-bold bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
-                            >
-                                Replace Plan
-                            </button>
+
+                            <div className="space-y-2">
+                                {sameLength ? (
+                                    <button
+                                        onClick={copyAll}
+                                        className="w-full px-4 py-2.5 text-sm font-bold bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
+                                    >
+                                        Copy all {currentDays} {plural(currentDays)}
+                                    </button>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={copyFirstX}
+                                            className="w-full text-left px-4 py-2.5 bg-brand text-white rounded-lg hover:bg-brand/90 transition-colors"
+                                        >
+                                            <span className="block text-sm font-bold">Copy first {currentDays} {plural(currentDays)}</span>
+                                            <span className="block text-xs text-white/80 mt-0.5">Fits your current {currentDays}-{plural(currentDays)} plan</span>
+                                        </button>
+                                        <button
+                                            onClick={copyAll}
+                                            className="w-full text-left px-4 py-2.5 border border-gray-300 text-gray-800 rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            <span className="block text-sm font-bold">
+                                                {canExtend ? `Extend to ${extendTo} ${plural(extendTo)} & copy all` : `Copy all ${prevDayCount} ${plural(prevDayCount)}`}
+                                            </span>
+                                            <span className="block text-xs text-gray-400 mt-0.5">
+                                                {canExtend
+                                                    ? `Adds ${extendTo - currentDays} ${plural(extendTo - currentDays)} to your plan`
+                                                    : `Your plan becomes ${extendTo} ${plural(extendTo)}`}
+                                            </span>
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    onClick={() => setCopyPlanConfirm(null)}
+                                    className="w-full px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Save as Template modal */}
             {showSaveAsTemplate && (

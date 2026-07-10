@@ -42,6 +42,7 @@ model Organization {
   mealLogs              MealLog[]
   notifications         Notification[]
   sessionNotes          SessionNote[]
+  callNotes             CallNote[]
   users                 User[]
   weightLogs            WeightLog[]
   leads                 Lead[]
@@ -82,6 +83,7 @@ model User {
   createdInvoices     Invoice[]      @relation("InvoiceCreator")
   reviewedMealLogs    MealLog[]      @relation("MealLogReviewer")
   createdSessionNotes SessionNote[]  @relation("SessionNoteCreator")
+  createdCallNotes    CallNote[]     @relation("CallNoteCreator")
   uploadedReports     ClientReport[] @relation("UserUploadedReports")
   createdTags         ClientTag[]    @relation("ClientTagCreator")
   tagAssignments      ClientTagAssignment[] @relation("TagAssignmentActor")
@@ -177,6 +179,7 @@ model Client {
   medicalProfile        MedicalProfile?
   referralBenefit       ReferralBenefit?
   sessionNotes          SessionNote[]
+  callNotes             CallNote[]
   weightLogs            WeightLog[]
   convertedFromLead     Lead?                  @relation("LeadConvertedClient")
   onboardingInvites     OnboardingInvite[]
@@ -1197,6 +1200,28 @@ model Consultation {
 
   @@index([orgId, scheduledAt])
   @@index([clientId])
+}
+
+/// Lightweight, free-text call/consultation note. Deliberately simpler than
+/// SessionNote (no SOAP fields) and independent of Consultation — a dietitian
+/// can jot a note mid-call without creating any other record. Shown on the
+/// client profile and in the diet-plan builder.
+model CallNote {
+  id              String       @id @default(uuid())
+  orgId           String
+  clientId        String
+  createdByUserId String?
+  content         String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  client          Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  creator         User?        @relation("CallNoteCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  organization    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([clientId])
+  @@index([clientId, createdAt])
 }
 
 enum ConsultationMode {
