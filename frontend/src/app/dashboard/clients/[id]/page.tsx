@@ -42,6 +42,7 @@ import { NotesViewModal } from '@/components/clients/notes-view-modal';
 import { NotesContent } from '@/components/clients/notes-content';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
 import { WeightTrendChart } from '@/components/clients/weight-trend-chart';
+import { NumberInput } from '@/components/ui/number-input';
 import { useSetClientTags } from '@/lib/hooks/use-tags';
 import { TagChip } from '@/components/clients/tag-chip';
 import { ClientSubscriptionCard } from '@/components/subscriptions/client-subscription-card';
@@ -922,12 +923,11 @@ export default function ClientProfilePage() {
                                             { key: 'targetFatsG' as const, label: 'Fat (g)', min: 0, max: 500 },
                                         ]).map(({ key, label, min, max }) => (
                                             <div key={key} className="bg-gray-50 p-3 rounded-xl">
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     min={min}
                                                     max={max}
-                                                    value={targetDraft[key] || ''}
-                                                    onChange={e => setTargetDraft(prev => ({ ...prev, [key]: Number(e.target.value) || 0 }))}
+                                                    value={targetDraft[key]}
+                                                    onChange={n => setTargetDraft(prev => ({ ...prev, [key]: n }))}
                                                     className="w-full font-bold text-gray-900 bg-white border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                                                 />
                                                 <p className="text-gray-500 mt-1 text-xs">{label}</p>

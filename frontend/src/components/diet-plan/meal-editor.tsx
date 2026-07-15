@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Trash2, Plus, GitBranch, FileText, ChevronDown, ChevronRight, Copy, ClipboardPaste } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 import { TimeInput12h } from './time-input-12h';
+import { NumberInput } from '@/components/ui/number-input';
 
 /**
  * `kind`:
@@ -137,8 +138,7 @@ function FoodItemRow({
         }
     };
 
-    const handleQtyChange = (val: string) => {
-        const n = Math.max(0.1, parseFloat(val) || 1);
+    const handleQtyChange = (n: number) => {
         setQty(n);
         applyChange(n, unit);
     };
@@ -165,12 +165,11 @@ function FoodItemRow({
                     {food.name}
                     {resolvedQty && <span className="ml-1.5 text-xs font-normal text-gray-400">{resolvedQty}</span>}
                 </span>
-                <input
-                    type="number"
-                    min="0.5"
-                    step="0.5"
+                <NumberInput
+                    min={0.1}
+                    step={0.5}
                     value={qty}
-                    onChange={(e) => handleQtyChange(e.target.value)}
+                    onChange={handleQtyChange}
                     className="w-full text-sm text-right px-1.5 py-1 border border-gray-200 rounded-md text-gray-900 bg-white tabular-nums"
                 />
                 <select

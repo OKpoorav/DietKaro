@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import {
     type RecurrenceUnit,
     type SubscriptionPlan,
@@ -137,13 +138,12 @@ export function PlanFormModal({ isOpen, onClose, plan }: PlanFormModalProps) {
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Interval *</label>
-                        <input
-                            type="number"
+                        <NumberInput
                             required
                             min={1}
                             max={120}
                             value={form.intervalCount}
-                            onChange={(e) => setForm({ ...form, intervalCount: Math.max(1, Number(e.target.value) || 1) })}
+                            onChange={(n) => setForm({ ...form, intervalCount: n })}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand text-gray-900"
                         />
                         <p className="text-xs text-gray-400 mt-1">e.g. 2 + week = &quot;2-weekly&quot;</p>
@@ -160,13 +160,12 @@ export function PlanFormModal({ isOpen, onClose, plan }: PlanFormModalProps) {
                         />
                         Override duration
                     </label>
-                    <input
-                        type="number"
+                    <NumberInput
                         min={1}
                         max={3650}
                         disabled={!form.overrideDuration}
                         value={form.durationDays}
-                        onChange={(e) => setForm({ ...form, durationDays: Math.max(1, Number(e.target.value) || 1) })}
+                        onChange={(n) => setForm({ ...form, durationDays: n })}
                         className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand text-gray-900 disabled:bg-gray-50 disabled:text-gray-500"
                     />
                     <p className="text-xs text-gray-400 mt-1">
@@ -176,13 +175,12 @@ export function PlanFormModal({ isOpen, onClose, plan }: PlanFormModalProps) {
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Cost (₹) *</label>
-                    <input
-                        type="number"
+                    <NumberInput
                         required
                         min={0}
                         step={0.01}
                         value={form.costInr}
-                        onChange={(e) => setForm({ ...form, costInr: Math.max(0, Number(e.target.value) || 0) })}
+                        onChange={(n) => setForm({ ...form, costInr: n })}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand text-gray-900"
                     />
                 </div>

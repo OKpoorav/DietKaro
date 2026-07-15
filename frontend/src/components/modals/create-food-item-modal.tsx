@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { useCreateFoodItem, useUpdateFoodItem, useBaseIngredients, CreateFoodItemInput, FoodItem, BaseIngredient } from '@/lib/hooks/use-food-items';
 import { Loader2, X, Search, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -167,11 +168,10 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
         }
     };
 
-    const updateField = (field: keyof CreateFoodItemInput, value: string) => {
-        const numValue = parseFloat(value) || 0;
+    const updateField = (field: keyof CreateFoodItemInput, value: number) => {
         setFormData(prev => ({
             ...prev,
-            [field]: numValue
+            [field]: value
         }));
     };
 
@@ -243,12 +243,11 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Serving Size</label>
-                        <input
+                        <NumberInput
                             required
-                            type="number"
-                            min="1"
+                            min={1}
                             value={formData.servingSizeG}
-                            onChange={(e) => updateField('servingSizeG', e.target.value)}
+                            onChange={(n) => updateField('servingSizeG', n)}
                             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none text-gray-900 placeholder:text-gray-400 mb-2"
                             placeholder="100"
                         />
@@ -439,12 +438,11 @@ export function CreateFoodItemModal({ isOpen, onClose, initialData }: CreateFood
                             <div key={field} className="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
                                 <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">{label}</label>
                                 <div className="flex items-baseline gap-1">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step={field === 'calories' ? '1' : '0.1'}
+                                    <NumberInput
+                                        min={0}
+                                        step={field === 'calories' ? 1 : 0.1}
                                         value={(formData as unknown as Record<string, number>)[field] || 0}
-                                        onChange={(e) => updateField(field, e.target.value)}
+                                        onChange={(n) => updateField(field, n)}
                                         className="w-full p-0 border-none focus:ring-0 text-base font-bold text-gray-900 placeholder:text-gray-300 bg-transparent"
                                         placeholder="0"
                                     />

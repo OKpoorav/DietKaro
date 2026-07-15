@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AlertTriangle, Pencil, Check, EyeOff } from 'lucide-react';
+import { NumberInput } from '@/components/ui/number-input';
 import { toast } from 'sonner';
 import type { DayNutrition, LocalMeal } from '@/lib/types/diet-plan.types';
 
@@ -143,12 +144,11 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                         {FIELD_CONFIG.map(({ key, label, unit, min, max }) => (
                             <div key={key}>
                                 <label className="text-xs font-medium text-gray-600 mb-1 block">{label} ({unit})</label>
-                                <input
-                                    type="number"
+                                <NumberInput
                                     min={min}
                                     max={max}
                                     value={draft[key]}
-                                    onChange={e => setDraft(prev => ({ ...prev, [key]: e.target.value === '' ? 0 : Number(e.target.value) }))}
+                                    onChange={n => setDraft(prev => ({ ...prev, [key]: n }))}
                                     className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"
                                 />
                             </div>

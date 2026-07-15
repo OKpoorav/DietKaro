@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { useRecordManualPayment, type ManualPaymentMethod } from '@/lib/hooks/use-payments';
 
 interface ManualPaymentModalProps {
@@ -59,13 +60,12 @@ export function ManualPaymentModal({ isOpen, onClose, clientId, clientName, defa
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) *</label>
-                    <input
-                        type="number"
+                    <NumberInput
                         required
                         min={1}
                         step={0.01}
                         value={amount}
-                        onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))}
+                        onChange={setAmount}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand focus:border-brand text-gray-900"
                     />
                 </div>
