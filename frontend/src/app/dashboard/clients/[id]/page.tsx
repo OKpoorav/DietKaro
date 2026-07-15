@@ -41,6 +41,7 @@ import { EditClientModal, type EditClientFormData } from '@/components/modals/ed
 import { NotesViewModal } from '@/components/clients/notes-view-modal';
 import { NotesContent } from '@/components/clients/notes-content';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
+import { WeightTrendChart } from '@/components/clients/weight-trend-chart';
 import { useSetClientTags } from '@/lib/hooks/use-tags';
 import { TagChip } from '@/components/clients/tag-chip';
 import { ClientSubscriptionCard } from '@/components/subscriptions/client-subscription-card';
@@ -696,9 +697,19 @@ export default function ClientProfilePage() {
                                     </div>
                                 </div>
 
+                                {/* Weight trajectory — full history from client weight logs */}
+                                <div className="rounded-xl border border-gray-100 p-4 mb-4">
+                                    <p className="text-sm font-semibold text-brand mb-1">Weight Trajectory</p>
+                                    <WeightTrendChart
+                                        clientId={clientId}
+                                        targetWeightKg={progress?.weight?.targetWeight ?? client.targetWeightKg}
+                                        height={200}
+                                    />
+                                </div>
+
                                 {/* Weekly adherence chart — green-tinted area */}
                                 <div className="rounded-xl bg-green-50/80 p-4">
-                                    <p className="text-sm font-semibold text-brand mb-3">Weight Trend Graph</p>
+                                    <p className="text-sm font-semibold text-brand mb-3">This Week&apos;s Adherence</p>
                                     {weeklyAdherence?.dailyBreakdown && weeklyAdherence.dailyBreakdown.length > 0 ? (
                                         <div className="h-20 flex gap-1.5 items-end">
                                             {weeklyAdherence.dailyBreakdown.map((day, i) => {
@@ -1100,6 +1111,15 @@ export default function ClientProfilePage() {
                                             </p>
                                             <p className="text-gray-500">Change (kg)</p>
                                         </div>
+                                    </div>
+
+                                    <div className="rounded-xl border border-gray-100 p-4">
+                                        <p className="text-sm font-semibold text-brand mb-1">Weight Trajectory</p>
+                                        <WeightTrendChart
+                                            clientId={clientId}
+                                            targetWeightKg={progress.weight.targetWeight ?? client.targetWeightKg}
+                                            height={260}
+                                        />
                                     </div>
 
                                     {progress.weight.progressToGoal != null && (
