@@ -52,6 +52,12 @@
       },
       "router": {}
     },
-    "owner": "okpoorav"
+    "owner": "okpoorav",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e06a17c8-8a52-4f1f-ac23-78c6f042ef1f"
+    }
   }
 }
