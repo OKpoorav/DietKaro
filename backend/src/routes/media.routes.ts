@@ -1,12 +1,10 @@
 import { Router, Response } from 'express';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
-import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth.middleware';
 import { requireClientAuth, ClientAuthRequest } from '../middleware/clientAuth.middleware';
 import { AuthenticatedRequest } from '../types/auth.types';
 import { apiLimiter } from '../middleware/rateLimiter';
-import { env } from '../config/env';
 import prisma from '../utils/prisma';
 import logger from '../utils/logger';
 
@@ -36,64 +34,10 @@ const ALLOWED_PREFIXES = ['meal-photos', 'weight-photos', 'reports', 'profile-ph
 const ALLOWED_NAMESPACES = new Set([...ALLOWED_PREFIXES, 'clients']);
 
 // ─── Signed download tokens ────────────────────────────────────────
-// Short-lived HMAC tokens so authenticated users can open media in a
-// new browser tab (where Clerk/JWT headers aren't available).
-// env.ts crashes startup if CLIENT_JWT_SECRET is missing — never fall back to a
-// guessable default here: anyone reading the source could forge download tokens.
-const DOWNLOAD_TOKEN_SECRET = env.CLIENT_JWT_SECRET;
-const DOWNLOAD_TOKEN_TTL = 3600; // 1 hour
-
-/**
- * Generate a signed download token for a given S3 key + orgId.
- * The token encodes: key, orgId, expiry.
- */
-export function signDownloadToken(key: string, orgId: string): string {
-    const expires = Math.floor(Date.now() / 1000) + DOWNLOAD_TOKEN_TTL;
-    const payload = `${key}:${orgId}:${expires}`;
-    const signature = crypto
-        .createHmac('sha256', DOWNLOAD_TOKEN_SECRET)
-        .update(payload)
-        .digest('hex');
-    // Base64url-encode so it's safe in query strings
-    return Buffer.from(`${payload}:${signature}`).toString('base64url');
-}
-
-/**
- * Verify a signed download token. Returns { key, orgId } or null.
- */
-function verifyDownloadToken(token: string): { key: string; orgId: string } | null {
-    try {
-        const decoded = Buffer.from(token, 'base64url').toString();
-        const lastColon = decoded.lastIndexOf(':');
-        if (lastColon === -1) return null;
-
-        const signature = decoded.slice(lastColon + 1);
-        const payload = decoded.slice(0, lastColon);
-
-        const expected = crypto
-            .createHmac('sha256', DOWNLOAD_TOKEN_SECRET)
-            .update(payload)
-            .digest('hex');
-
-        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-            return null;
-        }
-
-        // payload = key:orgId:expires
-        const parts = payload.split(':');
-        if (parts.length < 3) return null;
-
-        const expires = parseInt(parts[parts.length - 1], 10);
-        const orgId = parts[parts.length - 2];
-        const key = parts.slice(0, parts.length - 2).join(':');
-
-        if (Math.floor(Date.now() / 1000) > expires) return null;
-
-        return { key, orgId };
-    } catch {
-        return null;
-    }
-}
+// Implementation lives in utils/mediaToken.ts (shared with the services
+// that sign photo URLs at read-time). Re-exported here for existing importers.
+import { signDownloadToken, verifyDownloadToken } from '../utils/mediaToken';
+export { signDownloadToken };
 
 /**
  * Patients may only fetch their OWN media. Org scoping alone is not enough —

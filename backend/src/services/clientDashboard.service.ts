@@ -3,6 +3,7 @@ import { MealLogStatus } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { complianceService } from './compliance.service';
 import { calculateWeightTrend } from '../utils/weightTrend';
+import { signMediaUrl } from '../utils/mediaToken';
 
 // ============ HELPERS ============
 
@@ -128,7 +129,7 @@ export class ClientDashboardService {
                 scheduledTime: meal.timeOfDay,
                 status: log?.status || 'pending',
                 chosenOptionGroup: log?.chosenOptionGroup ?? null,
-                mealPhotoUrl: log?.mealPhotoUrl,
+                mealPhotoUrl: signMediaUrl(log?.mealPhotoUrl),
                 clientNotes: log?.clientNotes,
                 dietitianFeedback: log?.dietitianFeedback,
                 dietitianFeedbackAt: log?.dietitianFeedbackAt,
@@ -260,7 +261,7 @@ export class ClientDashboardService {
                     scheduledTime: meal.timeOfDay,
                     status: log?.status || 'pending',
                     chosenOptionGroup: log?.chosenOptionGroup ?? null,
-                    mealPhotoUrl: log?.mealPhotoUrl,
+                    mealPhotoUrl: signMediaUrl(log?.mealPhotoUrl),
                     clientNotes: log?.clientNotes,
                     dietitianFeedback: log?.dietitianFeedback,
                     dietitianFeedbackAt: log?.dietitianFeedbackAt,
@@ -385,7 +386,7 @@ export class ClientDashboardService {
             scheduledTime: mealLog.scheduledTime,
             status: mealLog.status,
             chosenOptionGroup: mealLog.chosenOptionGroup,
-            mealPhotoUrl: mealLog.mealPhotoUrl,
+            mealPhotoUrl: signMediaUrl(mealLog.mealPhotoUrl),
             clientNotes: mealLog.clientNotes,
             dietitianFeedback: mealLog.dietitianFeedback,
             dietitianFeedbackAt: mealLog.dietitianFeedbackAt,
@@ -429,7 +430,14 @@ export class ClientDashboardService {
 
         if (!mealLog) {
             if (mealLogId.startsWith('pending-')) {
-                const mealId = mealLogId.replace('pending-', '');
+                // Pending IDs come in two shapes: "pending-<uuid>" (today view)
+                // and "pending-<uuid>-YYYY-MM-DD" (weekly/range view). Extract the
+                // 36-char meal UUID and the optional date suffix so meals from any
+                // day are loggable — mirrors getMealLog's parsing.
+                const rawId = mealLogId.replace(/^pending-/, '');
+                const mealId = rawId.length === 36 ? rawId : rawId.substring(0, 36);
+                const dateSuffix = rawId.length > 36 ? rawId.substring(37) : null;
+
                 const meal = await prisma.meal.findUnique({
                     where: { id: mealId },
                     include: { dietPlan: true },
@@ -439,8 +447,14 @@ export class ClientDashboardService {
                     throw AppError.notFound('Meal not found', 'MEAL_NOT_FOUND');
                 }
 
-                const today = new Date();
-                today.setUTCHours(0, 0, 0, 0);
+                // Record against the meal's actual scheduled day, not "today", so
+                // logging a past/future day's meal isn't mis-dated.
+                const scheduledDate = new Date();
+                scheduledDate.setUTCHours(0, 0, 0, 0);
+                if (dateSuffix) {
+                    const parsed = new Date(`${dateSuffix}T00:00:00.000Z`);
+                    if (!isNaN(parsed.getTime())) scheduledDate.setTime(parsed.getTime());
+                }
 
                 const mealStatus = (status || 'eaten') as MealLogStatus;
                 mealLog = await prisma.mealLog.upsert({
@@ -448,7 +462,7 @@ export class ClientDashboardService {
                         clientId_mealId_scheduledDate: {
                             clientId,
                             mealId,
-                            scheduledDate: today,
+                            scheduledDate,
                         },
                     },
                     update: {
@@ -462,7 +476,7 @@ export class ClientDashboardService {
                         orgId,
                         clientId,
                         mealId,
-                        scheduledDate: today,
+                        scheduledDate,
                         status: mealStatus,
                         mealPhotoUrl: photoUrl,
                         clientNotes: notes,
@@ -495,12 +509,18 @@ export class ClientDashboardService {
             const result = await complianceService.calculateMealCompliance(mealLog.id);
             return {
                 ...mealLog,
+                mealPhotoUrl: signMediaUrl(mealLog.mealPhotoUrl),
+                mealPhotoSmallUrl: signMediaUrl(mealLog.mealPhotoSmallUrl),
                 complianceScore: result.score,
                 complianceColor: result.color,
             };
         }
 
-        return mealLog;
+        return {
+            ...mealLog,
+            mealPhotoUrl: signMediaUrl(mealLog.mealPhotoUrl),
+            mealPhotoSmallUrl: signMediaUrl(mealLog.mealPhotoSmallUrl),
+        };
     }
 
     async getClientStats(clientId: string) {
@@ -647,11 +667,15 @@ export class ClientDashboardService {
     }
 
     async getWeightLogs(clientId: string, limit: number = 30) {
-        return prisma.weightLog.findMany({
+        const logs = await prisma.weightLog.findMany({
             where: { clientId },
             orderBy: { logDate: 'desc' },
             take: limit,
         });
+        return logs.map((log) => ({
+            ...log,
+            progressPhotoUrl: signMediaUrl(log.progressPhotoUrl),
+        }));
     }
 
     async createWeightLog(

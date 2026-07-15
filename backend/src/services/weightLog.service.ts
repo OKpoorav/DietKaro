@@ -2,6 +2,7 @@ import prisma from '../utils/prisma';
 import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta, buildDateFilter } from '../utils/queryFilters';
+import { signMediaUrl } from '../utils/mediaToken';
 import { CreateWeightLogInput } from '../schemas/weightLog.schema';
 
 export class WeightLogService {
@@ -112,7 +113,7 @@ export class WeightLogService {
                 bmi: log.bmi ? Number(log.bmi) : null,
                 weightChange: log.weightChangeFromPrevious ? Number(log.weightChangeFromPrevious) : null,
                 notes: log.notes,
-                progressPhotoUrl: log.progressPhotoUrl,
+                progressPhotoUrl: signMediaUrl(log.progressPhotoUrl),
                 isOutlier: log.isOutlier,
             })),
             meta: {
@@ -150,8 +151,8 @@ export class WeightLogService {
 
         return {
             id: updated.id,
-            progressPhotoUrl: updated.progressPhotoUrl,
-            progressPhotoThumbUrl: thumbUrl,
+            progressPhotoUrl: signMediaUrl(updated.progressPhotoUrl),
+            progressPhotoThumbUrl: signMediaUrl(thumbUrl),
         };
     }
 }

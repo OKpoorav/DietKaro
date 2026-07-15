@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 
 // Mock environment variables
 process.env.CLIENT_JWT_SECRET = 'test-secret-for-vitest-do-not-use-in-production';
+process.env.CLERK_SECRET_KEY = 'sk_test_vitest_mock_key';
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
 process.env.REDIS_URL = 'redis://localhost:6379';

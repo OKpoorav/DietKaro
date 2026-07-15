@@ -80,13 +80,38 @@ router.post('/meals/:mealLogId/photo', writeOperationLimiter, uploadSinglePhoto,
 
     await validateFileContent(req.file.buffer, IMAGE_MIMES);
 
+    // Resolve pending IDs ("pending-<mealId>" or "pending-<mealId>-YYYY-MM-DD")
+    // to the real meal-log row — the app logs the meal before uploading, so a
+    // matching row should exist by the time this runs.
+    let mealLogId = req.params.mealLogId;
+    if (mealLogId.startsWith('pending-')) {
+        const rawId = mealLogId.replace(/^pending-/, '');
+        const mealId = rawId.length === 36 ? rawId : rawId.substring(0, 36);
+        const dateSuffix = rawId.length > 36 ? rawId.substring(37) : null;
+
+        const scheduledDate = new Date();
+        scheduledDate.setUTCHours(0, 0, 0, 0);
+        if (dateSuffix) {
+            const parsed = new Date(`${dateSuffix}T00:00:00.000Z`);
+            if (!isNaN(parsed.getTime())) scheduledDate.setTime(parsed.getTime());
+        }
+
+        const resolved = await prisma.mealLog.findFirst({
+            where: { clientId: req.client.id, mealId, scheduledDate },
+        });
+        if (!resolved) {
+            throw AppError.notFound('Log the meal before uploading a photo', 'MEAL_LOG_NOT_FOUND');
+        }
+        mealLogId = resolved.id;
+    }
+
     const mealLog = await prisma.mealLog.findFirst({
-        where: { id: req.params.mealLogId, clientId: req.client.id },
+        where: { id: mealLogId, clientId: req.client.id },
     });
     if (!mealLog) throw AppError.notFound('Meal log not found', 'MEAL_LOG_NOT_FOUND');
 
     const data = await mealLogService.uploadMealPhoto(
-        req.params.mealLogId, req.file.buffer, req.file.size, req.client.orgId
+        mealLogId, req.file.buffer, req.file.size, req.client.orgId
     );
     invalidateClientCache(req.client.id);
     res.status(200).json({ success: true, data });

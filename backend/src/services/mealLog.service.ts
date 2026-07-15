@@ -4,6 +4,7 @@ import { AppError } from '../errors/AppError';
 import logger from '../utils/logger';
 import { buildPaginationParams, buildPaginationMeta, buildDateFilter, safeSortBy } from '../utils/queryFilters';
 import { scaleNutrition, sumNutrition } from '../utils/nutritionCalculator';
+import { signMediaUrl } from '../utils/mediaToken';
 import { complianceService } from './compliance.service';
 import type { CreateMealLogInput, UpdateMealLogInput, ReviewMealLogInput, MealLogListQuery } from '../schemas/mealLog.schema';
 
@@ -93,8 +94,8 @@ export class MealLogService {
             meal: { name: log.meal.name, mealType: log.meal.mealType },
             client: log.client,
             status: log.status,
-            mealPhotoUrl: log.mealPhotoUrl,
-            mealPhotoSmallUrl: log.mealPhotoSmallUrl,
+            mealPhotoUrl: signMediaUrl(log.mealPhotoUrl),
+            mealPhotoSmallUrl: signMediaUrl(log.mealPhotoSmallUrl),
             clientNotes: log.clientNotes,
             dietitianFeedback: log.dietitianFeedback,
             reviewedByUser: log.reviewer,
@@ -184,7 +185,7 @@ export class MealLogService {
             },
             status: mealLog.status,
             chosenOptionGroup: mealLog.chosenOptionGroup,
-            photoUrl: mealLog.mealPhotoUrl,
+            photoUrl: signMediaUrl(mealLog.mealPhotoUrl),
             clientNotes: mealLog.clientNotes,
             dietitianFeedback: mealLog.dietitianFeedback,
             reviewedByUser: mealLog.reviewer,
@@ -234,7 +235,7 @@ export class MealLogService {
         return {
             id: updated.id,
             status: updated.status,
-            photoUrl: updated.mealPhotoUrl,
+            photoUrl: signMediaUrl(updated.mealPhotoUrl),
             clientNotes: updated.clientNotes,
             loggedAt: updated.loggedAt,
             complianceScore,
@@ -350,8 +351,8 @@ export class MealLogService {
 
         return {
             id: updated.id,
-            mealPhotoUrl: updated.mealPhotoUrl,
-            mealPhotoSmallUrl: updated.mealPhotoSmallUrl,
+            mealPhotoUrl: signMediaUrl(updated.mealPhotoUrl),
+            mealPhotoSmallUrl: signMediaUrl(updated.mealPhotoSmallUrl),
             photoUploadedAt: updated.photoUploadedAt,
             status: updated.status,
             complianceScore: result.score,
