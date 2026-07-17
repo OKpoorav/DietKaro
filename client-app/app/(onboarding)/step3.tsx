@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { AlertTriangle, Plus, X } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 import { onboardingApi } from '../../services/api';
+import { useOnboardingStatus } from '../../hooks/useOnboarding';
 
 const COMMON_ALLERGENS = [
     'Peanuts', 'Tree Nuts', 'Milk', 'Eggs', 'Wheat', 'Soy', 'Fish', 'Shellfish'
@@ -15,6 +16,17 @@ export default function AllergiesScreen() {
     const [customAllergy, setCustomAllergy] = useState('');
     const [intolerances, setIntolerances] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+
+    // Prefill from dietitian-entered data (seed once)
+    const { data: status } = useOnboardingStatus();
+    const seeded = useRef(false);
+    useEffect(() => {
+        const s = status?.stepsData?.step3;
+        if (seeded.current || !s) return;
+        seeded.current = true;
+        if (s.allergies?.length) setAllergies(s.allergies);
+        if (s.intolerances?.length) setIntolerances(s.intolerances);
+    }, [status]);
 
     const toggleAllergy = (allergen: string) => {
         if (allergies.includes(allergen)) {

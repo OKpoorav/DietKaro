@@ -12,6 +12,19 @@ interface ClientInfo {
     fullName: string;
     email?: string;
     phone: string;
+    heightCm?: string | number | null;
+    currentWeightKg?: string | number | null;
+    targetWeightKg?: string | number | null;
+    dateOfBirth?: string | null;
+    gender?: string | null;
+    activityLevel?: string | null;
+    dietPattern?: string | null;
+    eggAllowed?: boolean | null;
+    goal?: string | null;
+    goalDeadline?: string | null;
+    allergies?: string[] | null;
+    dislikes?: string[] | null;
+    likedFoods?: string[] | null;
 }
 
 function OnboardingForm() {
@@ -44,7 +57,31 @@ function OnboardingForm() {
     useEffect(() => {
         if (!token) { setState('error'); setErrorMsg('Invalid link. No token provided.'); return; }
         axios.get(`${API}/onboarding-invite/${token}`)
-            .then((res) => { setClient(res.data.data.client); setState('form'); })
+            .then((res) => {
+                const c: ClientInfo = res.data.data.client;
+                setClient(c);
+                // Prefill everything the dietitian already entered — the client
+                // reviews and corrects instead of retyping from scratch
+                const num = (v: string | number | null | undefined) => (v != null && v !== '' ? String(Number(v)) : '');
+                const day = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : '');
+                setForm((f) => ({
+                    ...f,
+                    heightCm: num(c.heightCm),
+                    currentWeightKg: num(c.currentWeightKg),
+                    targetWeightKg: num(c.targetWeightKg),
+                    dateOfBirth: day(c.dateOfBirth),
+                    gender: c.gender ?? '',
+                    activityLevel: c.activityLevel ?? '',
+                    dietPattern: c.dietPattern ?? '',
+                    eggAllowed: c.eggAllowed == null ? '' : c.eggAllowed ? 'yes' : 'no',
+                    goal: c.goal ?? '',
+                    goalDeadline: day(c.goalDeadline),
+                }));
+                if (c.allergies?.length) setAllergies(c.allergies);
+                if (c.dislikes?.length) setDislikes(c.dislikes);
+                if (c.likedFoods?.length) setLikedFoods(c.likedFoods);
+                setState('form');
+            })
             .catch((err) => {
                 const msg = err?.response?.data?.error?.message ?? 'This link is invalid or has expired.';
                 setErrorMsg(msg);
@@ -266,7 +303,7 @@ function OnboardingForm() {
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Your Goal</p>
                         <div className="space-y-3">
                             <div>
-                                <label className={label}>What's your goal?</label>
+                                <label className={label}>What&apos;s your goal?</label>
                                 <input type="text" className={input} placeholder="e.g. Lose 10kg, Manage diabetes, Build muscle..." value={form.goal} onChange={(e) => set('goal', e.target.value)} />
                             </div>
                             <div>

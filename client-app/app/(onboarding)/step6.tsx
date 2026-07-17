@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ruler } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 import { onboardingApi } from '../../services/api';
+import { useOnboardingStatus } from '../../hooks/useOnboarding';
 
 export default function BodyMeasurementsScreen() {
     const router = useRouter();
@@ -18,6 +19,26 @@ export default function BodyMeasurementsScreen() {
     const [calf, setCalf] = useState('');
     const [bodyFat, setBodyFat] = useState('');
     const [saving, setSaving] = useState(false);
+
+    // Prefill from the latest body measurement (seed once)
+    const { data: status } = useOnboardingStatus();
+    const seeded = useRef(false);
+    useEffect(() => {
+        const s = status?.stepsData?.step6;
+        if (seeded.current || !s) return;
+        seeded.current = true;
+        const str = (v: number | null | undefined) => (v != null ? String(v) : '');
+        setUpperArm(str(s.armsCm));
+        setChest(str(s.chestCm));
+        setWaist(str(s.waistCm));
+        setStomach(str(s.stomachCm));
+        setBellyAboveNavel(str(s.bellyAboveNavelCm));
+        setBellyBelowNavel(str(s.bellyBelowNavelCm));
+        setHips(str(s.hipsCm));
+        setUpperThigh(str(s.thighsCm));
+        setCalf(str(s.calfCm));
+        setBodyFat(str(s.bodyFatPercentage));
+    }, [status]);
 
     const validateMeasurement = (value: string, label: string): boolean => {
         if (!value) return true; // all optional

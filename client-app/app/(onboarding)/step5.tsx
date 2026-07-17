@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { ThumbsDown, ThumbsUp, Plus } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 import { onboardingApi } from '../../services/api';
+import { useOnboardingStatus } from '../../hooks/useOnboarding';
 
 const COMMON_DISLIKES = [
     'Mushrooms', 'Eggplant', 'Bitter Gourd', 'Okra', 'Seafood', 'Coriander', 'Papaya'
@@ -24,6 +25,18 @@ export default function PreferencesScreen() {
     const [likedFoods, setLikedFoods] = useState<string[]>([]);
     const [preferredCuisines, setPreferredCuisines] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+
+    // Prefill from dietitian-entered data (seed once)
+    const { data: status } = useOnboardingStatus();
+    const seeded = useRef(false);
+    useEffect(() => {
+        const s = status?.stepsData?.step5;
+        if (seeded.current || !s) return;
+        seeded.current = true;
+        if (s.dislikes?.length) setDislikes(s.dislikes);
+        if (s.likedFoods?.length) setLikedFoods(s.likedFoods);
+        if (s.preferredCuisines?.length) setPreferredCuisines(s.preferredCuisines);
+    }, [status]);
 
     const toggleItem = (list: string[], setList: (items: string[]) => void, item: string) => {
         if (list.includes(item)) {

@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Shield, Fish, Egg, Leaf } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 import { onboardingApi } from '../../services/api';
+import { useOnboardingStatus } from '../../hooks/useOnboarding';
 
 const DIET_PATTERNS = [
     { id: 'vegetarian', name: 'Vegetarian', icon: Leaf, desc: 'No meat, fish, or poultry. Dairy allowed.' },
@@ -18,6 +19,17 @@ export default function DietPatternScreen() {
     const [selectedPattern, setSelectedPattern] = useState('vegetarian');
     const [eggAllowed, setEggAllowed] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // Prefill from dietitian-entered data (seed once)
+    const { data: status } = useOnboardingStatus();
+    const seeded = useRef(false);
+    useEffect(() => {
+        const s = status?.stepsData?.step2;
+        if (seeded.current || !s) return;
+        seeded.current = true;
+        if (s.dietPattern) setSelectedPattern(s.dietPattern);
+        if (s.eggAllowed != null) setEggAllowed(s.eggAllowed);
+    }, [status]);
 
     const handleNext = async () => {
         setSaving(true);

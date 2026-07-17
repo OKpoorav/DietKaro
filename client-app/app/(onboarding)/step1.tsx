@@ -1,9 +1,10 @@
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '../../constants/theme';
 import { onboardingApi } from '../../services/api';
+import { useOnboardingStatus } from '../../hooks/useOnboarding';
 
 export default function BasicInfoScreen() {
     const router = useRouter();
@@ -15,6 +16,21 @@ export default function BasicInfoScreen() {
     const [altPhone, setAltPhone] = useState('');
     const [altPhoneRelation, setAltPhoneRelation] = useState('');
     const [saving, setSaving] = useState(false);
+
+    // Prefill anything the dietitian already entered — seed once so we
+    // never clobber what the client is typing
+    const { data: status } = useOnboardingStatus();
+    const seeded = useRef(false);
+    useEffect(() => {
+        const s = status?.stepsData?.step1;
+        if (seeded.current || !s) return;
+        seeded.current = true;
+        if (s.heightCm != null) setHeight(String(s.heightCm));
+        if (s.currentWeightKg != null) setWeight(String(s.currentWeightKg));
+        if (s.targetWeightKg != null) setTargetWeight(String(s.targetWeightKg));
+        if (s.gender) setGender(s.gender);
+        if (s.activityLevel) setActivityLevel(String(s.activityLevel).toUpperCase());
+    }, [status]);
 
     const handleNext = async () => {
         if (!height || !weight) {
