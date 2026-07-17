@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Minus } from 'lucide-react';
 
 interface DayInfo {
@@ -19,6 +20,12 @@ interface DayNavigatorProps {
 
 export function DayNavigator({ planDates, selectedDayIndex, onSelectDay, isTemplateMode, onAddDay, onRemoveDay }: DayNavigatorProps) {
     const maxIndex = planDates.length - 1;
+
+    // Keep the selected day visible when navigating via chevrons
+    const dayRefs = useRef<(HTMLButtonElement | null)[]>([]);
+    useEffect(() => {
+        dayRefs.current[selectedDayIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }, [selectedDayIndex]);
 
     return (
         <div className="bg-white p-2 rounded-lg border border-gray-200 flex-shrink-0 sticky top-0 z-10">
@@ -43,6 +50,7 @@ export function DayNavigator({ planDates, selectedDayIndex, onSelectDay, isTempl
                     {planDates.map((d, i) => (
                         <button
                             key={i}
+                            ref={(el) => { dayRefs.current[i] = el; }}
                             onClick={() => onSelectDay(i)}
                             className={`px-3 py-2 text-sm font-medium rounded-md transition-colors min-w-[80px] ${selectedDayIndex === i
                                 ? 'bg-brand text-white'

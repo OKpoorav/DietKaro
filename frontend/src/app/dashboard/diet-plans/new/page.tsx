@@ -78,7 +78,7 @@ function DayNoteCard({ value, onChange, onClear }: {
     const hasValue = value.trim().length > 0;
 
     return (
-        <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2.5">
+        <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2">
             <div className="flex items-center gap-1.5 mb-1.5">
                 <StickyNote className="w-3.5 h-3.5 text-amber-700" />
                 <span className="text-[11px] font-semibold text-amber-800">Day-specific note</span>
@@ -124,7 +124,7 @@ function GeneralGuidelinesCard({ value, onChange }: {
             <button
                 type="button"
                 onClick={() => setExpanded(true)}
-                className="flex-shrink-0 w-full flex items-center gap-2 px-3 py-2 bg-amber-50/60 hover:bg-amber-50 border border-dashed border-amber-300 text-amber-700 text-xs font-medium rounded-lg transition-colors"
+                className="flex-shrink-0 w-full flex items-center gap-2 px-3 py-1.5 bg-amber-50/60 hover:bg-amber-50 border border-dashed border-amber-300 text-amber-700 text-xs font-medium rounded-lg transition-colors"
                 title="Add guidelines that apply to the entire plan"
             >
                 <StickyNote className="w-3.5 h-3.5" />
@@ -135,7 +135,7 @@ function GeneralGuidelinesCard({ value, onChange }: {
     }
 
     return (
-        <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2.5">
+        <div className="flex-shrink-0 bg-amber-50/70 border border-amber-200 rounded-lg p-2">
             <div className="flex items-center gap-1.5 mb-1.5">
                 <StickyNote className="w-3.5 h-3.5 text-amber-700" />
                 <span className="text-[11px] font-semibold text-amber-800">General Guidelines</span>
@@ -178,9 +178,10 @@ interface BuilderPaneProps {
     otherPaneDay?: number;
     builder: ReturnType<typeof useMealBuilder>;
     isTemplateMode: boolean;
+    planHeader?: React.ReactNode; // scrolls away with content; the day navigator below it stays sticky
 }
 
-function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, isTemplateMode }: BuilderPaneProps) {
+function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, isTemplateMode, planHeader }: BuilderPaneProps) {
     const sameDay = otherPaneDay !== undefined && otherPaneDay === dayIndex;
     const dayMeals = builder.getDayMeals(dayIndex);
     const dayKcal = builder.getDayNutrition(dayIndex).calories;
@@ -214,6 +215,7 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
 
     return (
         <div className="flex-1 min-w-0 flex flex-col gap-3 overflow-y-auto pr-1">
+            {planHeader}
             {/* Pane header — label + inline day actions */}
             <div className="flex items-center justify-between gap-2 flex-shrink-0">
                 <div className="flex items-center gap-2 min-w-0">
@@ -749,7 +751,7 @@ function BuilderContent() {
     return (
         <div className="flex flex-col h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)] -m-4 lg:-m-6">
             {/* Top Header */}
-            <header className="flex items-center justify-between border-b border-gray-200 px-3 lg:px-6 py-3 bg-white flex-shrink-0 gap-2 overflow-x-auto">
+            <header className="flex items-center justify-between border-b border-gray-200 px-3 lg:px-6 py-2 bg-white flex-shrink-0 gap-2 overflow-x-auto">
                 <div className="flex items-center gap-3 lg:gap-6 flex-shrink-0">
                     <button
                         onClick={() => guardedNavigate(isTemplateMode ? '/dashboard/diet-plans' : `/dashboard/clients/${clientId}`)}
@@ -775,7 +777,7 @@ function BuilderContent() {
                 <div className="flex gap-2 flex-shrink-0">
                     <button
                         onClick={() => setSplitMode(s => !s)}
-                        className={`h-10 px-3 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                        className={`h-9 px-3 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                             splitMode ? 'bg-brand/10 text-brand hover:bg-brand/20' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                         title={splitMode ? 'Exit split view' : 'Split builder into two panes'}
@@ -787,7 +789,7 @@ function BuilderContent() {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setShowAiDraft(true)}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
                                 title="Draft this template from a free-form prompt"
                             >
                                 <Sparkles className="w-4 h-4" />
@@ -796,7 +798,7 @@ function BuilderContent() {
                             <button
                                 onClick={() => builder.save(false, true)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <LayoutTemplate className="w-4 h-4" />
                                 <span className="hidden sm:inline">Save as Meal Slots</span>
@@ -804,7 +806,7 @@ function BuilderContent() {
                             <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Save className="w-4 h-4" />
                                 <span className="hidden sm:inline">{builder.isSaving ? 'Saving...' : (builder.isEditMode ? 'Update Template' : 'Save Template')}</span>
@@ -814,7 +816,7 @@ function BuilderContent() {
                         <>
                             <button
                                 onClick={() => setShowAiDraft(true)}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
                                 title="Draft this plan from a free-form prompt"
                             >
                                 <Sparkles className="w-4 h-4" />
@@ -822,7 +824,7 @@ function BuilderContent() {
                             </button>
                             <button
                                 onClick={() => setShowBulkModal(true)}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                                 title="Adjust Portions"
                             >
                                 <SlidersHorizontal className="w-4 h-4" />
@@ -831,7 +833,7 @@ function BuilderContent() {
                             <button
                                 onClick={() => { setTemplateNameInput(''); setShowSaveAsTemplate(true); }}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                                 title="Save this plan as a reusable template"
                             >
                                 <LayoutTemplate className="w-4 h-4" />
@@ -840,7 +842,7 @@ function BuilderContent() {
                             <button
                                 onClick={() => builder.save(false)}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Save className="w-4 h-4" />
                                 <span className="hidden sm:inline">Save Draft</span>
@@ -857,7 +859,7 @@ function BuilderContent() {
                                     }
                                 }}
                                 disabled={builder.isSaving}
-                                className="flex items-center gap-2 h-10 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
+                                className="flex items-center gap-2 h-9 px-3 lg:px-4 bg-brand hover:bg-brand/90 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50"
                             >
                                 <Send className="w-4 h-4" />
                                 <span className="hidden sm:inline">Publish</span>
@@ -970,41 +972,54 @@ function BuilderContent() {
 
                 {/* Center — Meal Editor, expanded to fill full remaining width */}
                 <section className="col-span-9 flex flex-col overflow-hidden gap-3">
-                    {/* Plan-level header: date range + General Guidelines, shown before Day 1 */}
-                    <div className="flex-shrink-0 space-y-2">
-                        {!isTemplateMode && (
-                            <p className="text-sm font-semibold text-gray-700">
-                                📅 {formatPlanRange(builder.startDate, builder.numDays)}
-                            </p>
-                        )}
-                        <GeneralGuidelinesCard
-                            value={builder.generalGuidelines}
-                            onChange={builder.updateGeneralGuidelines}
-                        />
-                    </div>
-                    <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
-                        <BuilderPane
-                            dayIndex={selectedDayA}
-                            setDayIndex={setSelectedDayA}
-                            paneLabel={splitMode ? 'A' : undefined}
-                            otherPaneDay={splitMode ? selectedDayB : undefined}
-                            builder={builder}
-                            isTemplateMode={isTemplateMode}
-                        />
-                        {splitMode && (
-                            <>
-                                <div className="w-px bg-gray-200 flex-shrink-0" />
-                                <BuilderPane
-                                    dayIndex={selectedDayB}
-                                    setDayIndex={setSelectedDayB}
-                                    paneLabel="B"
-                                    otherPaneDay={selectedDayA}
-                                    builder={builder}
-                                    isTemplateMode={isTemplateMode}
+                    {/* Plan-level header: date range + General Guidelines. In single-pane
+                        mode it lives inside the pane's scroller so it hides on scroll
+                        while the day navigator stays sticky; in split mode it sits above
+                        both panes. */}
+                    {(() => {
+                        const planHeader = (
+                            <div className="flex-shrink-0 space-y-1.5">
+                                {!isTemplateMode && (
+                                    <p className="text-xs font-semibold text-gray-600">
+                                        📅 {formatPlanRange(builder.startDate, builder.numDays)}
+                                    </p>
+                                )}
+                                <GeneralGuidelinesCard
+                                    value={builder.generalGuidelines}
+                                    onChange={builder.updateGeneralGuidelines}
                                 />
+                            </div>
+                        );
+                        return (
+                            <>
+                                {splitMode && planHeader}
+                                <div className="flex-1 min-h-0 flex overflow-hidden gap-3">
+                                    <BuilderPane
+                                        dayIndex={selectedDayA}
+                                        setDayIndex={setSelectedDayA}
+                                        paneLabel={splitMode ? 'A' : undefined}
+                                        otherPaneDay={splitMode ? selectedDayB : undefined}
+                                        builder={builder}
+                                        isTemplateMode={isTemplateMode}
+                                        planHeader={splitMode ? undefined : planHeader}
+                                    />
+                                    {splitMode && (
+                                        <>
+                                            <div className="w-px bg-gray-200 flex-shrink-0" />
+                                            <BuilderPane
+                                                dayIndex={selectedDayB}
+                                                setDayIndex={setSelectedDayB}
+                                                paneLabel="B"
+                                                otherPaneDay={selectedDayA}
+                                                builder={builder}
+                                                isTemplateMode={isTemplateMode}
+                                            />
+                                        </>
+                                    )}
+                                </div>
                             </>
-                        )}
-                    </div>
+                        );
+                    })()}
                 </section>
 
             </main>

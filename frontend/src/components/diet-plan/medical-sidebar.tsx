@@ -249,80 +249,74 @@ function ReportRow({
 
     return (
         <div className="rounded-lg border border-gray-100 overflow-hidden">
-            {/* Row header */}
-            <div className="flex items-center gap-2 p-3 hover:bg-gray-50 transition-colors">
-                <button
-                    onClick={() => canExpand && setExpanded((v) => !v)}
-                    className={`shrink-0 ${canExpand ? 'text-gray-400 hover:text-brand cursor-pointer' : 'text-gray-200 cursor-default'}`}
-                >
-                    {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
+            {/* Tile header — row 1: name + status + delete, row 2: meta + view */}
+            <div className="p-3 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => canExpand && setExpanded((v) => !v)}
+                        className={`shrink-0 ${canExpand ? 'text-gray-400 hover:text-brand cursor-pointer' : 'text-gray-200 cursor-default'}`}
+                    >
+                        {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
 
-                <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
 
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{report.fileName}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        <span className="text-xs text-gray-400">{typeLabel}</span>
-                        <span className="text-gray-300">·</span>
-                        <span className="text-xs text-gray-400">
-                            {new Date(report.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        </span>
-                        {isStaffUpload && (
-                            <>
-                                <span className="text-gray-300">·</span>
-                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-brand/10 text-brand">
-                                    {report.uploadedByName ? `Added by ${report.uploadedByName}` : 'Added by dietitian'}
-                                </span>
-                            </>
-                        )}
-                    </div>
+                    <p className="flex-1 min-w-0 text-sm font-medium text-gray-800 truncate">{report.fileName}</p>
+
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 ${cfg.className}`}>
+                        {processing && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                        {cfg.label}
+                    </span>
+
+                    {isStaffUpload && (
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={deleteReport.isPending}
+                            aria-label={`Delete ${report.fileName}`}
+                            title="Delete report"
+                            className="shrink-0 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                    )}
                 </div>
 
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 ${cfg.className}`}>
-                    {processing && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
-                    {cfg.label}
-                </span>
+                <div className="flex items-center justify-between gap-2 mt-1 pl-[46px]">
+                    <span className="text-xs text-gray-400 truncate min-w-0">
+                        {typeLabel}
+                        {' · '}
+                        {new Date(report.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        {isStaffUpload && ` · ${report.uploadedByName ? `by ${report.uploadedByName}` : 'by dietitian'}`}
+                    </span>
 
-                {canViewNotes ? (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setNotesOpen(true);
-                        }}
-                        className="shrink-0 flex items-center gap-1 text-[11px] font-medium text-brand hover:underline px-1.5 py-0.5 rounded hover:bg-brand/5 transition-colors"
-                        title="View notes"
-                    >
-                        <Eye className="w-3 h-3" />
-                        View
-                    </button>
-                ) : report.viewUrl ? (
-                    <a
-                        href={report.viewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="shrink-0 flex items-center gap-1 text-[11px] font-medium text-brand hover:underline px-1.5 py-0.5 rounded hover:bg-brand/5 transition-colors"
-                        title="View document"
-                    >
-                        <ExternalLink className="w-3 h-3" />
-                        View
-                    </a>
-                ) : null}
-
-                {isStaffUpload && (
-                    <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={deleteReport.isPending}
-                        aria-label={`Delete ${report.fileName}`}
-                        title="Delete report"
-                        className="shrink-0 p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                )}
+                    {canViewNotes ? (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setNotesOpen(true);
+                            }}
+                            className="shrink-0 flex items-center gap-1 text-[11px] font-medium text-brand hover:underline px-1.5 py-0.5 rounded hover:bg-brand/5 transition-colors"
+                            title="View notes"
+                        >
+                            <Eye className="w-3 h-3" />
+                            View
+                        </button>
+                    ) : report.viewUrl ? (
+                        <a
+                            href={report.viewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="shrink-0 flex items-center gap-1 text-[11px] font-medium text-brand hover:underline px-1.5 py-0.5 rounded hover:bg-brand/5 transition-colors"
+                            title="View document"
+                        >
+                            <ExternalLink className="w-3 h-3" />
+                            View
+                        </a>
+                    ) : null}
+                </div>
             </div>
 
             {/* Expanded panel */}

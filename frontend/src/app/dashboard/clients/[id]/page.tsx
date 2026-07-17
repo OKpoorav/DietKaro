@@ -38,6 +38,7 @@ import { useMealLogs } from '@/lib/hooks/use-meal-logs';
 import { getInitials, calculateAge, formatTime12h } from '@/lib/utils/formatters';
 import { MedicalSidebar } from '@/components/diet-plan/medical-sidebar';
 import { EditClientModal, type EditClientFormData } from '@/components/modals/edit-client-modal';
+import { EditNotesModal } from '@/components/modals/edit-notes-modal';
 import { NotesViewModal } from '@/components/clients/notes-view-modal';
 import { NotesContent } from '@/components/clients/notes-content';
 import { WhatsAppButton } from '@/components/clients/whatsapp-button';
@@ -381,6 +382,7 @@ export default function ClientProfilePage() {
     const updateClient = useUpdateClient();
 
     const [editClientOpen, setEditClientOpen] = useState(false);
+    const [editNotesOpen, setEditNotesOpen] = useState(false);
     const [onboardingModalOpen, setOnboardingModalOpen] = useState(false);
     const [consultationModalOpen, setConsultationModalOpen] = useState(false);
     const [reassignOpen, setReassignOpen] = useState(false);
@@ -474,15 +476,29 @@ export default function ClientProfilePage() {
     return (
         <div className="space-y-6">
             {/* ── Header ── */}
-            <header className="flex flex-col gap-6">
+            <header className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
-                    <Link
-                        href="/dashboard/clients"
-                        className="flex items-center gap-2 text-brand hover:text-gray-900 transition-colors"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                        <span className="text-sm font-medium">Back to Clients</span>
-                    </Link>
+                    <div className="flex items-center gap-3 min-w-0">
+                        <Link
+                            href="/dashboard/clients"
+                            aria-label="Back to Clients"
+                            title="Back to Clients"
+                            className="flex items-center gap-2 text-brand hover:text-gray-900 transition-colors shrink-0"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand text-sm font-bold shrink-0">
+                            {getInitials(client.fullName)}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                            <h1 className="text-xl font-bold text-gray-900 tracking-tight truncate">{client.fullName}</h1>
+                            <WhatsAppButton phone={client.phone} clientName={client.fullName} size="md" />
+                            {(client.tagAssignments?.length ?? 0) > 0 &&
+                                client.tagAssignments!.map((a) => (
+                                    <TagChip key={a.tagId} name={a.tag.name} color={a.tag.color} size="sm" />
+                                ))}
+                        </div>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
@@ -538,105 +554,126 @@ export default function ClientProfilePage() {
                     </div>
                 </div>
 
-                {/* Profile card */}
-                <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                        <div className="w-20 h-20 rounded-full bg-brand/10 flex items-center justify-center text-brand text-2xl font-bold shrink-0">
-                            {getInitials(client.fullName)}
-                        </div>
-                        <div className="flex flex-col justify-center">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{client.fullName}</h1>
-                                <WhatsAppButton phone={client.phone} clientName={client.fullName} size="md" />
-                            </div>
-                            <p className="text-sm text-gray-500 mt-0.5">
-                                {age !== null && `Age ${age}`}{age !== null && client.gender && ' · '}{client.gender && client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}
+                {/* Profile card — contact | health status | goal | notes */}
+                <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                    {/* Contact + compact weight strip */}
+                    <div className="flex flex-col gap-1">
+                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Contact</p>
+                        <p className="text-sm text-gray-700">
+                            {age !== null && `Age ${age}`}{age !== null && client.gender && ' · '}{client.gender && client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}
+                        </p>
+                        {client.email && <p className="text-sm text-gray-500 truncate">{client.email}</p>}
+                        {client.phone && <p className="text-sm text-gray-500">{client.phone}</p>}
+                        {permissions.canViewTeam && client.primaryDietitian && (
+                            <p className="text-xs text-purple-600 font-medium">
+                                Assigned to {client.primaryDietitian.fullName}
                             </p>
-                            <p className="text-sm text-gray-500">{client.email}{client.phone ? ` · ${client.phone}` : ''}</p>
-                            {permissions.canViewTeam && client.primaryDietitian && (
-                                <p className="text-xs text-purple-600 font-medium mt-0.5">
-                                    Assigned to {client.primaryDietitian.fullName}
-                                </p>
-                            )}
-                            {(client.tagAssignments?.length ?? 0) > 0 && (
-                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                    {client.tagAssignments!.map((a) => (
-                                        <TagChip key={a.tagId} name={a.tag.name} color={a.tag.color} size="sm" />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        )}
+                        {(progress?.weight?.currentWeight ?? client.currentWeightKg) != null && (
+                            <p className="inline-flex items-center gap-1.5 mt-1.5 text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2 py-1 self-start tabular-nums">
+                                <TrendingDown className="w-3.5 h-3.5 text-brand" />
+                                <span className="font-semibold text-gray-900">
+                                    {progress?.weight?.currentWeight ?? client.currentWeightKg}kg
+                                </span>
+                                {(progress?.weight?.targetWeight ?? client.targetWeightKg) != null && (
+                                    <span className="text-gray-400">→ {progress?.weight?.targetWeight ?? client.targetWeightKg}kg goal</span>
+                                )}
+                                {weightChange != null && (
+                                    <span className={weightChange < 0 ? 'text-brand font-medium' : 'text-orange-500 font-medium'}>
+                                        {weightChange > 0 ? '+' : ''}{weightChange} /30d
+                                    </span>
+                                )}
+                            </p>
+                        )}
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-6 md:items-start">
-                        {(client.goal || client.goalDeadline) && (
-                            <div className="flex flex-col gap-2 md:min-w-[200px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
-                                {client.goal && (
-                                    <div className="flex items-start gap-2">
-                                        <Target className="w-4 h-4 text-brand mt-0.5 shrink-0" />
-                                        <div>
-                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Goal</p>
-                                            <p className="text-sm font-semibold text-gray-900">{client.goal}</p>
-                                        </div>
-                                    </div>
-                                )}
-                                {client.goalDeadline && (
-                                    <div className="flex items-start gap-2">
-                                        <Calendar className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
-                                        <div>
-                                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Target Date</p>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                                {new Date(client.goalDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
+                    {/* Health status */}
+                    <div className="flex flex-col gap-1.5">
+                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Health Status</p>
+                        {(client.medicalConditions?.length || client.allergies?.length) ? (
+                            <div className="flex flex-wrap gap-1.5">
+                                {client.medicalConditions?.map((c) => (
+                                    <span key={`mc-${c}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                        {c}
+                                    </span>
+                                ))}
+                                {client.allergies?.map((a) => (
+                                    <span key={`al-${a}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                                        <AlertCircle className="w-3 h-3 mr-1" />
+                                        {a}
+                                    </span>
+                                ))}
                             </div>
+                        ) : (
+                            <p className="text-sm text-gray-400 italic">No known conditions or allergies</p>
                         )}
+                    </div>
 
-                        <div className="flex flex-col gap-1 md:min-w-[220px] md:max-w-[320px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Notes</p>
-                                <div className="flex items-center gap-1">
-                                    {(client.remarks || client.extractedNotes) && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setNotesViewOpen(true)}
-                                            className="text-gray-400 hover:text-brand transition-colors p-0.5"
-                                            aria-label="View full notes"
-                                            title="View full notes"
-                                        >
-                                            <Eye className="w-3.5 h-3.5" />
-                                        </button>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditClientOpen(true)}
-                                        className="text-gray-400 hover:text-brand transition-colors p-0.5"
-                                        aria-label="Edit notes"
-                                        title="Edit notes"
-                                    >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </button>
+                    {/* Goal + target date */}
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-start gap-2">
+                            <Target className="w-4 h-4 text-brand mt-0.5 shrink-0" />
+                            <div>
+                                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Goal</p>
+                                <p className="text-sm font-semibold text-gray-900">{client.goal || <span className="text-gray-400 italic font-normal">Not set</span>}</p>
+                            </div>
+                        </div>
+                        {client.goalDeadline && (
+                            <div className="flex items-start gap-2">
+                                <Calendar className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+                                <div>
+                                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Target Date</p>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {new Date(client.goalDeadline).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                    </p>
                                 </div>
                             </div>
-                            {client.remarks || client.extractedNotes ? (
-                                <NotesContent
-                                    rawNotes={client.remarks}
-                                    extracted={client.extractedNotes?.extracted}
-                                    density="compact"
-                                    clamp
-                                />
-                            ) : (
+                        )}
+                    </div>
+
+                    {/* Notes */}
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Notes</p>
+                            <div className="flex items-center gap-1">
+                                {(client.remarks || client.extractedNotes) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotesViewOpen(true)}
+                                        className="text-gray-400 hover:text-brand transition-colors p-0.5"
+                                        aria-label="View full notes"
+                                        title="View full notes"
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
                                 <button
                                     type="button"
-                                    onClick={() => setEditClientOpen(true)}
-                                    className="text-sm text-gray-400 italic text-left hover:text-brand transition-colors"
+                                    onClick={() => setEditNotesOpen(true)}
+                                    className="text-gray-400 hover:text-brand transition-colors p-0.5"
+                                    aria-label="Edit notes"
+                                    title="Edit notes"
                                 >
-                                    Add notes…
+                                    <Pencil className="w-3.5 h-3.5" />
                                 </button>
-                            )}
+                            </div>
                         </div>
+                        {client.remarks || client.extractedNotes ? (
+                            <NotesContent
+                                rawNotes={client.remarks}
+                                extracted={client.extractedNotes?.extracted}
+                                density="compact"
+                                clamp
+                            />
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setEditNotesOpen(true)}
+                                className="text-sm text-gray-400 italic text-left hover:text-brand transition-colors"
+                            >
+                                Add notes…
+                            </button>
+                        )}
                     </div>
                 </div>
             </header>
@@ -880,20 +917,11 @@ export default function ClientProfilePage() {
                                 )}
                             </div>
 
-                            {/* Subscription */}
-                            <ClientSubscriptionCard clientId={clientId} clientName={client.fullName} />
-
-                            {/* Payment History */}
-                            <PaymentHistoryList clientId={clientId} />
-
                             {/* Consultations */}
                             <ConsultationsCard clientId={clientId} clientName={client.fullName} clientPhone={client.phone} />
 
                             {/* Call Notes */}
                             <CallNotesCard clientId={clientId} clientPhone={client.phone} />
-
-                            {/* Onboarding Link */}
-                            <OnboardingInviteCard clientId={clientId} clientName={client.fullName} orgName={org?.name ?? ''} client={client} />
 
                             {/* Nutrition Targets — editable */}
                             <div className="rounded-2xl bg-white shadow-sm border border-gray-100 p-5">
@@ -967,6 +995,15 @@ export default function ClientProfilePage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Onboarding Link */}
+                            <OnboardingInviteCard clientId={clientId} clientName={client.fullName} orgName={org?.name ?? ''} client={client} />
+
+                            {/* Subscription */}
+                            <ClientSubscriptionCard clientId={clientId} clientName={client.fullName} />
+
+                            {/* Payment History */}
+                            <PaymentHistoryList clientId={clientId} />
                         </div>
                     </div>
                 )}
@@ -1254,6 +1291,11 @@ export default function ClientProfilePage() {
                 onClose={() => setNotesViewOpen(false)}
                 notes={client.remarks}
                 extracted={client.extractedNotes?.extracted}
+            />
+            <EditNotesModal
+                client={client}
+                isOpen={editNotesOpen}
+                onClose={() => setEditNotesOpen(false)}
             />
             <OnboardingLinkModal
                 isOpen={onboardingModalOpen}

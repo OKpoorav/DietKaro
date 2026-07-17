@@ -30,6 +30,7 @@ import { NotificationDropdown } from '@/components/notification-dropdown';
 import { useProfile } from '@/lib/hooks/use-profile';
 import { useClerk } from '@clerk/nextjs';
 import { MobileBottomNav } from '@/components/mobile-bottom-nav';
+import { GlobalClientSearch } from '@/components/global-client-search';
 
 type PermissionKey = 'canViewTeam' | 'canViewAnalytics' | 'canViewReferrals' | 'canViewSubscriptions' | 'canViewLeads';
 
@@ -233,13 +234,19 @@ export default function DashboardLayout({
                             <UserButton afterSignOutUrl="/" />
                         </div>
                     </div>
+                    <div className="px-4 pb-3">
+                        <GlobalClientSearch />
+                    </div>
                 </header>
 
                 {/* Desktop top bar */}
                 <header className="sticky top-0 z-30 bg-white border-b border-gray-200 hidden lg:block">
-                    <div className="flex items-center justify-end h-16 px-6 gap-3">
-                        <NotificationDropdown />
-                        <UserButton afterSignOutUrl="/" />
+                    <div className="flex items-center justify-between h-16 px-6 gap-3">
+                        <GlobalClientSearch />
+                        <div className="flex items-center gap-3 shrink-0">
+                            <NotificationDropdown />
+                            <UserButton afterSignOutUrl="/" />
+                        </div>
                     </div>
                 </header>
 
