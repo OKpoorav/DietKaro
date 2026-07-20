@@ -224,7 +224,7 @@ function BuilderPane({ dayIndex, setDayIndex, paneLabel, otherPaneDay, builder, 
                             Pane {paneLabel}
                         </span>
                     )}
-                    <span className="text-xs text-gray-500 truncate">
+                    <span className="text-sm font-semibold text-gray-700 tabular-nums truncate">
                         {Math.round(dayKcal)} kcal
                     </span>
                     {sameDay && (
@@ -882,7 +882,7 @@ function BuilderContent() {
             {/* Main Content */}
             <div className="flex-grow overflow-x-auto bg-gray-50">
             <div className="flex-1 flex min-h-0 h-full">
-            <main className="flex-1 min-w-0 grid grid-cols-12 gap-4 p-4 h-full overflow-hidden bg-gray-50">
+            <main className="flex-1 min-w-0 grid grid-cols-12 gap-4 p-4 h-full overflow-hidden bg-[#F4F6F8]">
                 {/* Left Sidebar */}
                 <aside className="col-span-3 flex flex-col overflow-y-auto overflow-x-hidden pr-2 gap-3 pb-4">
 
@@ -980,7 +980,7 @@ function BuilderContent() {
                         const planHeader = (
                             <div className="flex-shrink-0 space-y-1.5">
                                 {!isTemplateMode && (
-                                    <p className="text-xs font-semibold text-gray-600">
+                                    <p className="text-xs font-semibold text-gray-700">
                                         📅 {formatPlanRange(builder.startDate, builder.numDays)}
                                     </p>
                                 )}

@@ -53,7 +53,7 @@ export function DayNavigator({ planDates, selectedDayIndex, onSelectDay, isTempl
                             ref={(el) => { dayRefs.current[i] = el; }}
                             onClick={() => onSelectDay(i)}
                             className={`px-3 py-2 text-sm font-medium rounded-md transition-colors min-w-[80px] ${selectedDayIndex === i
-                                ? 'bg-brand text-white'
+                                ? 'bg-blue-600 text-white'
                                 : 'text-gray-500 hover:bg-gray-100'
                                 }`}
                         >

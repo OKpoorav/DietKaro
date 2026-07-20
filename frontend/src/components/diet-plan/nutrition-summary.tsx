@@ -100,9 +100,9 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
             {/* Nutrition Summary */}
             <div className="bg-white p-4 rounded-lg border border-gray-200 sticky top-0">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-gray-900 font-medium">Daily Summary</h3>
+                    <h3 className="text-[15px] font-semibold text-gray-900">Daily Summary</h3>
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">Target: {targets.calories} Kcal</span>
+                        <span className="text-xs font-medium text-gray-600">Target: {targets.calories} Kcal</span>
                         {onHideCaloriesChange && (
                             <button
                                 onClick={() => onHideCaloriesChange(!hideCaloriesFromClient)}
@@ -170,9 +170,9 @@ export function NutritionSummary({ dayNutrition, targets, hasAllergyWarning, onT
                                             {Math.round(value)} / {target} {unit}
                                         </span>
                                     </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div className="w-full bg-gray-200 rounded-full h-2.5">
                                         <div
-                                            className={`h-2 rounded-full transition-all ${isOver ? 'bg-red-500' : 'bg-brand'}`}
+                                            className={`h-2.5 rounded-full transition-all ${isOver ? 'bg-red-500' : 'bg-brand'}`}
                                             style={{ width: `${barWidth}%` }}
                                         />
                                     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { Trash2, Plus, GitBranch, FileText, ChevronDown, ChevronRight, Copy, ClipboardPaste } from 'lucide-react';
+import { Trash2, Plus, GitBranch, FileText, Copy, ClipboardPaste } from 'lucide-react';
 import type { LocalMeal, LocalFoodItem } from '@/lib/types/diet-plan.types';
 import { TimeInput12h } from './time-input-12h';
 import { NumberInput } from '@/components/ui/number-input';
@@ -88,7 +88,7 @@ const FOOD_GRID = 'grid grid-cols-[8px_minmax(0,1fr)_52px_104px_28px_28px_28px_5
 
 function FoodColumnHeader() {
     return (
-        <div className={`${FOOD_GRID} px-2.5 py-1.5 bg-gray-50/70 border-b border-gray-100 text-[10px] font-bold uppercase tracking-wide text-gray-400`}>
+        <div className={`${FOOD_GRID} px-4 py-1.5 bg-white border-b border-gray-100 text-[10px] font-bold uppercase tracking-wide text-gray-500`}>
             <span />
             <span>Food</span>
             <span className="text-right">Qty</span>
@@ -158,25 +158,25 @@ function FoodItemRow({
     );
 
     return (
-        <div className={`border-l-[3px] ${edge} ${tint}`}>
-            <div className={`${FOOD_GRID} px-2.5 py-1.5`}>
+        <div className={`border-l-[3px] ${edge} ${tint} odd:bg-gray-50/50 hover:bg-blue-50/40 transition-colors`}>
+            <div className={`${FOOD_GRID} px-4 py-2`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
                 <span className="min-w-0 truncate text-sm font-medium text-gray-800">
                     {food.name}
-                    {resolvedQty && <span className="ml-1.5 text-xs font-normal text-gray-400">{resolvedQty}</span>}
+                    {resolvedQty && <span className="ml-1.5 text-xs font-normal text-gray-500">{resolvedQty}</span>}
                 </span>
                 <NumberInput
                     min={0.1}
                     step={0.5}
                     value={qty}
                     onChange={handleQtyChange}
-                    className="w-full text-sm text-right px-1.5 py-1 border border-gray-200 rounded-md text-gray-900 bg-white tabular-nums"
+                    className="w-full text-sm text-right px-1.5 py-1.5 border border-gray-300 rounded-md text-gray-900 bg-white tabular-nums"
                 />
                 <select
                     value={unit}
                     onChange={(e) => handleUnitChange(e.target.value)}
                     title={selectedDef?.tooltip}
-                    className="w-full text-xs px-1.5 py-1 border border-gray-200 rounded-md text-gray-600 bg-white cursor-pointer"
+                    className="w-full text-xs px-1.5 py-1.5 border border-gray-300 rounded-md text-gray-700 bg-white cursor-pointer"
                 >
                     {HOUSEHOLD_UNITS.map(u => (
                         <option key={u.label} value={u.label} title={u.tooltip}>{u.label}</option>
@@ -195,7 +195,7 @@ function FoodItemRow({
                 </button>
             </div>
             {food.validationAlerts && food.validationAlerts.length > 0 && (
-                <p className={`text-xs pl-[26px] pr-2.5 pb-1.5 ${alert}`}>
+                <p className={`text-xs pl-[32px] pr-4 pb-1.5 ${alert}`}>
                     {food.validationAlerts[0].message}
                 </p>
             )}
@@ -267,9 +267,9 @@ function MealCard({
     const clock = clockParts(meal.time);
 
     return (
-        <div className="group relative pl-[62px] pb-4 last:pb-0 before:content-[''] before:absolute before:left-[43px] before:top-6 before:bottom-0 before:w-0.5 before:bg-gray-200 last:before:hidden">
-            {/* Timeline clock + node */}
-            <div className="absolute left-0 top-1 w-10 text-right leading-tight">
+        <div className="group relative pl-[76px] pb-6 last:pb-0 before:content-[''] before:absolute before:left-[52px] before:top-8 before:bottom-0 before:w-0.5 before:bg-gray-200 last:before:hidden">
+            {/* Timeline clock + node — clock sits clear of the node on its own column */}
+            <div className="absolute left-0 top-3.5 w-10 text-right leading-tight">
                 {clock ? (
                     <><span className="block text-[11px] font-bold text-gray-500 tabular-nums">{clock.hm}</span>
                     <span className="block text-[10px] font-bold text-gray-400">{clock.ap}</span></>
@@ -277,35 +277,49 @@ function MealCard({
                     <span className="block text-[11px] text-gray-300">--:--</span>
                 )}
             </div>
-            <span className="absolute left-[39px] top-1.5 w-3 h-3 rounded-full bg-white border-[3px] border-brand" />
+            <span className="absolute left-[46px] top-4 w-3 h-3 rounded-full bg-white border-[3px] border-blue-500" />
 
-            {/* Meal header */}
-            <div className="flex items-center gap-2 min-h-[28px]">
+            {/* Meal card */}
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+
+            {/* Header band — identity left, numbers right */}
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-gray-50/80 border-b border-gray-100">
                 <input
                     value={meal.name}
                     onChange={(e) => onUpdateMealField(meal.id, 'name', e.target.value)}
-                    className="font-bold text-[15px] text-gray-900 border-none p-0 focus:ring-0 w-28 bg-transparent"
+                    className="font-bold text-lg text-gray-900 border-none p-0 focus:ring-0 w-36 bg-transparent"
                 />
                 <TimeInput12h
                     value={meal.time}
                     onChange={(v) => onUpdateMealField(meal.id, 'time', v)}
                 />
                 <div className="ml-auto flex items-center gap-2.5">
-                    <span className="text-[11.5px] text-gray-500 tabular-nums hidden sm:inline">
+                    <span className="text-xs text-gray-600 tabular-nums hidden sm:inline">
                         P<b className="text-gray-800">{Math.round(rollup.p)}</b> · C<b className="text-gray-800">{Math.round(rollup.c)}</b> · F<b className="text-gray-800">{Math.round(rollup.f)}</b>
                     </span>
                     {share !== null && (
-                        <span className="text-[11px] font-bold text-brand bg-green-50 rounded px-1.5 py-0.5">{share}% of day</span>
+                        <span className="text-[11px] font-bold text-blue-700 bg-blue-50 rounded px-1.5 py-0.5">{share}% of day</span>
                     )}
-                    <span className="text-xs text-gray-500 tabular-nums"><b className="text-gray-900 text-[13px]">{Math.round(rollup.kcal)}</b> kcal</span>
+                    <span className="text-xs text-gray-500 tabular-nums whitespace-nowrap"><b className="text-gray-900 text-[15px]">{Math.round(rollup.kcal)}</b> kcal</span>
+                    <button
+                        onClick={() => setNotesOpen(!notesOpen)}
+                        title={hasNotes ? 'Meal notes (has content)' : 'Meal notes'}
+                        className={`flex items-center gap-1 px-1.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                            notesOpen ? 'text-blue-700 bg-blue-50' : hasNotes ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span className="hidden lg:inline">Notes</span>
+                        {hasNotes && !notesOpen && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                    </button>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {onCopyMeal && (
-                            <button onClick={() => onCopyMeal(meal.id)} className="p-1 text-gray-400 hover:text-brand hover:bg-brand/10 rounded transition-colors" title="Copy meal">
+                            <button onClick={() => onCopyMeal(meal.id)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Copy meal">
                                 <Copy className="w-3.5 h-3.5" />
                             </button>
                         )}
                         {onPasteMeal && (
-                            <button onClick={() => onPasteMeal(meal.id)} disabled={!hasMealClipboard} className="p-1 text-gray-400 hover:text-brand hover:bg-brand/10 rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400" title={hasMealClipboard ? "Replace this meal's foods with the copied meal" : 'Copy a meal first'}>
+                            <button onClick={() => onPasteMeal(meal.id)} disabled={!hasMealClipboard} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400" title={hasMealClipboard ? "Replace this meal's foods with the copied meal" : 'Copy a meal first'}>
                                 <ClipboardPaste className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -316,63 +330,58 @@ function MealCard({
                 </div>
             </div>
 
-            {/* Meal Notes — collapsible */}
-            <div className="mt-1.5">
-                <button
-                    onClick={() => setNotesOpen(!notesOpen)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                    {notesOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                    <FileText className="w-3.5 h-3.5" />
-                    Meal notes
-                    {hasNotes && !notesOpen && <span className="w-1.5 h-1.5 rounded-full bg-brand" />}
-                </button>
-                {notesOpen && (
-                    <div className="mt-2 space-y-2 pl-5">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Description (visible to client)</label>
-                            <textarea
-                                value={meal.description || ''}
-                                onChange={(e) => onUpdateMealField(meal.id, 'description', e.target.value)}
-                                placeholder="e.g. Light protein-rich breakfast, ready in 10 min"
-                                rows={2}
-                                className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-md text-gray-800 placeholder:text-gray-300 focus:ring-1 focus:ring-brand/20 focus:border-brand outline-none resize-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Preparation Instructions</label>
-                            <textarea
-                                value={meal.instructions || ''}
-                                onChange={(e) => onUpdateMealField(meal.id, 'instructions', e.target.value)}
-                                placeholder="e.g. Boil eggs 8 min. Toast bread lightly. No butter."
-                                rows={2}
-                                className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-md text-gray-800 placeholder:text-gray-300 focus:ring-1 focus:ring-brand/20 focus:border-brand outline-none resize-none"
-                            />
-                        </div>
+            {/* Meal notes editor — tucked under the header, only when opened */}
+            {notesOpen && (
+                <div className="px-4 py-3 space-y-2 bg-gray-50/40 border-b border-gray-100">
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Description (visible to client)</label>
+                        <textarea
+                            value={meal.description || ''}
+                            onChange={(e) => onUpdateMealField(meal.id, 'description', e.target.value)}
+                            placeholder="e.g. Light protein-rich breakfast, ready in 10 min"
+                            rows={2}
+                            className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-md text-gray-800 placeholder:text-gray-300 bg-white focus:ring-1 focus:ring-brand/20 focus:border-brand outline-none resize-none"
+                        />
                     </div>
-                )}
-            </div>
+                    <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Preparation Instructions</label>
+                        <textarea
+                            value={meal.instructions || ''}
+                            onChange={(e) => onUpdateMealField(meal.id, 'instructions', e.target.value)}
+                            placeholder="e.g. Boil eggs 8 min. Toast bread lightly. No butter."
+                            rows={2}
+                            className="w-full text-sm px-2.5 py-1.5 border border-gray-200 rounded-md text-gray-800 placeholder:text-gray-300 bg-white focus:ring-1 focus:ring-brand/20 focus:border-brand outline-none resize-none"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Foods — flat table when no alternatives, grouped options when alternatives exist */}
             {!hasAlternatives ? (
-                <div className="mt-2 border border-gray-200 rounded-xl bg-white overflow-hidden">
-                    <FoodColumnHeader />
-                    <div className="divide-y divide-gray-100">
-                        {meal.foods.map((food) => (
-                            <FoodItemRow
-                                key={food.tempId}
-                                food={food}
-                                mealId={meal.id}
-                                onRemoveFood={onRemoveFood}
-                                onUpdateFoodQuantity={onUpdateFoodQuantity}
-                                onUpdateFoodQuantityValue={onUpdateFoodQuantityValue}
-                            />
-                        ))}
-                    </div>
-                    <div className="flex items-center gap-2 px-2.5 py-2 border-t border-gray-100 bg-gray-50/40">
+                <div>
+                    {meal.foods.length > 0 ? (
+                        <>
+                            <FoodColumnHeader />
+                            <div className="divide-y divide-gray-100">
+                                {meal.foods.map((food) => (
+                                    <FoodItemRow
+                                        key={food.tempId}
+                                        food={food}
+                                        mealId={meal.id}
+                                        onRemoveFood={onRemoveFood}
+                                        onUpdateFoodQuantity={onUpdateFoodQuantity}
+                                        onUpdateFoodQuantityValue={onUpdateFoodQuantityValue}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <p className="px-4 py-4 text-[13px] text-gray-400 text-center">No foods in this meal yet</p>
+                    )}
+                    <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-100 bg-gray-50/40">
                         <button
                             onClick={() => onOpenAddFood(meal.id, 0)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-dashed border-gray-300 rounded-lg hover:bg-brand/5 hover:border-brand hover:text-brand transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-dashed border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors"
                         >
                             <Plus className="w-3.5 h-3.5" />
                             Add food item
@@ -380,7 +389,7 @@ function MealCard({
                         {onAddAlternative && (
                             <button
                                 onClick={() => onAddAlternative(meal.id)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-gray-400 rounded-lg hover:bg-brand/5 hover:text-brand transition-colors"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-gray-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"
                             >
                                 <GitBranch className="w-3.5 h-3.5" />
                                 Add alternative option
@@ -389,7 +398,7 @@ function MealCard({
                     </div>
                 </div>
             ) : (
-                <div className="mt-2 border border-gray-200 rounded-xl bg-white overflow-hidden">
+                <div>
                     {groupedFoods.map(([optionGroup, foods], idx) => {
                         const optRollup = foods.reduce(
                             (acc, f) => ({ kcal: acc.kcal + f.calories, p: acc.p + f.protein, c: acc.c + f.carbs, f: acc.f + f.fat }),
@@ -448,10 +457,10 @@ function MealCard({
                                             />
                                         ))}
                                     </div>
-                                    <div className="px-2.5 py-2">
+                                    <div className="px-4 py-2.5">
                                         <button
                                             onClick={() => onOpenAddFood(meal.id, optionGroup)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 bg-white border border-dashed border-gray-300 rounded-lg hover:bg-brand/5 hover:border-brand hover:text-brand transition-colors"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-500 bg-white border border-dashed border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-colors"
                                         >
                                             <Plus className="w-3.5 h-3.5" />
                                             Add food to this option
@@ -464,7 +473,7 @@ function MealCard({
                     {onAddAlternative && (
                         <button
                             onClick={() => onAddAlternative(meal.id)}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-gray-400 border-t border-dashed border-gray-200 hover:bg-brand/5 hover:text-brand transition-colors"
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-gray-400 border-t border-dashed border-gray-200 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                         >
                             <GitBranch className="w-3.5 h-3.5" />
                             Add alternative option
@@ -472,6 +481,7 @@ function MealCard({
                     )}
                 </div>
             )}
+            </div>
         </div>
     );
 }
@@ -535,7 +545,7 @@ export function MealEditor({
             {/* Add Meal Button */}
             <button
                 onClick={onAddMeal}
-                className="w-full flex items-center justify-center gap-2 py-3 mt-1 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:bg-gray-50 hover:border-brand hover:text-brand transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-3 mt-1 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:bg-gray-50 hover:border-blue-400 hover:text-blue-600 transition-colors"
             >
                 <Plus className="w-5 h-5" />
                 <span className="text-sm font-medium">Add another meal</span>
